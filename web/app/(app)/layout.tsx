@@ -49,9 +49,11 @@ export default async function AppLayout({
             </Link>
           )}
           <span className="text-zinc-500">{user.name || user.loginId}님</span>
-          <Link href="/logout" className="text-zinc-500 hover:text-zinc-900">
-            로그아웃
-          </Link>
+          <form action="/logout" method="POST" className="inline">
+            <button type="submit" className="text-zinc-500 hover:text-zinc-900">
+              로그아웃
+            </button>
+          </form>
         </div>
       </header>
       <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">{children}</main>

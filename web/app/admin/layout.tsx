@@ -25,9 +25,11 @@ export default async function AdminLayout({
           <Link href="/dashboard" className="text-zinc-300 hover:text-white">
             사용자 화면
           </Link>
-          <Link href="/logout" className="text-zinc-300 hover:text-white">
-            로그아웃
-          </Link>
+          <form action="/logout" method="POST" className="inline">
+            <button type="submit" className="text-zinc-300 hover:text-white">
+              로그아웃
+            </button>
+          </form>
         </div>
       </header>
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">{children}</main>

@@ -20,3 +20,6 @@ Thumbs.db
 
 # 루트 의존성(없지만 안전망)
 node_modules/
+
+# puppeteer 로컬 테스트
+web/pup-test.js

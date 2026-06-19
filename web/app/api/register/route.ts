@@ -6,6 +6,15 @@ function redirectTo(path: string) {
   return new NextResponse(null, { status: 303, headers: { Location: path } });
 }
 
+function setCookieAndGo(token: string, path: string) {
+  const res = new NextResponse(
+    `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${path}"></head><body style="font-family:sans-serif;padding:2rem">처리 중…<script>location.replace(${JSON.stringify(path)})</script></body></html>`,
+    { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } },
+  );
+  res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
+  return res;
+}
+
 export async function POST(req: Request) {
   const form = await req.formData();
   const input = {
@@ -30,7 +39,5 @@ export async function POST(req: Request) {
   }
 
   const token = await signSession(userId, role);
-  const res = redirectTo("/dashboard");
-  res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
-  return res;
+  return setCookieAndGo(token, "/dashboard");
 }

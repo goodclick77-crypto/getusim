@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { loginAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +25,7 @@ export default async function LoginPage({
             {ERRORS[error] ?? "로그인에 실패했습니다."}
           </p>
         )}
-        <form action={loginAction} className="mt-4 space-y-3">
+        <form action="/api/login" method="POST" className="mt-4 space-y-3">
           <input
             name="loginId"
             placeholder="아이디"

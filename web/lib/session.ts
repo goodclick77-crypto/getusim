@@ -3,28 +3,41 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import { prisma } from "./prisma";
 
-const COOKIE = "getusim_session";
+export const SESSION_COOKIE = "getusim_session";
+const COOKIE = SESSION_COOKIE;
 const secret = new TextEncoder().encode(
   process.env.AUTH_SECRET || "dev-secret-change-in-production",
 );
 
 export type SessionPayload = { uid: number; role: string };
 
-export async function createSession(uid: number, role: string) {
-  const token = await new SignJWT({ uid, role })
+const MAX_AGE = 60 * 60 * 24 * 30; // 30일
+
+/** 세션 쿠키 옵션 (Route Handler에서 response.cookies.set 에 사용) */
+export function sessionCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    maxAge: MAX_AGE,
+    path: "/",
+  };
+}
+
+/** 세션 JWT 발급 */
+export async function signSession(uid: number, role: string) {
+  return new SignJWT({ uid, role })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("30d")
     .sign(secret);
+}
 
+/** 서버 액션/컴포넌트에서 쿠키 직접 세팅 */
+export async function createSession(uid: number, role: string) {
+  const token = await signSession(uid, role);
   const store = await cookies();
-  store.set(COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 30,
-    path: "/",
-  });
+  store.set(COOKIE, token, sessionCookieOptions());
 }
 
 export async function destroySession() {

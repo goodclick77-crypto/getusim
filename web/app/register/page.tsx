@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { registerAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +20,7 @@ export default async function RegisterPage({
             {error}
           </p>
         )}
-        <form action={registerAction} className="mt-4 space-y-3">
+        <form action="/api/register" method="POST" className="mt-4 space-y-3">
           <input name="loginId" placeholder="아이디 (영문/숫자 3~20자)" className="w-full rounded-lg border border-zinc-300 px-3 py-2.5" />
           <input name="password" type="password" placeholder="비밀번호 (6자 이상)" className="w-full rounded-lg border border-zinc-300 px-3 py-2.5" />
           <input name="name" placeholder="이름" className="w-full rounded-lg border border-zinc-300 px-3 py-2.5" />

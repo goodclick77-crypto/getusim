@@ -1,0 +1,173 @@
+// GetUsim — 글로벌 SMS 인증(5sim 기반) 포인트충전 서비스
+// 레거시 그누보드5(g5_*) 스키마를 도메인 중심으로 재설계.
+// 각 모델 주석의 "← g5_xxx" 는 데이터 마이그레이션 시 원본 매핑.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// 회원  ← g5_member
+model User {
+  id            Int       @id @default(autoincrement()) // ← mb_no
+  loginId       String    @unique @map("login_id")       // ← mb_id
+  passwordHash  String    @map("password_hash")          // 신규 bcrypt 해시(최초 로그인 시 레거시→재해시)
+  legacyHash    String?   @map("legacy_hash")            // ← mb_password (그누보드 해시, 마이그레이션 후 재해시 전까지 보관)
+  name          String    @default("")                  // ← mb_name
+  nickname      String    @default("")                  // ← mb_nick
+  email         String    @default("")                  // ← mb_email
+  phone         String    @default("")                  // ← mb_hp
+  level         Int       @default(2)                    // ← mb_level (2=일반, 1=준회원, 10=관리자)
+  role          Role      @default(USER)
+  point         Int       @default(0)                    // ← mb_point (포인트 잔액)
+  recommendedBy String    @default("") @map("recommended_by") // ← mb_recommend
+  smsAgree      Boolean   @default(false) @map("sms_agree")   // ← mb_sms
+  mailAgree     Boolean   @default(false) @map("mail_agree")  // ← mb_mailling
+  memo          String?   @db.Text                       // ← mb_memo (관리자 메모)
+  extra         Json?                                    // ← mb_1..mb_10 등 커스텀 필드 보존
+  lastLoginAt   DateTime? @map("last_login_at")          // ← mb_today_login
+  lastLoginIp   String    @default("") @map("last_login_ip") // ← mb_login_ip
+  leftAt        DateTime? @map("left_at")                // ← mb_leave_date (탈퇴)
+  createdAt     DateTime  @default(now()) @map("created_at")  // ← mb_datetime
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  pointLogs    PointLog[]
+  chargeOrders ChargeOrder[]
+  inquiries    Inquiry[]
+  rentals      NumberRental[]
+
+  @@index([email])
+  @@index([phone])
+  @@map("user")
+}
+
+enum Role {
+  USER
+  VIP
+  ADMIN
+}
+
+/// 포인트 적립/차감 내역  ← g5_point
+model PointLog {
+  id           Int      @id @default(autoincrement()) // ← po_id
+  userId       Int      @map("user_id")
+  amount       Int                                     // ← po_point (+적립 / -차감)
+  balanceAfter Int      @map("balance_after")          // ← po_mb_point (변동 후 잔액)
+  reason       String   @default("")                   // ← po_content
+  relType      String   @default("") @map("rel_type")  // ← po_rel_table (연관: charge/rental 등)
+  relId        String   @default("") @map("rel_id")    // ← po_rel_id
+  expireAt     DateTime? @map("expire_at")             // ← po_expire_date (유효기간)
+  expired      Boolean  @default(false)                // ← po_expired
+  createdAt    DateTime @default(now()) @map("created_at") // ← po_datetime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("point_log")
+}
+
+/// 포인트 충전 주문  ← g5_wpot_order (+ sp_rtpay/personalpay 이력 통합)
+/// 현재 운영 결제수단: 무통장입금. PG(KCP/RTPay)는 레거시 이력으로 보존.
+model ChargeOrder {
+  id           Int          @id @default(autoincrement())
+  legacyOdId   BigInt?      @unique @map("legacy_od_id") // ← od_id (레거시 주문번호 매핑)
+  userId       Int          @map("user_id")
+  amount       Int                                        // ← bk_price (결제할 금액, 원)
+  chargePoint  Int          @map("charge_point")          // ← bk_charge_point (충전 포인트)
+  pointTermDays Int         @default(0) @map("point_term_days") // ← bk_chargepoint_term
+  method       PayMethod    @default(BANK_TRANSFER)        // ← bk_payment
+  status       ChargeStatus @default(PENDING)             // ← bk_status (대기/완료/취소)
+  depositName  String       @default("") @map("deposit_name") // ← bk_deposit_name (입금자명)
+  bankAccount  String       @default("") @map("bank_account")  // ← bk_bank_account
+  paidPrice    Int          @default(0) @map("paid_price")  // ← bk_receipt_price
+  paidAt       DateTime?    @map("paid_at")                 // ← bk_receipt_time
+  charged      Boolean      @default(false)                 // ← bk_is_charge (포인트 지급 완료여부)
+  pg           String       @default("") // ← bk_pg (레거시 PG사: kcp 등)
+  pgTno        String       @default("") @map("pg_tno")     // ← bk_tno
+  legacyData   Json?        @map("legacy_data")            // ← g5_wpot_order_data / sp_rtpay 원본 보존
+  ip           String       @default("")                   // ← bk_ip
+  createdAt    DateTime     @default(now()) @map("created_at") // ← bk_time
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("charge_order")
+}
+
+enum PayMethod {
+  BANK_TRANSFER // 무통장입금 (현재 운영)
+  CARD          // 신용카드 (레거시)
+  EASY_PAY      // 간편결제 (레거시)
+  VBANK         // 가상계좌 (레거시)
+}
+
+enum ChargeStatus {
+  PENDING   // 대기
+  COMPLETED // 완료
+  CANCELED  // 취소
+}
+
+/// 1:1 문의  ← g5_qa_content
+model Inquiry {
+  id        Int           @id @default(autoincrement()) // ← qa_id
+  userId    Int?          @map("user_id")
+  parentId  Int?          @map("parent_id")              // ← qa_parent (답변 스레드)
+  title     String        @default("")                   // ← qa_subject
+  content   String        @db.Text                       // ← qa_content
+  status    InquiryStatus @default(OPEN)
+  name      String        @default("")                   // ← qa_name
+  email     String        @default("")                   // ← qa_email
+  phone     String        @default("")                   // ← qa_hp
+  createdAt DateTime      @default(now()) @map("created_at") // ← qa_datetime
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parent   Inquiry?  @relation("InquiryThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Inquiry[] @relation("InquiryThread")
+
+  @@index([userId, createdAt])
+  @@map("inquiry")
+}
+
+enum InquiryStatus {
+  OPEN     // 접수
+  ANSWERED // 답변완료
+  CLOSED   // 종료
+}
+
+/// 가상번호 임대 / SMS 수신  ← 신규 (5sim.net 연동, 서비스 핵심)
+model NumberRental {
+  id          Int          @id @default(autoincrement())
+  userId      Int          @map("user_id")
+  provider    String       @default("5sim")              // 공급사
+  fivesimId   String?      @map("fivesim_id")            // 5sim 주문 ID
+  country     String                                      // 국가
+  operator    String       @default("any")               // 통신사
+  service     String                                      // 대상 서비스(예: telegram, whatsapp)
+  phoneNumber String       @default("") @map("phone_number")
+  smsCode     String?      @map("sms_code")              // 수신된 인증코드
+  smsText     String?      @map("sms_text") @db.Text     // 수신 원문
+  pricePoint  Int          @map("price_point")           // 차감 포인트
+  status      RentalStatus @default(PENDING)
+  expiresAt   DateTime?    @map("expires_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("number_rental")
+}
+
+enum RentalStatus {
+  PENDING  // 번호 발급, SMS 대기
+  RECEIVED // SMS 수신 완료
+  FINISHED // 정상 종료(완료처리)
+  CANCELED // 취소(환불)
+  EXPIRED  // 만료
+}

@@ -1,0 +1,22 @@
+# === 레거시 백업 (절대 커밋 금지: 대용량 + 회원/결제 개인정보) ===
+20260619_clickpress_DB_Backup.sql
+20260619_clickpress_Data_Backup/
+20260619_clickpress_Data_Backup.tar.gz
+*.sql
+*.tar.gz
+_legacy/
+
+# 분석 스크립트(로컬 전용, 덤프 의존)
+analyze_dump.py
+
+# 환경변수/시크릿
+.env
+.env.*
+!.env.example
+
+# OS
+Thumbs.db
+.DS_Store
+
+# 루트 의존성(없지만 안전망)
+node_modules/

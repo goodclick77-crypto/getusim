@@ -3,7 +3,9 @@
 // 각 모델 주석의 "← g5_xxx" 는 데이터 마이그레이션 시 원본 매핑.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Railway(리눅스) 런타임용 쿼리 엔진 포함 — 로컬은 native, 배포는 debian/musl
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {

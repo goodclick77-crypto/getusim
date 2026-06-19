@@ -25,6 +25,12 @@ export type FiveSimOrder = {
   country: string;
 };
 
+// /guest/prices 응답: { country: { product: { operator: { cost, count, rate } } } }
+export type PricesResponse = Record<
+  string,
+  Record<string, Record<string, { cost: number; count: number; rate?: number }>>
+>;
+
 class FiveSimError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -66,7 +72,37 @@ export const fivesim = {
     if (params.country) qs.set("country", params.country);
     if (params.product) qs.set("product", params.product);
     const q = qs.toString();
-    return call<unknown>(`/guest/prices${q ? `?${q}` : ""}`, { auth: false });
+    return call<PricesResponse>(`/guest/prices${q ? `?${q}` : ""}`, {
+      auth: false,
+    });
+  },
+
+  /**
+   * 통신사 자동 선택: 재고(minStock) 초과 & 단가(maxPrice) 이하 중 가장 싼 통신사.
+   * 조건에 맞는 게 없으면 "any" 반환. (레거시 operators() 동일 로직)
+   */
+  pickOperator: async (
+    country: string,
+    product: string,
+    maxPrice: number,
+    minStock: number,
+  ): Promise<string> => {
+    const data = await call<PricesResponse>(
+      `/guest/prices?country=${encodeURIComponent(country)}&product=${encodeURIComponent(product)}`,
+      { auth: false },
+    );
+    const ops = data?.[country]?.[product] ?? {};
+    let best = "any";
+    let bestCost = Infinity;
+    for (const [op, info] of Object.entries(ops)) {
+      const cost = Number(info?.cost);
+      const count = Number(info?.count);
+      if (count > minStock && cost <= maxPrice && cost < bestCost) {
+        bestCost = cost;
+        best = op;
+      }
+    }
+    return best;
   },
 
   /** 번호 구매 (활성화) */

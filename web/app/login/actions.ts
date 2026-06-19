@@ -14,5 +14,6 @@ export async function loginAction(formData: FormData) {
   if (!user) redirect("/login?error=invalid");
 
   await createSession(user.id, user.role);
-  redirect(user.role === "ADMIN" ? "/admin" : "/dashboard");
+  // 관리자도 일반 사용자 화면을 기본으로 (번호인증 등 동일하게 이용). 관리 기능은 상단 "관리자" 링크.
+  redirect("/dashboard");
 }

@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import { prisma } from "./prisma";
 
@@ -66,15 +67,16 @@ export async function getCurrentUser() {
   return user;
 }
 
-/** 로그인 필수. 미로그인 시 throw (라우트에서 redirect 처리). */
+/** 로그인 필수. 미로그인 시 /login 으로 redirect (throw 아님 → 500 방지). */
 export async function requireUser() {
   const user = await getCurrentUser();
-  if (!user) throw new Error("UNAUTHENTICATED");
+  if (!user) redirect("/login");
   return user;
 }
 
 export async function requireAdmin() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "ADMIN") throw new Error("FORBIDDEN");
+  if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/dashboard");
   return user;
 }

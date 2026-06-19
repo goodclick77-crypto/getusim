@@ -57,12 +57,29 @@ export const COUNTRIES: { value: string; label: string }[] = [
   { value: "vietnam", label: "베트남" },
 ];
 
-/** 서비스(채널) 목록 — 원본 드롭다운 동일 */
+/** 서비스(채널) 목록 — 레거시 check.php 지원 서비스 전체 */
 export const SERVICES: { value: string; label: string }[] = [
+  { value: "telegram", label: "텔레그램" },
+  { value: "whatsapp", label: "왓츠앱" },
+  { value: "kakaotalk", label: "카카오톡" },
   { value: "naver", label: "네이버" },
   { value: "google", label: "구글" },
-  { value: "instagram", label: "인스타그램" },
   { value: "facebook", label: "페이스북" },
-  { value: "twitter", label: "트위터" },
+  { value: "instagram", label: "인스타그램" },
+  { value: "twitter", label: "트위터(X)" },
   { value: "discord", label: "디스코드" },
+  { value: "tiktok", label: "틱톡" },
+  { value: "wechat", label: "위챗" },
+  { value: "line", label: "라인" },
+  { value: "michat", label: "미챗" },
+  { value: "amazon", label: "아마존" },
+  { value: "ebay", label: "이베이" },
+  { value: "paypal", label: "페이팔" },
+  { value: "steam", label: "스팀" },
+  { value: "snapchat", label: "스냅챗" },
+  { value: "netflix", label: "넷플릭스" },
+  { value: "alibaba", label: "알리바바" },
+  { value: "aliexpress", label: "알리익스프레스" },
+  { value: "taobao", label: "타오바오" },
+  { value: "blizzard", label: "블리자드" },
 ];

@@ -48,18 +48,17 @@ export default async function AppLayout({
             {user.role === "ADMIN" && (
               <Link
                 href="/admin"
-                className="hidden items-center gap-1.5 rounded-xl bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 md:inline-flex"
+                className="hidden items-center gap-1.5 rounded-xl bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 lg:inline-flex"
               >
                 <i className="fa-solid fa-gauge-high" aria-hidden /> 관리자
               </Link>
             )}
-            <form action="/logout" method="POST" className="hidden md:block">
+            <form action="/logout" method="POST" className="hidden lg:block">
               <button
                 type="submit"
-                className="rounded-xl px-3 py-1.5 text-zinc-500 hover:bg-black/5 hover:text-zinc-900"
-                title="로그아웃"
+                className="flex items-center gap-1.5 rounded-xl border border-black/10 px-3 py-1.5 text-zinc-600 transition hover:bg-black/5 hover:text-zinc-900"
               >
-                <i className="fa-solid fa-right-from-bracket" aria-hidden />
+                <i className="fa-solid fa-right-from-bracket" aria-hidden /> 로그아웃
               </button>
             </form>
             <MobileNav items={NAV} isAdmin={user.role === "ADMIN"} />

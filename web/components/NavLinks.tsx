@@ -9,7 +9,7 @@ type Item = { href: string; label: string; icon: string };
 export default function NavLinks({ items }: { items: Item[] }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="주 메뉴" className="hidden gap-1 md:flex">
+    <nav aria-label="주 메뉴" className="hidden gap-1 lg:flex">
       {items.map((n) => {
         const active = pathname === n.href || pathname.startsWith(n.href + "/");
         return (

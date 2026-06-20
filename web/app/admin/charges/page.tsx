@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymd, ymdhm } from "@/lib/format";
-import { confirmCharge, cancelCharge } from "../actions";
+import { confirmCharge, cancelCharge, restoreCharge } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -273,6 +273,20 @@ function DateGroup({
                       <input type="hidden" name="id" value={o.id} />
                       <button className="w-full rounded-lg border border-black/10 px-3 py-1 text-xs text-zinc-500 hover:bg-black/5">
                         취소
+                      </button>
+                    </form>
+                  </div>
+                ) : o.status === "CANCELED" ? (
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span
+                      className={`rounded-md px-2 py-1 text-xs font-medium ${STATUS_BADGE[o.status]}`}
+                    >
+                      {STATUS_LABEL[o.status]}
+                    </span>
+                    <form action={restoreCharge}>
+                      <input type="hidden" name="id" value={o.id} />
+                      <button className="whitespace-nowrap rounded-lg border border-black/10 px-2.5 py-1 text-xs text-zinc-600 hover:bg-black/5">
+                        되돌리기
                       </button>
                     </form>
                   </div>

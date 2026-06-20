@@ -32,6 +32,22 @@ export async function cancelCharge(formData: FormData) {
   revalidatePath("/admin/inquiries");
 }
 
+/** 취소된 신청을 입금대기로 되돌림 (실수 취소 복구). 이미 지급된 건은 제외. */
+export async function restoreCharge(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const order = await prisma.chargeOrder.findUnique({ where: { id } });
+  if (order && !order.charged && order.status === "CANCELED") {
+    await prisma.chargeOrder.update({
+      where: { id },
+      data: { status: "PENDING" },
+    });
+  }
+  revalidatePath("/admin");
+  revalidatePath("/admin/charges");
+  revalidatePath("/admin/inquiries");
+}
+
 /** 1:1 문의 삭제 (스팸 등) — 답변(자식)도 함께 삭제 */
 export async function deleteInquiry(formData: FormData) {
   await requireAdmin();

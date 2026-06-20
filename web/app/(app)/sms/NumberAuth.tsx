@@ -148,50 +148,92 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
       </div>
 
       <div className="glass rounded-2xl p-5">
-        <div className="flex flex-wrap gap-2">
-          <select
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            className="rounded-lg border border-zinc-300 px-3 py-2.5"
-          >
-            <option value="">국가 선택</option>
-            {COUNTRIES.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={service}
-            onChange={(e) => setService(e.target.value)}
-            className="rounded-lg border border-zinc-300 px-3 py-2.5"
-          >
-            <option value="">서비스 선택</option>
-            {SERVICES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={getNumber}
-            disabled={running}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
-          >
-            <i
-              className={`fa-solid ${running ? "fa-spinner fa-spin" : "fa-mobile-screen-button"}`}
-              aria-hidden
-            />
-            {running ? "진행 중…" : "번호 받기"}
-          </button>
-          {running && (
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <div className="space-y-5">
+          {/* 국가 선택 */}
+          <div>
+            <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-700">
+              <i className="fa-solid fa-flag text-emerald-600" aria-hidden /> 국가 선택
+            </p>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {COUNTRIES.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setCountry(c.value)}
+                  aria-pressed={country === c.value}
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition ${
+                    country === c.value
+                      ? "border-emerald-500 bg-emerald-50 font-semibold"
+                      : "border-black/10 bg-white/60 hover:bg-white"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://flagcdn.com/w40/${c.iso}.png`}
+                    alt=""
+                    className="h-[18px] w-6 shrink-0 rounded-sm object-cover shadow-sm"
+                    loading="lazy"
+                  />
+                  <span className="truncate">{c.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 서비스 선택 */}
+          <div>
+            <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-700">
+              <i className="fa-solid fa-grip text-emerald-600" aria-hidden /> 서비스 선택
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {SERVICES.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setService(s.value)}
+                  aria-pressed={service === s.value}
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition ${
+                    service === s.value
+                      ? "border-emerald-500 bg-emerald-50 font-semibold"
+                      : "border-black/10 bg-white/60 hover:bg-white"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://cdn.simpleicons.org/${s.slug}`}
+                    alt=""
+                    className="h-5 w-5 shrink-0"
+                    loading="lazy"
+                  />
+                  <span className="truncate">{s.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 액션 */}
+          <div className="flex gap-2">
             <button
-              onClick={ban}
-              className="rounded-lg bg-red-600 px-4 py-2.5 font-medium text-white hover:bg-red-500"
+              onClick={getNumber}
+              disabled={running}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
             >
-              밴넘버
+              <i
+                className={`fa-solid ${running ? "fa-spinner fa-spin" : "fa-mobile-screen-button"}`}
+                aria-hidden
+              />
+              {running ? "진행 중…" : "번호 받기"}
             </button>
-          )}
+            {running && (
+              <button
+                onClick={ban}
+                className="rounded-xl bg-red-600 px-4 py-3 font-medium text-white hover:bg-red-500"
+              >
+                밴넘버
+              </button>
+            )}
+          </div>
         </div>
 
         <dl className="mt-5 divide-y divide-zinc-100 text-sm">

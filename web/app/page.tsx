@@ -5,7 +5,7 @@ import Footer from "@/components/Footer";
 
 const STATS = [
   { icon: "fa-earth-americas", value: "23개국", label: "지원 국가" },
-  { icon: "fa-grip", value: "23종", label: "지원 서비스" },
+  { icon: "fa-grip", value: "8종", label: "지원 서비스" },
   { icon: "fa-bolt", value: "실시간", label: "SMS 수신" },
   { icon: "fa-shield-halved", value: "안전결제", label: "포인트 충전" },
 ];
@@ -14,7 +14,7 @@ const FEATURES = [
   { icon: "fa-earth-americas", title: "전 세계 23개국", desc: "미국·러시아·영국 등 다양한 국가의 가상번호를 즉시 발급받습니다.", grad: "from-sky-500 to-blue-600" },
   { icon: "fa-bolt", title: "실시간 수신", desc: "발급 즉시 SMS 인증번호를 자동으로 받아봅니다.", grad: "from-amber-400 to-orange-500" },
   { icon: "fa-coins", title: "합리적인 포인트", desc: "수신 성공 시에만 차감. 필요한 만큼만 충전하세요.", grad: "from-emerald-500 to-teal-600" },
-  { icon: "fa-comments", title: "주요 서비스 지원", desc: "텔레그램·왓츠앱·구글·인스타그램 등 23종.", grad: "from-violet-500 to-purple-600" },
+  { icon: "fa-comments", title: "주요 서비스 지원", desc: "텔레그램·왓츠앱·구글·인스타그램 등 주요 서비스.", grad: "from-violet-500 to-purple-600" },
 ];
 
 export default function Home() {

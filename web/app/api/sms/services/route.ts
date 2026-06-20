@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { fivesim } from "@/lib/fivesim";
+import { getUsdKrw } from "@/lib/fx";
 import {
   COUNTRIES,
   SERVICES,
@@ -26,6 +27,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ services: SERVICES.map((s) => ({ ...s, available: false })) });
   }
 
+  const fx = await getUsdKrw();
   const services = SERVICES.flatMap((s) => {
     const ops = data?.[country]?.[s.value] ?? {};
     let best: { cost: number; rate: number; count: number } | null = null;
@@ -46,7 +48,7 @@ export async function GET(req: Request) {
         label: s.label,
         slug: s.slug,
         available: true,
-        price: smsPointPrice(best.cost),
+        price: smsPointPrice(best.cost, fx),
         rate: Math.round(best.rate),
         stock: best.count,
       },

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { fivesim } from "@/lib/fivesim";
+import { getUsdKrw } from "@/lib/fx";
 import {
   COUNTRIES,
   SERVICES,
@@ -25,11 +26,14 @@ export async function GET(req: Request) {
   }
 
   try {
-    const pick = await fivesim.bestOperator(country, service, FIVESIM_MAX_PRICE, FIVESIM_MIN_STOCK);
+    const [pick, fx] = await Promise.all([
+      fivesim.bestOperator(country, service, FIVESIM_MAX_PRICE, FIVESIM_MIN_STOCK),
+      getUsdKrw(),
+    ]);
     if (!pick) return NextResponse.json({ available: false });
     return NextResponse.json({
       available: true,
-      price: smsPointPrice(pick.cost),
+      price: smsPointPrice(pick.cost, fx),
       rate: Math.round(pick.rate),
     });
   } catch {

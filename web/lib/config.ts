@@ -36,9 +36,9 @@ export const SMS_MARKUP = Number(process.env.SMS_MARKUP || 2);
  *  - 원가 ≤ 0.3$  : 1,000P 정액
  *  - 원가 > 0.3$  : 원가 × 환율 × 2배 (100P 단위 올림), 최소 1,000P
  */
-export function smsPointPrice(usd: number): number {
+export function smsPointPrice(usd: number, rate: number = SMS_USD_TO_KRW): number {
   if (!usd || usd <= SMS_FREE_THRESHOLD_USD) return SMS_BASE_POINT;
-  const krw = usd * SMS_USD_TO_KRW * SMS_MARKUP;
+  const krw = usd * rate * SMS_MARKUP;
   return Math.max(SMS_BASE_POINT, Math.ceil(krw / 100) * 100);
 }
 

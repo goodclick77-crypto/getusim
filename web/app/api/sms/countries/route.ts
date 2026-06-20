@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { fivesim } from "@/lib/fivesim";
+import { getUsdKrw } from "@/lib/fx";
 import {
   COUNTRIES,
   SERVICES,
@@ -26,6 +27,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ countries: [] });
   }
 
+  const fx = await getUsdKrw();
   // product 쿼리 응답은 { product: { country: {...} } } 구조
   const countries = COUNTRIES.flatMap((c) => {
     const ops = data?.[service]?.[c.value] ?? {};
@@ -45,7 +47,7 @@ export async function GET(req: Request) {
         value: c.value,
         label: c.label,
         iso: c.iso,
-        price: smsPointPrice(best.cost),
+        price: smsPointPrice(best.cost, fx),
         rate: Math.round(best.rate),
         stock: best.count,
       },

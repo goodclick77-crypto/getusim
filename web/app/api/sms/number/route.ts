@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { fivesim, FiveSimError } from "@/lib/fivesim";
+import { getUsdKrw } from "@/lib/fx";
 import {
   COUNTRIES,
   SERVICES,
@@ -9,7 +10,6 @@ import {
   FIVESIM_MAX_PRICE,
   FIVESIM_MIN_STOCK,
   smsPointPrice,
-  SMS_USD_TO_KRW,
 } from "@/lib/config";
 
 // 번호 발급(무료). 동적 가격: 원가에 따라 차감 포인트가 달라짐(수신 성공 시 차감).
@@ -54,8 +54,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "00" });
   }
 
-  // 동적 차감 포인트 (원가 기준)
-  const pricePoint = smsPointPrice(order.price);
+  // 동적 차감 포인트 (실시간 환율 적용)
+  const fx = await getUsdKrw();
+  const pricePoint = smsPointPrice(order.price, fx);
 
   // 차감액보다 보유가 적으면 발급 취소(환불)
   if (user.point < pricePoint) {
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
       service,
       phoneNumber: order.phone,
       pricePoint,
-      costKrw: Math.round((order.price || 0) * SMS_USD_TO_KRW),
+      costKrw: Math.round((order.price || 0) * fx),
       status: "PENDING",
       expiresAt: order.expires ? new Date(order.expires) : null,
     },

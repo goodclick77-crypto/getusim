@@ -2,6 +2,9 @@ import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import Tilt from "@/components/Tilt";
 import Footer from "@/components/Footer";
+import { getCurrentUser } from "@/lib/session";
+
+export const dynamic = "force-dynamic";
 
 const STATS = [
   { icon: "fa-earth-americas", value: "23개국", label: "지원 국가" },
@@ -17,21 +20,35 @@ const FEATURES = [
   { icon: "fa-comments", title: "주요 서비스 지원", desc: "텔레그램·왓츠앱·구글·인스타그램 등 주요 서비스.", grad: "from-violet-500 to-purple-600" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const user = await getCurrentUser();
   return (
     <div className="flex flex-1 flex-col">
       <header className="glass sticky top-0 z-40 flex items-center justify-between px-5 py-3.5 sm:px-8">
-        <span className="font-mont text-xl font-extrabold tracking-tight">GetUsim</span>
+        <Link href="/" className="font-mont text-xl font-extrabold tracking-tight">
+          GetUsim
+        </Link>
         <nav aria-label="상단 메뉴" className="flex items-center gap-2 text-sm">
-          <Link href="/login" className="rounded-xl px-4 py-2 font-medium hover:bg-black/5">
-            로그인
-          </Link>
-          <Link
-            href="/register"
-            className="rounded-xl bg-zinc-900 px-4 py-2 font-medium text-white transition hover:bg-zinc-700"
-          >
-            회원가입
-          </Link>
+          {user ? (
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 font-medium text-white transition hover:bg-zinc-700"
+            >
+              <i className="fa-solid fa-gauge" aria-hidden /> 대시보드
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="rounded-xl px-4 py-2 font-medium hover:bg-black/5">
+                로그인
+              </Link>
+              <Link
+                href="/register"
+                className="rounded-xl bg-zinc-900 px-4 py-2 font-medium text-white transition hover:bg-zinc-700"
+              >
+                회원가입
+              </Link>
+            </>
+          )}
         </nav>
       </header>
 

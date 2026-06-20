@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { pt, ymdhm, phoneFmt } from "@/lib/format";
 import NumberAuth from "./NumberAuth";
+import RentalLabel from "@/components/RentalLabel";
 
 export const dynamic = "force-dynamic";
 
@@ -43,11 +44,12 @@ export default async function SmsPage() {
                 className="flex items-center justify-between px-4 py-3 text-sm"
               >
                 <div>
-                  <p className="font-medium">
-                    {r.service} · {r.country}{" "}
-                    <span className="font-num text-zinc-600">{phoneFmt(r.phoneNumber)}</span>
-                  </p>
-                  <p className="font-num text-xs text-zinc-400">
+                  <RentalLabel
+                    country={r.country}
+                    service={r.service}
+                    phone={phoneFmt(r.phoneNumber)}
+                  />
+                  <p className="font-num mt-0.5 text-xs text-zinc-400">
                     {ymdhm(r.createdAt)}
                     {r.smsCode ? ` · 코드 ${r.smsCode} · -${pt(r.pricePoint)}` : ""}
                   </p>

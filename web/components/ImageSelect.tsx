@@ -58,7 +58,7 @@ export default function ImageSelect({
       {open && (
         <ul
           role="listbox"
-          className="glass absolute z-30 mt-2 max-h-72 w-full overflow-auto rounded-xl p-1 shadow-xl"
+          className="absolute z-50 mt-2 max-h-72 w-full overflow-auto rounded-xl border border-black/10 bg-white p-1 shadow-2xl"
         >
           {options.map((o) => (
             <li key={o.value}>

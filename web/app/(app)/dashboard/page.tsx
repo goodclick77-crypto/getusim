@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { pt, ymdhm } from "@/lib/format";
 import Reveal from "@/components/Reveal";
 import Tilt from "@/components/Tilt";
+import RentalLabel from "@/components/RentalLabel";
 
 export const dynamic = "force-dynamic";
 
@@ -33,16 +34,16 @@ export default async function DashboardPage() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       {/* 보유 포인트 (벤토 대형 박스) */}
-      <Reveal className="sm:col-span-2">
+      <Reveal className="sm:col-span-3">
         <Tilt max={5} className="h-full">
-          <section className="glass-dark flex h-full flex-col justify-between rounded-3xl p-6 text-white">
+          <section className="glass-dark flex h-full flex-col justify-between rounded-3xl p-6 text-white sm:flex-row sm:items-center">
             <div>
               <p className="flex items-center gap-2 text-sm text-zinc-400">
                 <i className="fa-solid fa-wallet text-emerald-400" aria-hidden /> 보유 포인트
               </p>
               <p className="mt-2 font-num text-4xl font-bold">{pt(user.point)}</p>
             </div>
-            <div className="mt-6 flex flex-wrap gap-2">
+            <div className="mt-6 flex flex-wrap gap-2 sm:mt-0">
               <Link
                 href="/sms"
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400"
@@ -60,24 +61,6 @@ export default async function DashboardPage() {
         </Tilt>
       </Reveal>
 
-      {/* 빠른 이동 */}
-      <Reveal delay={80}>
-        <Tilt className="h-full">
-          <Link
-            href="/sms"
-            className="glass flex h-full flex-col justify-between rounded-3xl p-6 transition hover:bg-white/70"
-          >
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-600/10 text-xl text-emerald-600">
-              <i className="fa-solid fa-mobile-screen-button" aria-hidden />
-            </span>
-            <div className="mt-4">
-              <p className="font-bold">번호 받기</p>
-              <p className="text-sm text-zinc-500">국가·서비스 선택 후 즉시 발급</p>
-            </div>
-          </Link>
-        </Tilt>
-      </Reveal>
-
       {/* 최근 인증 내역 */}
       <Reveal delay={120} className="sm:col-span-1">
         <section className="glass h-full rounded-3xl p-5">
@@ -89,10 +72,8 @@ export default async function DashboardPage() {
           ) : (
             <ul className="space-y-2">
               {rentals.map((r) => (
-                <li key={r.id} className="flex items-center justify-between rounded-xl bg-black/[0.03] px-3 py-2 text-sm">
-                  <span className="truncate">
-                    {r.service} · {r.country}
-                  </span>
+                <li key={r.id} className="flex items-center justify-between gap-2 rounded-xl bg-black/[0.03] px-3 py-2 text-sm">
+                  <RentalLabel country={r.country} service={r.service} />
                   <span className="ml-2 shrink-0 text-xs text-zinc-500">
                     {RENTAL_STATUS[r.status]}
                   </span>

@@ -7,13 +7,13 @@ export const BANK_INFO = {
   holder: process.env.DEPOSIT_HOLDER || "엄전혜",
 };
 
-/** 충전 패키지 (결제금액 → 지급 포인트). 보너스 포함. */
+/** 충전 패키지 (결제금액 → 지급 포인트). 가격 = 포인트 × 1.1 */
 export const CHARGE_PACKAGES = [
-  { price: 10_000, point: 10_000 },
-  { price: 30_000, point: 31_000 },
-  { price: 50_000, point: 53_000 },
-  { price: 100_000, point: 110_000 },
-  { price: 300_000, point: 340_000 },
+  { price: 11_000, point: 10_000 },
+  { price: 33_000, point: 30_000 },
+  { price: 55_000, point: 50_000 },
+  { price: 110_000, point: 100_000 },
+  { price: 330_000, point: 300_000 },
 ];
 
 // ---------------- SMS 인증(5sim) ----------------
@@ -59,6 +59,22 @@ export const COUNTRIES: { value: string; iso: string; label: string }[] = [
   { value: "australia", iso: "au", label: "호주" },
   { value: "vietnam", iso: "vn", label: "베트남" },
 ];
+
+// ---- 국가/서비스 조회 헬퍼 (내역 표시용) ----
+export function countryFlag(value: string): string | null {
+  const c = COUNTRIES.find((x) => x.value === value);
+  return c ? `https://flagcdn.com/w40/${c.iso}.png` : null;
+}
+export function countryLabel(value: string): string {
+  return COUNTRIES.find((x) => x.value === value)?.label || value;
+}
+export function serviceLogo(value: string): string {
+  const s = SERVICES.find((x) => x.value === value);
+  return `https://cdn.simpleicons.org/${s?.slug || value}`;
+}
+export function serviceLabel(value: string): string {
+  return SERVICES.find((x) => x.value === value)?.label || value;
+}
 
 /** 서비스 목록 (value=5sim product, slug=simpleicons 로고, label=한글)
  *  레거시 채널 드롭다운(naver·google·instagram·facebook·twitter·discord) +

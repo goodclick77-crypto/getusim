@@ -30,7 +30,7 @@ export default async function AppLayout({
       <header className="glass sticky top-0 z-40">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-5">
-            <Link href="/dashboard" className="font-mont text-lg font-extrabold tracking-tight">
+            <Link href="/" className="font-mont text-lg font-extrabold tracking-tight">
               GetUsim
             </Link>
             <NavLinks items={NAV} />

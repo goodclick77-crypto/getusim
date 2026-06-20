@@ -43,18 +43,29 @@ export default async function ChargePage({
       <Reveal>
         <section className="glass rounded-2xl p-5">
           <h2 className="flex items-center gap-2 font-bold">
-            <i className="fa-solid fa-building-columns text-zinc-500" aria-hidden /> 무통장 입금 계좌
+            <i className="fa-solid fa-building-columns text-emerald-600" aria-hidden /> 무통장 입금 계좌
           </h2>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-zinc-700">
-            <span>{BANK_INFO.bank}</span>
-            <b className="font-num text-base">{BANK_INFO.account}</b>
-            <span className="text-zinc-500">예금주 {BANK_INFO.holder}</span>
-            <CopyButton
-              text={BANK_INFO.account.replace(/[^\d]/g, "")}
-              label="계좌복사"
-              className="border border-black/10"
-            />
-          </div>
+          <dl className="mt-3 overflow-hidden rounded-xl border border-black/10">
+            <div className="flex items-center justify-between gap-3 border-b border-black/5 px-4 py-3 text-sm">
+              <dt className="text-zinc-500">은행</dt>
+              <dd className="font-medium">{BANK_INFO.bank}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 border-b border-black/5 bg-emerald-50/40 px-4 py-3">
+              <dt className="text-sm text-zinc-500">계좌번호</dt>
+              <dd className="flex items-center gap-2">
+                <b className="font-num text-base tracking-tight sm:text-lg">{BANK_INFO.account}</b>
+                <CopyButton
+                  text={BANK_INFO.account.replace(/[^\d]/g, "")}
+                  label="복사"
+                  className="border border-black/10"
+                />
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+              <dt className="text-zinc-500">예금주</dt>
+              <dd className="font-medium">{BANK_INFO.holder}</dd>
+            </div>
+          </dl>
         </section>
       </Reveal>
 
@@ -80,19 +91,28 @@ export default async function ChargePage({
                 </label>
               ))}
             </div>
-            <div>
+            <div className="space-y-2">
+              <label htmlFor="depositName" className="block text-sm font-semibold text-zinc-700">
+                입금자명
+              </label>
               <input
+                id="depositName"
                 name="depositName"
-                placeholder="입금자명"
+                placeholder="입금하실 분의 이름"
                 defaultValue={user.name}
                 aria-label="입금자명"
                 className="w-full rounded-xl border border-black/10 bg-white/60 px-3.5 py-3 outline-none focus:border-emerald-500"
               />
-              <p className="mt-1.5 flex items-center gap-1.5 text-xs text-zinc-500">
-                <i className="fa-solid fa-circle-info" aria-hidden />
-                실제 입금하실 분의 이름과 <b>똑같이</b> 입력하세요. 선택한 금액 그대로 입금하시면
-                자동으로 충전됩니다.
-              </p>
+              <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <i className="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden />
+                <p className="leading-relaxed">
+                  <b>입금자 이름</b>과 <b>입금 금액</b>이 신청 내용과 <b className="text-amber-900 underline decoration-amber-400 underline-offset-2">정확히 일치</b>해야
+                  자동으로 충전됩니다.
+                  <br />
+                  이름이 다르거나 선택한 금액과 다르게 입금하면 자동 충전이 되지 않아 처리가 지연될 수
+                  있습니다.
+                </p>
+              </div>
             </div>
             <button className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-500">
               <i className="fa-solid fa-paper-plane" aria-hidden /> 충전 신청

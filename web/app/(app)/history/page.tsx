@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { pt, ymdhm, phoneFmt } from "@/lib/format";
 import RentalLabel from "@/components/RentalLabel";
+import CopyButton from "@/components/CopyButton";
 
 export const dynamic = "force-dynamic";
 
@@ -70,31 +71,39 @@ export default async function HistoryPage({
         </ul>
       ) : (
         <ul className="glass divide-y divide-black/5 rounded-2xl">
-          {rentals.map((r) => (
-            <li key={r.id} className="flex items-center justify-between px-4 py-3 text-sm">
-              <div>
-                <RentalLabel
-                  country={r.country}
-                  service={r.service}
-                  phone={phoneFmt(r.phoneNumber)}
-                />
-                <p className="font-num mt-0.5 text-xs text-zinc-400">
-                  {ymdhm(r.createdAt)}
-                  {r.smsCode ? ` · 코드 ${r.smsCode}` : ""}
-                </p>
-              </div>
-              {(() => {
-                const expired =
-                  r.status === "PENDING" && r.expiresAt && new Date(r.expiresAt) < new Date();
-                const label = expired ? "만료" : RENTAL_STATUS[r.status];
-                return (
-                  <span className={r.status === "RECEIVED" ? "text-emerald-600" : "text-zinc-400"}>
+          {rentals.map((r) => {
+            const expired =
+              r.status === "PENDING" && r.expiresAt && new Date(r.expiresAt) < new Date();
+            const label = expired ? "만료" : RENTAL_STATUS[r.status];
+            return (
+              <li key={r.id} className="px-4 py-3 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <RentalLabel
+                      country={r.country}
+                      service={r.service}
+                      phone={phoneFmt(r.phoneNumber)}
+                    />
+                    <p className="font-num mt-0.5 text-xs text-zinc-400">{ymdhm(r.createdAt)}</p>
+                  </div>
+                  <span
+                    className={`shrink-0 ${r.status === "RECEIVED" ? "text-emerald-600" : "text-zinc-400"}`}
+                  >
                     {label}
                   </span>
-                );
-              })()}
-            </li>
-          ))}
+                </div>
+                {r.smsCode && (
+                  <div className="mt-2 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2">
+                    <span className="text-xs text-emerald-700">인증번호</span>
+                    <span className="font-num text-base font-bold tracking-wider text-emerald-700">
+                      {r.smsCode}
+                    </span>
+                    <CopyButton text={r.smsCode} />
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 

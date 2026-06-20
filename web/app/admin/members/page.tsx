@@ -26,6 +26,7 @@ export default async function AdminMembersPage({
         OR: [
           { loginId: { contains: q, mode: "insensitive" as const } },
           { name: { contains: q, mode: "insensitive" as const } },
+          { phone: { contains: q } },
           { email: { contains: q, mode: "insensitive" as const } },
         ],
       }
@@ -65,7 +66,7 @@ export default async function AdminMembersPage({
           <input
             name="q"
             defaultValue={q}
-            placeholder="아이디 · 이름 · 이메일 검색"
+            placeholder="아이디 · 이름 · 휴대폰 · 이메일 검색"
             aria-label="회원 검색"
             className="w-full bg-transparent outline-none"
           />
@@ -103,6 +104,7 @@ export default async function AdminMembersPage({
               <tr className="border-b border-black/5 text-xs text-zinc-500">
                 <th className="px-4 py-2.5 text-left font-semibold">아이디</th>
                 <th className="px-4 py-2.5 text-left font-semibold">이름</th>
+                <th className="px-4 py-2.5 text-left font-semibold">휴대폰</th>
                 <th className="px-4 py-2.5 text-right font-semibold">보유P</th>
                 <th className="px-4 py-2.5 text-center font-semibold">문의</th>
                 <th className="px-4 py-2.5 text-left font-semibold">가입일</th>
@@ -118,6 +120,7 @@ export default async function AdminMembersPage({
                     </Link>
                   </td>
                   <td className="px-4 py-2.5">{m.name || "-"}</td>
+                  <td className="font-num px-4 py-2.5 text-zinc-600">{m.phone || "-"}</td>
                   <td className="font-num whitespace-nowrap px-4 py-2.5 text-right font-semibold">
                     {pt(m.point)}
                   </td>

@@ -80,13 +80,20 @@ export default async function ChargePage({
                 </label>
               ))}
             </div>
-            <input
-              name="depositName"
-              placeholder="입금자명"
-              defaultValue={user.name}
-              aria-label="입금자명"
-              className="w-full rounded-xl border border-black/10 bg-white/60 px-3.5 py-3 outline-none focus:border-emerald-500"
-            />
+            <div>
+              <input
+                name="depositName"
+                placeholder="입금자명"
+                defaultValue={user.name}
+                aria-label="입금자명"
+                className="w-full rounded-xl border border-black/10 bg-white/60 px-3.5 py-3 outline-none focus:border-emerald-500"
+              />
+              <p className="mt-1.5 flex items-center gap-1.5 text-xs text-zinc-500">
+                <i className="fa-solid fa-circle-info" aria-hidden />
+                실제 입금하실 분의 이름과 <b>똑같이</b> 입력하세요. 선택한 금액 그대로 입금하시면
+                자동으로 충전됩니다.
+              </p>
+            </div>
             <button className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-500">
               <i className="fa-solid fa-paper-plane" aria-hidden /> 충전 신청
             </button>

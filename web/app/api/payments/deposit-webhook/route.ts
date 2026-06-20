@@ -10,7 +10,9 @@ const MATCH_WINDOW_DAYS = 14;
 
 export async function POST(req: Request) {
   const secret = process.env.DEPOSIT_WEBHOOK_TOKEN;
-  const token = req.headers.get("x-webhook-token");
+  // 헤더(X-Webhook-Token) 또는 쿼리(?token=) 둘 다 허용 — 헤더 못 넣는 앱 대비
+  const token =
+    req.headers.get("x-webhook-token") || new URL(req.url).searchParams.get("token");
   if (!secret || token !== secret) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

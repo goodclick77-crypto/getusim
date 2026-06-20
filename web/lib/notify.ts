@@ -1,6 +1,11 @@
 import "server-only";
+import dns from "node:dns";
 import nodemailer from "nodemailer";
 import { prisma } from "./prisma";
+
+// 일부 호스팅(Railway)은 IPv6 외부연결이 막혀 Gmail SMTP가 ENETUNREACH 남.
+// IPv4 우선으로 강제해 회피.
+dns.setDefaultResultOrder("ipv4first");
 
 // 관리자 Gmail 이메일 알림.
 // 환경변수: GMAIL_USER(보내는 Gmail), GMAIL_APP_PASSWORD(앱 비밀번호 16자), ADMIN_EMAIL(받는 주소, 미설정 시 GMAIL_USER)
@@ -26,7 +31,9 @@ function getTransport() {
   if (!user || !pass) return null;
   if (!transporter) {
     transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: { user, pass },
     });
   }

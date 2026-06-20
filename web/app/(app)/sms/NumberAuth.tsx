@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { COUNTRIES, SERVICES, SMS_COST_POINT } from "@/lib/config";
+import { COUNTRIES, SERVICES, SMS_BASE_POINT } from "@/lib/config";
 import { phoneFmt } from "@/lib/format";
 import ImageSelect from "@/components/ImageSelect";
 import CopyButton from "@/components/CopyButton";
@@ -20,9 +20,32 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
   const [remain, setRemain] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
   const [balance, setBalance] = useState("");
+  const [estPrice, setEstPrice] = useState<number | null>(null);
+  const [estLoading, setEstLoading] = useState(false);
 
   const stopRef = useRef(false);
   const expiresRef = useRef<number | null>(null);
+
+  // 국가·서비스 선택 시 예상 차감 포인트 조회
+  useEffect(() => {
+    if (!country || !service) {
+      setEstPrice(null);
+      return;
+    }
+    let alive = true;
+    setEstLoading(true);
+    setEstPrice(null);
+    fetch(`/api/sms/price?country=${country}&service=${service}`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (alive) setEstPrice(j.available ? j.price : 0);
+      })
+      .catch(() => alive && setEstPrice(null))
+      .finally(() => alive && setEstLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [country, service]);
 
   // 카운트다운
   useEffect(() => {
@@ -49,7 +72,7 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
       setStatus("국가와 서비스를 선택하세요");
       return;
     }
-    if (point < SMS_COST_POINT) {
+    if (point < SMS_BASE_POINT) {
       setStatus("포인트가 부족합니다");
       return;
     }
@@ -58,7 +81,14 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
     stopRef.current = false;
     setRunning(true);
 
-    let data: { rentalId?: number; phone?: string; expires?: string; error?: string };
+    let data: {
+      rentalId?: number;
+      phone?: string;
+      expires?: string;
+      error?: string;
+      message?: string;
+      pricePoint?: number;
+    };
     try {
       const res = await fetch("/api/sms/number", {
         method: "POST",
@@ -76,11 +106,15 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
       setStatus(
         data.error === "00"
           ? "현재 이용 가능한 번호가 없습니다. 다시 시도해주세요."
-          : data.error || "번호 발급 실패",
+          : data.error === "need"
+            ? data.message || "포인트가 부족합니다"
+            : data.message || data.error || "번호 발급 실패",
       );
       setRunning(false);
       return;
     }
+
+    const charged = data.pricePoint ?? SMS_BASE_POINT;
 
     setRentalId(data.rentalId);
     setPhone(data.phone || "");
@@ -97,7 +131,7 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
         if (j.code) {
           setCode(j.code);
           setStatus("인증코드 수신 완료");
-          setPoint((p) => Math.max(0, p - SMS_COST_POINT));
+          setPoint((p) => Math.max(0, p - charged));
           setRunning(false);
           stopRef.current = true;
           break;
@@ -145,8 +179,8 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
           {point.toLocaleString("ko-KR")}P
         </p>
         <p className="mt-1 text-xs text-zinc-400">
-          인증코드 수신 성공 시 {SMS_COST_POINT.toLocaleString("ko-KR")}P 차감 (번호
-          발급은 무료)
+          인증코드 수신 성공 시 차감 (번호 발급은 무료) · 서비스별 가격 상이, 최소{" "}
+          {SMS_BASE_POINT.toLocaleString("ko-KR")}P
         </p>
       </div>
 
@@ -187,11 +221,31 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
             </div>
           </div>
 
+          {/* 예상 차감 */}
+          {country && service && (
+            <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
+              <i className="fa-solid fa-tag" aria-hidden />
+              {estLoading ? (
+                <span className="text-zinc-500">가격 확인 중…</span>
+              ) : estPrice === null ? (
+                <span className="text-zinc-500">가격 정보를 불러올 수 없습니다</span>
+              ) : estPrice === 0 ? (
+                <span className="text-amber-600">현재 이용 가능한 번호가 없습니다</span>
+              ) : (
+                <span>
+                  예상 차감{" "}
+                  <b className="font-num">{estPrice.toLocaleString("ko-KR")}P</b> · 수신
+                  성공 시에만 차감
+                </span>
+              )}
+            </div>
+          )}
+
           {/* 액션 */}
           <div className="flex gap-2">
             <button
               onClick={getNumber}
-              disabled={running}
+              disabled={running || estPrice === 0}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
             >
               <i

@@ -78,28 +78,26 @@ export const fivesim = {
   },
 
   /**
-   * 통신사 자동 선택: 재고(minStock) 초과 & 단가(maxPrice) 이하 중 가장 싼 통신사.
-   * 조건에 맞는 게 없으면 "any" 반환. (레거시 operators() 동일 로직)
+   * 재고(minStock) 초과 & 단가(maxPrice) 이하 중 가장 싼 통신사+원가.
+   * 조건에 맞는 게 없으면 null.
    */
-  pickOperator: async (
+  cheapest: async (
     country: string,
     product: string,
     maxPrice: number,
     minStock: number,
-  ): Promise<string> => {
+  ): Promise<{ operator: string; cost: number } | null> => {
     const data = await call<PricesResponse>(
       `/guest/prices?country=${encodeURIComponent(country)}&product=${encodeURIComponent(product)}`,
       { auth: false },
     );
     const ops = data?.[country]?.[product] ?? {};
-    let best = "any";
-    let bestCost = Infinity;
+    let best: { operator: string; cost: number } | null = null;
     for (const [op, info] of Object.entries(ops)) {
       const cost = Number(info?.cost);
       const count = Number(info?.count);
-      if (count > minStock && cost <= maxPrice && cost < bestCost) {
-        bestCost = cost;
-        best = op;
+      if (count > minStock && cost <= maxPrice && (!best || cost < best.cost)) {
+        best = { operator: op, cost };
       }
     }
     return best;

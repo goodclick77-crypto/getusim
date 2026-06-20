@@ -18,11 +18,29 @@ export const CHARGE_PACKAGES = [
 
 // ---------------- SMS 인증(5sim) ----------------
 
-/** 인증코드 1건 수신 시 정액 차감 포인트 (원본: 1000) */
-export const SMS_COST_POINT = Number(process.env.SMS_COST_POINT || 1000);
+/** 기본/최소 차감 포인트 (싼 서비스) */
+export const SMS_BASE_POINT = Number(process.env.SMS_BASE_POINT || 1000);
 
-/** 번호 발급을 위한 최소 보유 포인트 (원본: 1000) */
-export const SMS_MIN_POINT = SMS_COST_POINT;
+/** 번호 발급 시도를 위한 최소 보유 포인트 */
+export const SMS_MIN_POINT = SMS_BASE_POINT;
+
+/** 정액(1000P) 적용 상한 원가(USD). 이하면 1000P 정액 */
+export const SMS_FREE_THRESHOLD_USD = Number(process.env.SMS_FREE_THRESHOLD_USD || 0.3);
+/** USD→원 환산 (마진 계산용) */
+export const SMS_USD_TO_KRW = Number(process.env.SMS_USD_TO_KRW || 1400);
+/** 임계 초과분 마진 배수 */
+export const SMS_MARKUP = Number(process.env.SMS_MARKUP || 2);
+
+/**
+ * 5sim 원가(USD) → 사용자 차감 포인트.
+ *  - 원가 ≤ 0.3$  : 1,000P 정액
+ *  - 원가 > 0.3$  : 원가 × 환율 × 2배 (100P 단위 올림), 최소 1,000P
+ */
+export function smsPointPrice(usd: number): number {
+  if (!usd || usd <= SMS_FREE_THRESHOLD_USD) return SMS_BASE_POINT;
+  const krw = usd * SMS_USD_TO_KRW * SMS_MARKUP;
+  return Math.max(SMS_BASE_POINT, Math.ceil(krw / 100) * 100);
+}
 
 /** 5sim 구매 단가 상한 — 초과 시 "번호 없음" 처리.
  * 실제 단가가 telegram 등은 0.7~1.0 수준이라 너무 낮으면 전부 막힘.

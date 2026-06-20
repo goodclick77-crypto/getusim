@@ -6,12 +6,12 @@ import {
   COUNTRIES,
   SERVICES,
   SMS_MIN_POINT,
-  SMS_COST_POINT,
   FIVESIM_MAX_PRICE,
   FIVESIM_MIN_STOCK,
+  smsPointPrice,
 } from "@/lib/config";
 
-// 번호 발급 (무료). 재고/단가 조건 통신사 자동선택 후 5sim 구매.
+// 번호 발급(무료). 동적 가격: 원가에 따라 차감 포인트가 달라짐(수신 성공 시 차감).
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
@@ -27,18 +27,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "포인트가 부족합니다" }, { status: 400 });
   }
 
+  // 최저가 통신사 선택
   let operator = "any";
   try {
-    operator = await fivesim.pickOperator(
-      country,
-      service,
-      FIVESIM_MAX_PRICE,
-      FIVESIM_MIN_STOCK,
-    );
+    const pick = await fivesim.cheapest(country, service, FIVESIM_MAX_PRICE, FIVESIM_MIN_STOCK);
+    if (pick) operator = pick.operator;
   } catch {
-    /* 가격표 조회 실패 시 any 로 진행 */
+    /* 가격표 실패 → any */
   }
 
+  // 번호 구매
   let order;
   try {
     order = await fivesim.buyActivation(country, operator, service);
@@ -46,8 +44,6 @@ export async function POST(req: Request) {
     if (e instanceof FiveSimError) return NextResponse.json({ error: "00" });
     throw e;
   }
-
-  // 번호 없음 / 단가 초과 → 취소 후 "00"
   if (!order?.phone || (order.price != null && order.price > FIVESIM_MAX_PRICE)) {
     if (order?.id) {
       try {
@@ -55,6 +51,21 @@ export async function POST(req: Request) {
       } catch {}
     }
     return NextResponse.json({ error: "00" });
+  }
+
+  // 동적 차감 포인트 (원가 기준)
+  const pricePoint = smsPointPrice(order.price);
+
+  // 차감액보다 보유가 적으면 발급 취소(환불)
+  if (user.point < pricePoint) {
+    try {
+      await fivesim.cancel(order.id);
+    } catch {}
+    return NextResponse.json({
+      error: "need",
+      needPoint: pricePoint,
+      message: `이 서비스는 ${pricePoint.toLocaleString("ko-KR")}P가 필요합니다 (보유 ${user.point.toLocaleString("ko-KR")}P)`,
+    });
   }
 
   const rental = await prisma.numberRental.create({
@@ -66,7 +77,7 @@ export async function POST(req: Request) {
       operator,
       service,
       phoneNumber: order.phone,
-      pricePoint: SMS_COST_POINT,
+      pricePoint,
       status: "PENDING",
       expiresAt: order.expires ? new Date(order.expires) : null,
     },
@@ -76,5 +87,6 @@ export async function POST(req: Request) {
     rentalId: rental.id,
     phone: order.phone,
     expires: rental.expiresAt,
+    pricePoint,
   });
 }

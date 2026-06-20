@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { fivesim, FiveSimError } from "@/lib/fivesim";
-import { SMS_COST_POINT } from "@/lib/config";
 
 // 수신 SMS 확인. 코드 도착 시 1회만 정액 차감(멱등).
 export async function GET(req: Request) {
@@ -45,7 +44,7 @@ export async function GET(req: Request) {
         where: { id: user.id },
         select: { point: true },
       });
-      const deduct = Math.min(SMS_COST_POINT, u?.point ?? 0);
+      const deduct = Math.min(rental.pricePoint, u?.point ?? 0);
       const balanceAfter = (u?.point ?? 0) - deduct;
       await tx.user.update({ where: { id: user.id }, data: { point: balanceAfter } });
       await tx.pointLog.create({

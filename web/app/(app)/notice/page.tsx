@@ -31,7 +31,7 @@ export default async function NoticePage() {
             <span className="text-center">조회</span>
           </div>
           <ul className="divide-y divide-black/5">
-            {notices.map((n, i) => (
+            {notices.map((n) => (
               <li key={n.id} className={n.pinned ? "bg-emerald-50/40" : ""}>
                 <Link
                   href={`/notice/${n.id}`}
@@ -43,13 +43,13 @@ export default async function NoticePage() {
                         공지
                       </span>
                     ) : (
-                      <span className="font-num text-sm text-zinc-400">
-                        {notices.length - i}
+                      <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500">
+                        공지
                       </span>
                     )}
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate font-medium">{n.title}</span>
+                    <span className="block truncate text-sm font-medium">{n.title}</span>
                     {/* 모바일 메타 */}
                     <span className="font-num mt-0.5 block text-xs text-zinc-400 sm:hidden">
                       {n.authorName} · {ymd(n.createdAt)} · 조회 {n.views}

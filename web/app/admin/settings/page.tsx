@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { saveNotifyConfig, testEmail } from "./actions";
+import { saveNotifyConfig } from "./actions";
+import TestEmailButton from "./TestEmailButton";
 
 export const dynamic = "force-dynamic";
 
@@ -75,11 +76,7 @@ export default async function AdminSettingsPage({
             <code>ADMIN_EMAIL</code>(받는 주소)을 설정하세요.
           </p>
         )}
-        <form action={testEmail} className="mt-3">
-          <button className="rounded-xl border border-black/10 px-4 py-2 text-sm font-medium hover:bg-black/5">
-            <i className="fa-solid fa-paper-plane mr-1.5" aria-hidden /> 테스트 메일 보내기
-          </button>
-        </form>
+        <TestEmailButton to={to} />
       </section>
 
       {/* 알림 받을 이벤트 */}

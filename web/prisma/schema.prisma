@@ -101,6 +101,23 @@ model ChargeOrder {
   @@map("charge_order")
 }
 
+/** 은행 입금 알림(SMS 포워딩) 자동 감지 로그. 충전 주문 자동 매칭/멱등 처리에 사용. */
+model DepositLog {
+  id            Int       @id @default(autoincrement())
+  rawText       String    @map("raw_text")                  // 수신 문자 원문
+  txKey         String    @unique @map("tx_key")            // 원문 해시 (중복 방지)
+  depositorName String    @default("") @map("depositor_name") // 파싱된 입금자명
+  amount        Int       @default(0)                        // 파싱된 입금액(원)
+  occurredAt    DateTime? @map("occurred_at")               // 파싱된 입금 일시
+  matched       Boolean   @default(false)                    // 주문 자동매칭 성공 여부
+  matchedOrderId Int?     @map("matched_order_id")           // 매칭된 charge_order id
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([matched, createdAt])
+  @@index([amount])
+  @@map("deposit_log")
+}
+
 enum PayMethod {
   BANK_TRANSFER // 무통장입금 (현재 운영)
   CARD          // 신용카드 (레거시)

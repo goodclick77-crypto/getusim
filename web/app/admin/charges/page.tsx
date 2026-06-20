@@ -52,7 +52,7 @@ export default async function AdminChargesPage({
       : {}),
   };
 
-  const [orders, count] = await Promise.all([
+  const [orders, count, deposits] = await Promise.all([
     prisma.chargeOrder.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -61,6 +61,7 @@ export default async function AdminChargesPage({
       take: PER,
     }),
     prisma.chargeOrder.count({ where }),
+    prisma.depositLog.findMany({ orderBy: { createdAt: "desc" }, take: 12 }),
   ]);
   const lastPage = Math.max(1, Math.ceil(count / PER));
 
@@ -101,6 +102,46 @@ export default async function AdminChargesPage({
           검색
         </button>
       </form>
+
+      {deposits.length > 0 && (
+        <details className="glass rounded-2xl p-4">
+          <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
+            <i className="fa-solid fa-bell text-emerald-600" aria-hidden /> 자동 입금 감지
+            <span className="font-num text-xs font-normal text-zinc-400">최근 {deposits.length}건</span>
+            {deposits.some((d) => !d.matched && d.amount > 0) && (
+              <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                미매칭 {deposits.filter((d) => !d.matched && d.amount > 0).length}
+              </span>
+            )}
+          </summary>
+          <ul className="mt-3 space-y-1.5">
+            {deposits.map((d) => (
+              <li
+                key={d.id}
+                className="flex items-center justify-between gap-2 rounded-lg bg-black/[0.02] px-3 py-2 text-sm"
+              >
+                <span className="flex items-center gap-2">
+                  {d.matched ? (
+                    <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+                      자동지급
+                    </span>
+                  ) : (
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                      미매칭
+                    </span>
+                  )}
+                  <span className="font-medium">{d.depositorName || "?"}</span>
+                  <span className="font-num text-zinc-500">{won(d.amount)}</span>
+                </span>
+                <span className="font-num text-xs text-zinc-400">{ymdhm(d.createdAt).slice(5)}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-zinc-400">
+            미매칭 건은 입금자명·금액이 주문과 다른 경우입니다. 아래 목록에서 직접 ‘지급’ 처리하세요.
+          </p>
+        </details>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="상태 필터" className="flex flex-wrap gap-2">

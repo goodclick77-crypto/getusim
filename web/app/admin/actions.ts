@@ -3,37 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { adjustPoint } from "@/lib/points";
+import { completeCharge } from "@/lib/charge";
 
 /** 입금확인 → 포인트 지급 (멱등) */
 export async function confirmCharge(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id"));
 
-  await prisma.$transaction(async (tx) => {
-    const order = await tx.chargeOrder.findUnique({ where: { id } });
-    if (!order || order.charged || order.status === "CANCELED") return;
-
-    await tx.chargeOrder.update({
-      where: { id },
-      data: {
-        status: "COMPLETED",
-        charged: true,
-        paidPrice: order.amount,
-        paidAt: new Date(),
-      },
-    });
-    await adjustPoint(
-      {
-        userId: order.userId,
-        amount: order.chargePoint,
-        reason: "포인트 충전",
-        relType: "charge",
-        relId: order.id,
-      },
-      tx,
-    );
-  });
+  await completeCharge(id);
 
   revalidatePath("/admin");
   revalidatePath("/admin/charges");

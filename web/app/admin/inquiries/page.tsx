@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ymdhm } from "@/lib/format";
-import { answerInquiry, deleteInquiry } from "../actions";
+import { answerInquiry, deleteInquiry, updateReply } from "../actions";
 import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -95,10 +95,30 @@ export default async function AdminInquiriesPage({
 
               {q.replies.map((rep) => (
                 <div key={rep.id} className="mt-3 rounded-xl bg-emerald-50/70 p-3">
-                  <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-                    <i className="fa-solid fa-reply" aria-hidden /> 답변
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                      <i className="fa-solid fa-reply" aria-hidden /> 답변
+                    </p>
+                  </div>
                   <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-700">{rep.content}</p>
+                  <details className="group mt-1.5">
+                    <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-xs text-zinc-400 hover:text-zinc-600 [&::-webkit-details-marker]:hidden">
+                      <i className="fa-solid fa-pen" aria-hidden /> 수정
+                    </summary>
+                    <form action={updateReply} className="mt-2 space-y-2">
+                      <input type="hidden" name="id" value={rep.id} />
+                      <textarea
+                        name="content"
+                        defaultValue={rep.content}
+                        rows={3}
+                        aria-label="답변 수정"
+                        className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                      />
+                      <button className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700">
+                        답변 수정 저장
+                      </button>
+                    </form>
+                  </details>
                 </div>
               ))}
 

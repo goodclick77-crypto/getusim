@@ -20,6 +20,21 @@ export async function createNotice(formData: FormData) {
   redirect("/admin/notice?ok=1");
 }
 
+export async function updateNotice(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const title = String(formData.get("title") || "").trim();
+  const content = String(formData.get("content") || "").trim();
+  const pinned = formData.get("pinned") === "on";
+  if (!id || !title || !content) redirect(`/admin/notice/${id}?error=empty`);
+
+  await prisma.notice.update({ where: { id }, data: { title, content, pinned } });
+  revalidatePath("/admin/notice");
+  revalidatePath("/notice");
+  revalidatePath(`/notice/${id}`);
+  redirect("/admin/notice?ok=1");
+}
+
 export async function deleteNotice(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id"));

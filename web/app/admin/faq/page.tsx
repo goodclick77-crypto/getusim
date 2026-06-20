@@ -73,6 +73,13 @@ export default async function AdminFaqPage({
               <li key={f.id} className="flex items-center gap-3 px-4 py-3 text-sm">
                 <span className="font-num w-8 text-center text-xs text-zinc-400">{f.order}</span>
                 <span className="flex-1 truncate">{f.question}</span>
+                <Link
+                  href={`/admin/faq/${f.id}`}
+                  className="rounded-lg px-2 py-1 text-zinc-500 hover:bg-black/5"
+                  title="수정"
+                >
+                  <i className="fa-solid fa-pen" aria-hidden />
+                </Link>
                 <form action={deleteFaq}>
                   <input type="hidden" name="id" value={f.id} />
                   <ConfirmButton

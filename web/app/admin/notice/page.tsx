@@ -75,6 +75,13 @@ export default async function AdminNoticePage({
                 {n.title}
               </Link>
               <span className="font-num text-xs text-zinc-400">{ymd(n.createdAt)}</span>
+              <Link
+                href={`/admin/notice/${n.id}`}
+                className="rounded-lg px-2 py-1 text-zinc-500 hover:bg-black/5"
+                title="수정"
+              >
+                <i className="fa-solid fa-pen" aria-hidden />
+              </Link>
               <form action={togglePin}>
                 <input type="hidden" name="id" value={n.id} />
                 <button

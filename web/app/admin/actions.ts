@@ -88,3 +88,13 @@ export async function answerInquiry(formData: FormData) {
   revalidatePath("/admin/charges");
   revalidatePath("/admin/inquiries");
 }
+
+/** 1:1 문의 답변 수정 */
+export async function updateReply(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const content = String(formData.get("content") || "").trim();
+  if (!id || !content) return;
+  await prisma.inquiry.update({ where: { id }, data: { content } });
+  revalidatePath("/admin/inquiries");
+}

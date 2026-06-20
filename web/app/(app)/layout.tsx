@@ -54,10 +54,9 @@ export default async function AppLayout({
             {user.role === "ADMIN" && (
               <Link
                 href="/admin"
-                className="hidden rounded-xl px-3 py-1.5 text-zinc-500 hover:bg-black/5 hover:text-zinc-900 sm:inline"
-                title="관리자"
+                className="hidden items-center gap-1.5 rounded-xl bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 sm:inline-flex"
               >
-                <i className="fa-solid fa-gauge-high" aria-hidden />
+                <i className="fa-solid fa-gauge-high" aria-hidden /> 관리자
               </Link>
             )}
             <span className="hidden text-zinc-500 sm:inline">

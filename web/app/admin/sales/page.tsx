@@ -12,12 +12,17 @@ const TABS = [
   { key: "all", label: "전체" },
 ] as const;
 
+const KST_MS = 9 * 60 * 60 * 1000;
 function sinceOf(period: string): Date {
-  const now = new Date();
-  if (period === "today") return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (period === "7d") return new Date(now.getTime() - 7 * 86400000);
+  const now = Date.now();
+  if (period === "today") {
+    // 한국시간 오늘 자정(KST) 의 UTC 시각
+    const k = new Date(now + KST_MS);
+    return new Date(Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate()) - KST_MS);
+  }
+  if (period === "7d") return new Date(now - 7 * 86400000);
   if (period === "all") return new Date(0);
-  return new Date(now.getTime() - 30 * 86400000);
+  return new Date(now - 30 * 86400000);
 }
 
 export default async function AdminSalesPage({

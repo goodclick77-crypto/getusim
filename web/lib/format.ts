@@ -41,28 +41,32 @@ export function htmlToText(html: string | null | undefined): string {
     .trim();
 }
 export const pt = (n: number) => `${n.toLocaleString("ko-KR")}P`;
+// 한국시간(KST, UTC+9) 기준으로 표시. 서버(UTC)에서도 동일하게 보이도록 +9h 후 ISO 슬라이스.
+const KST_MS = 9 * 60 * 60 * 1000;
+const toKst = (dt: Date) => new Date(dt.getTime() + KST_MS);
+
 export const ymd = (d: Date | string | null | undefined) => {
   if (!d) return "-";
   const dt = typeof d === "string" ? new Date(d) : d;
   if (isNaN(dt.getTime())) return "-";
-  return dt.toISOString().slice(0, 10);
+  return toKst(dt).toISOString().slice(0, 10);
 };
 export const ymdhm = (d: Date | string | null | undefined) => {
   if (!d) return "-";
   const dt = typeof d === "string" ? new Date(d) : d;
   if (isNaN(dt.getTime())) return "-";
-  return dt.toISOString().slice(0, 16).replace("T", " ");
+  return toKst(dt).toISOString().slice(0, 16).replace("T", " ");
 };
 
-/** "YYYY-MM-DD" from/to → Prisma createdAt 필터({gte,lte}). 둘 다 비면 null. to는 그 날 끝까지 포함. */
+/** "YYYY-MM-DD"(한국시간) from/to → Prisma createdAt 필터({gte,lte}). 둘 다 비면 null. */
 export function dateRange(from?: string, to?: string): { gte?: Date; lte?: Date } | null {
   const r: { gte?: Date; lte?: Date } = {};
   if (from) {
-    const d = new Date(`${from}T00:00:00`);
+    const d = new Date(`${from}T00:00:00+09:00`); // KST 자정
     if (!isNaN(d.getTime())) r.gte = d;
   }
   if (to) {
-    const d = new Date(`${to}T23:59:59.999`);
+    const d = new Date(`${to}T23:59:59.999+09:00`); // KST 그 날 끝
     if (!isNaN(d.getTime())) r.lte = d;
   }
   return r.gte || r.lte ? r : null;

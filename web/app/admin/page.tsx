@@ -36,6 +36,13 @@ export default async function AdminPage() {
       badge: 0,
     },
     {
+      href: "/admin/rentals",
+      icon: "fa-mobile-screen-button",
+      label: "발급 내역",
+      desc: "번호 발급 성공·실패 상세 로그",
+      badge: 0,
+    },
+    {
       href: "/admin/charges",
       icon: "fa-building-columns",
       label: "입금 확인",

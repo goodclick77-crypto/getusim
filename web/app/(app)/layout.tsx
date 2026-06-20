@@ -10,6 +10,7 @@ const NAV = [
   { href: "/dashboard", label: "대시보드", icon: "fa-gauge" },
   { href: "/sms", label: "SMS 인증", icon: "fa-comment-sms" },
   { href: "/charge", label: "포인트 충전", icon: "fa-coins" },
+  { href: "/notice", label: "공지사항", icon: "fa-bullhorn" },
   { href: "/inquiry", label: "1:1 문의", icon: "fa-headset" },
 ];
 

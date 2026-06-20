@@ -14,7 +14,8 @@
     "db:deploy": "prisma migrate deploy",
     "migrate:legacy": "tsx scripts/migrate-legacy.ts",
     "seed:admin": "tsx scripts/seed-admin.ts",
-    "verify:pw": "tsx scripts/verify-pw.ts"
+    "verify:pw": "tsx scripts/verify-pw.ts",
+    "migrate:notices": "tsx scripts/migrate-notices.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

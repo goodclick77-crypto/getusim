@@ -166,6 +166,20 @@ model NumberRental {
   @@map("number_rental")
 }
 
+/// 공지사항  ← g5_write_notice
+model Notice {
+  id         Int      @id @default(autoincrement()) // ← wr_id
+  title      String                                  // ← wr_subject
+  content    String   @db.Text                       // ← wr_content
+  pinned     Boolean  @default(false)
+  views      Int      @default(0)                    // ← wr_hit
+  authorName String   @default("관리자") @map("author_name") // ← wr_name
+  createdAt  DateTime @default(now()) @map("created_at")     // ← wr_datetime
+
+  @@index([pinned, createdAt])
+  @@map("notice")
+}
+
 enum RentalStatus {
   PENDING  // 번호 발급, SMS 대기
   RECEIVED // SMS 수신 완료

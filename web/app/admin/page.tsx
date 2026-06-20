@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymdhm } from "@/lib/format";
@@ -26,6 +27,15 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-8">
+      <nav aria-label="관리 메뉴" className="flex gap-2">
+        <Link
+          href="/admin/notice"
+          className="glass inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium hover:bg-white/70"
+        >
+          <i className="fa-solid fa-bullhorn text-emerald-600" aria-hidden /> 공지 관리
+        </Link>
+      </nav>
+
       <section aria-label="통계" className="grid grid-cols-3 gap-3">
         <Stat icon="fa-users" label="총 회원" value={userCount.toLocaleString("ko-KR")} />
         <Stat icon="fa-coins" label="발행 포인트" value={pt(pointSum._sum.point ?? 0)} />

@@ -24,8 +24,11 @@ export const SMS_COST_POINT = Number(process.env.SMS_COST_POINT || 1000);
 /** 번호 발급을 위한 최소 보유 포인트 (원본: 1000) */
 export const SMS_MIN_POINT = SMS_COST_POINT;
 
-/** 5sim 구매 단가 상한 — 초과 시 "번호 없음" 처리 (원본: 0.2). 번호가 안 잡히면 올리세요. */
-export const FIVESIM_MAX_PRICE = Number(process.env.FIVESIM_MAX_PRICE || 0.2);
+/** 5sim 구매 단가 상한 — 초과 시 "번호 없음" 처리.
+ * 실제 단가가 telegram 등은 0.7~1.0 수준이라 너무 낮으면 전부 막힘.
+ * pickOperator가 어차피 최저가 통신사를 고르므로 상한은 안전장치 역할.
+ * 마진을 더 타이트하게 하려면 FIVESIM_MAX_PRICE 환경변수로 낮추세요. */
+export const FIVESIM_MAX_PRICE = Number(process.env.FIVESIM_MAX_PRICE || 10);
 
 /** 통신사 자동선택 시 최소 재고 (원본: 10개 초과) */
 export const FIVESIM_MIN_STOCK = Number(process.env.FIVESIM_MIN_STOCK || 10);

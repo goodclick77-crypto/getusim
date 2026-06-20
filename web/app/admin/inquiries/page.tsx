@@ -81,9 +81,9 @@ export default async function AdminInquiriesPage({
                     <ConfirmButton
                       message="이 문의를 삭제하시겠습니까? 답변도 함께 삭제됩니다."
                       title="삭제 (스팸 등)"
-                      className="rounded-lg px-2 py-1 text-red-500 hover:bg-red-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
                     >
-                      <i className="fa-solid fa-trash" aria-hidden />
+                      <i className="fa-solid fa-trash" aria-hidden /> 삭제
                     </ConfirmButton>
                   </form>
                 </div>

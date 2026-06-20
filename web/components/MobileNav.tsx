@@ -22,7 +22,7 @@ export default function MobileNav({
         aria-label="메뉴 열기"
         aria-expanded={open}
         onClick={() => setOpen(true)}
-        className="grid h-10 w-10 place-items-center rounded-xl text-zinc-700 hover:bg-black/5"
+        className="grid h-10 w-10 place-items-center rounded-xl border border-black/10 bg-white/80 text-zinc-900 shadow-sm transition hover:bg-white"
       >
         <i className="fa-solid fa-bars text-lg" aria-hidden />
       </button>

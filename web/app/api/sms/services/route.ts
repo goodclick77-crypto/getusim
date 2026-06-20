@@ -7,6 +7,7 @@ import {
   SERVICES,
   FIVESIM_MAX_PRICE,
   FIVESIM_MIN_STOCK,
+  FIVESIM_MIN_RATE,
   smsPointPrice,
 } from "@/lib/config";
 
@@ -40,8 +41,8 @@ export async function GET(req: Request) {
         best = { cost, rate, count };
       }
     }
-    // 번호 없음 / 수신률 0% 는 제외
-    if (!best || best.rate <= 0) return [];
+    // 번호 없음 / 수신률 낮은 조합(기본 10% 이하) 제외
+    if (!best || best.rate <= FIVESIM_MIN_RATE) return [];
     return [
       {
         value: s.value,

@@ -1,8 +1,9 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymdhm } from "@/lib/format";
-import { CHARGE_PACKAGES, BANK_INFO } from "@/lib/config";
+import { BANK_INFO, CHARGE_POINT_UNITS, CHARGE_FEE_RATE } from "@/lib/config";
 import { createChargeRequest } from "./actions";
+import ChargeForm from "./ChargeForm";
 import Reveal from "@/components/Reveal";
 import CopyButton from "@/components/CopyButton";
 
@@ -12,6 +13,11 @@ const STATUS_LABEL: Record<string, string> = {
   PENDING: "입금대기",
   COMPLETED: "충전완료",
   CANCELED: "취소",
+};
+const STATUS_STYLE: Record<string, string> = {
+  PENDING: "bg-amber-100 text-amber-700",
+  COMPLETED: "bg-emerald-100 text-emerald-700",
+  CANCELED: "bg-zinc-200 text-zinc-500",
 };
 
 export default async function ChargePage({
@@ -71,53 +77,16 @@ export default async function ChargePage({
 
       <Reveal delay={80}>
         <section className="glass rounded-2xl p-5">
-          <h2 className="mb-4 font-bold">충전 신청</h2>
-          <form action={createChargeRequest} className="space-y-4">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {CHARGE_PACKAGES.map((p, i) => (
-                <label
-                  key={i}
-                  className="cursor-pointer rounded-2xl border border-black/10 bg-white/50 p-3 text-center text-sm transition has-checked:border-emerald-500 has-checked:bg-emerald-50"
-                >
-                  <input
-                    type="radio"
-                    name="package"
-                    value={i}
-                    defaultChecked={i === 0}
-                    className="sr-only"
-                  />
-                  <div className="font-num font-bold">{won(p.price)}</div>
-                  <div className="font-num text-xs text-emerald-600">{pt(p.point)}</div>
-                </label>
-              ))}
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="depositName" className="block text-sm font-semibold text-zinc-700">
-                입금자명
-              </label>
-              <input
-                id="depositName"
-                name="depositName"
-                placeholder="입금하실 분의 이름"
-                defaultValue={user.name}
-                aria-label="입금자명"
-                className="w-full rounded-xl border border-black/10 bg-white/60 px-3.5 py-3 outline-none focus:border-emerald-500"
-              />
-              <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                <i className="fa-solid fa-triangle-exclamation mt-0.5 shrink-0" aria-hidden />
-                <p className="leading-relaxed">
-                  <b>입금자 이름</b>과 <b>입금 금액</b>이 신청 내용과 <b className="text-amber-900 underline decoration-amber-400 underline-offset-2">정확히 일치</b>해야
-                  자동으로 충전됩니다.
-                  <br />
-                  이름이 다르거나 선택한 금액과 다르게 입금하면 자동 충전이 되지 않아 처리가 지연될 수
-                  있습니다.
-                </p>
-              </div>
-            </div>
-            <button className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-500">
-              <i className="fa-solid fa-paper-plane" aria-hidden /> 충전 신청
-            </button>
-          </form>
+          <h2 className="mb-1 font-bold">충전 신청</h2>
+          <p className="mb-4 text-xs text-zinc-500">
+            원하는 금액 단위를 눌러 더하세요. (예: 1만P 두 번 = 2만P)
+          </p>
+          <ChargeForm
+            action={createChargeRequest}
+            units={CHARGE_POINT_UNITS}
+            feeRate={CHARGE_FEE_RATE}
+            defaultName={user.name}
+          />
         </section>
       </Reveal>
 
@@ -126,23 +95,20 @@ export default async function ChargePage({
         {orders.length === 0 ? (
           <p className="text-sm text-zinc-500">충전 내역이 없습니다.</p>
         ) : (
-          <ul className="glass divide-y divide-black/5 rounded-2xl">
+          <ul className="space-y-2">
             {orders.map((o) => (
-              <li key={o.id} className="flex items-center justify-between px-4 py-3 text-sm">
-                <div>
-                  <p className="font-num">
-                    {won(o.amount)} → {pt(o.chargePoint)}
+              <li key={o.id} className="glass flex items-center gap-3 rounded-2xl p-4">
+                <div className="min-w-0 flex-1">
+                  <p className="font-num text-base font-bold">
+                    {pt(o.chargePoint)}{" "}
+                    <span className="text-sm font-normal text-zinc-400">충전</span>
                   </p>
-                  <p className="font-num text-xs text-zinc-400">{ymdhm(o.createdAt)}</p>
+                  <p className="font-num mt-0.5 text-xs text-zinc-400">
+                    입금액 {won(o.amount)} · {ymdhm(o.createdAt)}
+                  </p>
                 </div>
                 <span
-                  className={
-                    o.status === "COMPLETED"
-                      ? "text-emerald-600"
-                      : o.status === "CANCELED"
-                        ? "text-red-500"
-                        : "text-amber-600"
-                  }
+                  className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[o.status]}`}
                 >
                   {STATUS_LABEL[o.status]}
                 </span>

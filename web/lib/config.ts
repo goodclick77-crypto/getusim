@@ -7,14 +7,17 @@ export const BANK_INFO = {
   holder: process.env.DEPOSIT_HOLDER || "엄전혜",
 };
 
-/** 충전 패키지 (결제금액 → 지급 포인트). 가격 = 포인트 × 1.1 */
-export const CHARGE_PACKAGES = [
-  { price: 11_000, point: 10_000 },
-  { price: 33_000, point: 30_000 },
-  { price: 55_000, point: 50_000 },
-  { price: 110_000, point: 100_000 },
-  { price: 330_000, point: 300_000 },
-];
+/** 충전 포인트 단위(클릭하면 누적). 1만P를 두 번 누르면 2만P. */
+export const CHARGE_POINT_UNITS = [1_000, 3_000, 5_000, 10_000, 50_000, 100_000];
+/** 입금액 = 포인트 × 1.1 (10% 수수료). 예: 10,000P → 11,000원 */
+export const CHARGE_FEE_RATE = 1.1;
+export const CHARGE_MIN_POINT = 1_000;
+export const CHARGE_MAX_POINT = 10_000_000;
+
+/** 충전 포인트에 대한 실제 입금(결제) 금액(원) */
+export function chargeAmount(point: number): number {
+  return Math.round(point * CHARGE_FEE_RATE);
+}
 
 // ---------------- SMS 인증(5sim) ----------------
 
@@ -50,6 +53,9 @@ export const FIVESIM_MAX_PRICE = Number(process.env.FIVESIM_MAX_PRICE || 10);
 
 /** 통신사 자동선택 시 최소 재고 (원본: 10개 초과) */
 export const FIVESIM_MIN_STOCK = Number(process.env.FIVESIM_MIN_STOCK || 10);
+
+/** 목록 노출 최소 수신률(%). 이 값 이하(예: 10% 이하)는 숨김 */
+export const FIVESIM_MIN_RATE = Number(process.env.FIVESIM_MIN_RATE || 10);
 
 /** 국가 목록 (value=5sim 코드, iso=국기코드, label=한글) — 레거시 드롭다운 동일 */
 export const COUNTRIES: { value: string; iso: string; label: string }[] = [

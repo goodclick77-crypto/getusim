@@ -7,6 +7,7 @@ import {
   SERVICES,
   FIVESIM_MAX_PRICE,
   FIVESIM_MIN_STOCK,
+  FIVESIM_MIN_RATE,
   smsPointPrice,
 } from "@/lib/config";
 
@@ -41,7 +42,7 @@ export async function GET(req: Request) {
         best = { cost, rate, count };
       }
     }
-    if (!best || best.rate <= 0) return [];
+    if (!best || best.rate <= FIVESIM_MIN_RATE) return [];
     return [
       {
         value: c.value,

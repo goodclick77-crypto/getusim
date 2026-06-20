@@ -27,6 +27,11 @@ export async function POST(req: Request) {
   ).trim();
   if (!text) return NextResponse.json({ error: "no text" }, { status: 400 });
 
+  // 입금 알림이 아닌 문자(개인 문자 등)는 저장/처리하지 않음 — 프라이버시 보호
+  if (!text.includes("입금")) {
+    return NextResponse.json({ ok: true, ignored: true });
+  }
+
   const txKey = createHash("sha256").update(text).digest("hex");
 
   try {

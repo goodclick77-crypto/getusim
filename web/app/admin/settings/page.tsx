@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { saveNotifyConfig } from "./actions";
 import TestEmailButton from "./TestEmailButton";
+import { mailerConfigured, mailerProvider } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,8 @@ export default async function AdminSettingsPage({
     update: {},
   });
 
-  const envReady = !!process.env.GMAIL_USER && !!process.env.GMAIL_APP_PASSWORD;
+  const envReady = mailerConfigured();
+  const provider = mailerProvider();
   const to = process.env.ADMIN_EMAIL || process.env.GMAIL_USER || "(미설정)";
 
   return (
@@ -58,7 +60,7 @@ export default async function AdminSettingsPage({
       {/* 이메일 연결 상태 */}
       <section className="glass rounded-2xl p-5">
         <h2 className="flex items-center gap-2 font-bold">
-          <i className="fa-solid fa-envelope text-zinc-500" aria-hidden /> Gmail 연결
+          <i className="fa-solid fa-envelope text-zinc-500" aria-hidden /> 이메일 연결
         </h2>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
           <span
@@ -66,14 +68,16 @@ export default async function AdminSettingsPage({
               envReady ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
             }`}
           >
-            {envReady ? "연결됨" : "환경변수 미설정"}
+            {envReady ? `연결됨 (${provider === "resend" ? "Resend" : "Gmail"})` : "환경변수 미설정"}
           </span>
           <span className="text-zinc-500">받는 주소: {to}</span>
         </div>
         {!envReady && (
           <p className="mt-2 text-xs text-zinc-500">
-            Railway getusim 카드 Variables에 <code>GMAIL_USER</code>, <code>GMAIL_APP_PASSWORD</code>,{" "}
-            <code>ADMIN_EMAIL</code>(받는 주소)을 설정하세요.
+            Railway getusim 카드 Variables에 <code>RESEND_API_KEY</code>(권장) 또는{" "}
+            <code>GMAIL_USER</code>/<code>GMAIL_APP_PASSWORD</code>, 그리고 <code>ADMIN_EMAIL</code>(받는
+            주소)을 설정하세요. Railway는 SMTP 포트를 막아 Gmail 직접발송이 안 될 수 있어 Resend를
+            권장합니다.
           </p>
         )}
         <TestEmailButton to={to} />

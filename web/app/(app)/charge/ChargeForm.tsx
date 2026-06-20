@@ -48,9 +48,12 @@ export default function ChargeForm({
           <button
             type="button"
             onClick={() => setPoint(0)}
-            className="mt-2 text-xs text-zinc-400 hover:text-zinc-600"
+            className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100"
           >
-            <i className="fa-solid fa-rotate-left mr-1" aria-hidden />
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
             초기화
           </button>
         )}

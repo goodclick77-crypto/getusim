@@ -83,9 +83,16 @@ export default async function HistoryPage({
                   {r.smsCode ? ` · 코드 ${r.smsCode}` : ""}
                 </p>
               </div>
-              <span className={r.status === "RECEIVED" ? "text-emerald-600" : "text-zinc-400"}>
-                {RENTAL_STATUS[r.status]}
-              </span>
+              {(() => {
+                const expired =
+                  r.status === "PENDING" && r.expiresAt && new Date(r.expiresAt) < new Date();
+                const label = expired ? "만료" : RENTAL_STATUS[r.status];
+                return (
+                  <span className={r.status === "RECEIVED" ? "text-emerald-600" : "text-zinc-400"}>
+                    {label}
+                  </span>
+                );
+              })()}
             </li>
           ))}
         </ul>

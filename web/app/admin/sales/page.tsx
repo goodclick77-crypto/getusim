@@ -32,7 +32,7 @@ export default async function AdminSalesPage({
     : "30d";
   const since = sinceOf(period);
 
-  const [chargeAgg, rentalAgg, byUser] = await Promise.all([
+  const [chargeAgg, rentalAgg, byUser, attemptCount, failCount] = await Promise.all([
     prisma.chargeOrder.aggregate({
       _sum: { amount: true },
       _count: true,
@@ -51,10 +51,13 @@ export default async function AdminSalesPage({
       orderBy: { _sum: { pricePoint: "desc" } },
       take: 30,
     }),
+    // 발급 시도(전체) / 실패(취소·밴) 건수
+    prisma.numberRental.count({ where: { createdAt: { gte: since } } }),
+    prisma.numberRental.count({ where: { status: "CANCELED", createdAt: { gte: since } } }),
   ]);
 
   const userIds = byUser.map((b) => b.userId);
-  const [users, chargesByUser] = await Promise.all([
+  const [users, chargesByUser, failByUser] = await Promise.all([
     prisma.user.findMany({
       where: { id: { in: userIds } },
       select: { id: true, loginId: true, name: true },
@@ -64,14 +67,22 @@ export default async function AdminSalesPage({
       where: { status: "COMPLETED", userId: { in: userIds }, createdAt: { gte: since } },
       _sum: { amount: true },
     }),
+    prisma.numberRental.groupBy({
+      by: ["userId"],
+      where: { status: "CANCELED", userId: { in: userIds }, createdAt: { gte: since } },
+      _count: true,
+    }),
   ]);
   const userMap = new Map(users.map((u) => [u.id, u]));
   const chargeMap = new Map(chargesByUser.map((c) => [c.userId, c._sum.amount ?? 0]));
+  const failMap = new Map(failByUser.map((f) => [f.userId, f._count]));
 
   const chargeRevenue = chargeAgg._sum.amount ?? 0;
   const smsSales = rentalAgg._sum.pricePoint ?? 0;
   const cost = rentalAgg._sum.costKrw ?? 0;
   const netMargin = chargeRevenue - cost;
+  const success = rentalAgg._count;
+  const successRate = success + failCount > 0 ? Math.round((success / (success + failCount)) * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -100,9 +111,17 @@ export default async function AdminSalesPage({
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card icon="fa-credit-card" label="충전 매출" value={won(chargeRevenue)} sub={`${chargeAgg._count}건`} />
-        <Card icon="fa-globe" label="5sim 원가" value={won(cost)} sub={`${rentalAgg._count}건 발급`} tone="cost" />
+        <Card icon="fa-globe" label="5sim 원가(지출)" value={won(cost)} sub={`${success}건 수신성공`} tone="cost" />
         <Card icon="fa-sack-dollar" label="순마진 (충전−원가)" value={won(netMargin)} highlight />
         <Card icon="fa-comment-sms" label="SMS 차감" value={pt(smsSales)} sub="사용 포인트" />
+      </section>
+
+      {/* 발급 현황 (성공/실패/성공률) */}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Card icon="fa-mobile-screen-button" label="발급 시도" value={`${attemptCount.toLocaleString("ko-KR")}건`} />
+        <Card icon="fa-circle-check" label="수신 성공" value={`${success.toLocaleString("ko-KR")}건`} />
+        <Card icon="fa-circle-xmark" label="실패(취소·밴)" value={`${failCount.toLocaleString("ko-KR")}건`} tone="cost" />
+        <Card icon="fa-percent" label="성공률" value={`${successRate}%`} highlight />
       </section>
 
       <section>
@@ -116,7 +135,8 @@ export default async function AdminSalesPage({
                 <thead>
                   <tr className="border-b border-black/5 text-xs text-zinc-500">
                     <th className="px-4 py-2.5 text-left font-semibold">아이디</th>
-                    <th className="px-4 py-2.5 text-center font-semibold">사용</th>
+                    <th className="px-4 py-2.5 text-center font-semibold">성공</th>
+                    <th className="px-4 py-2.5 text-center font-semibold">실패</th>
                     <th className="px-4 py-2.5 text-right font-semibold">충전액</th>
                     <th className="px-4 py-2.5 text-right font-semibold">SMS사용P</th>
                     <th className="px-4 py-2.5 text-right font-semibold">원가</th>
@@ -136,7 +156,8 @@ export default async function AdminSalesPage({
                             {u?.loginId ?? b.userId}
                           </Link>
                         </td>
-                        <td className="font-num px-4 py-2.5 text-center text-zinc-500">{b._count}</td>
+                        <td className="font-num px-4 py-2.5 text-center text-emerald-600">{b._count}</td>
+                        <td className="font-num px-4 py-2.5 text-center text-zinc-400">{failMap.get(b.userId) ?? 0}</td>
                         <td className="font-num px-4 py-2.5 text-right">{won(chargeMap.get(b.userId) ?? 0)}</td>
                         <td className="font-num px-4 py-2.5 text-right">{pt(usedP)}</td>
                         <td className="font-num px-4 py-2.5 text-right text-zinc-500">{won(c)}</td>

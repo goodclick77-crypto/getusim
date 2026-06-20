@@ -26,8 +26,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ countries: [] });
   }
 
+  // product 쿼리 응답은 { product: { country: {...} } } 구조
   const countries = COUNTRIES.flatMap((c) => {
-    const ops = data?.[c.value]?.[service] ?? {};
+    const ops = data?.[service]?.[c.value] ?? {};
     let best: { cost: number; rate: number; count: number } | null = null;
     for (const info of Object.values(ops)) {
       const cost = Number(info?.cost);

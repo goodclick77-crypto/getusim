@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ymd } from "@/lib/format";
 import { createNotice, deleteNotice, togglePin } from "./actions";
+import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
@@ -85,9 +86,13 @@ export default async function AdminNoticePage({
               </form>
               <form action={deleteNotice}>
                 <input type="hidden" name="id" value={n.id} />
-                <button className="rounded-lg px-2 py-1 text-red-500 hover:bg-red-50" title="삭제">
+                <ConfirmButton
+                  message="이 공지를 삭제하시겠습니까?"
+                  title="삭제"
+                  className="rounded-lg px-2 py-1 text-red-500 hover:bg-red-50"
+                >
                   <i className="fa-solid fa-trash" aria-hidden />
-                </button>
+                </ConfirmButton>
               </form>
             </li>
           ))}

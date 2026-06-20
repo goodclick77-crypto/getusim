@@ -64,9 +64,14 @@ export default async function DashboardPage() {
       {/* 최근 인증 내역 */}
       <Reveal delay={120} className="sm:col-span-1">
         <section className="glass h-full rounded-3xl p-5">
-          <h2 className="mb-3 flex items-center gap-2 font-bold">
-            <i className="fa-solid fa-clock-rotate-left text-emerald-600" aria-hidden /> 최근 인증
-          </h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-bold">
+              <i className="fa-solid fa-clock-rotate-left text-emerald-600" aria-hidden /> 최근 인증
+            </h2>
+            <Link href="/history?tab=rental" className="text-sm text-emerald-600 hover:underline">
+              전체보기
+            </Link>
+          </div>
           {rentals.length === 0 ? (
             <p className="text-sm text-zinc-500">아직 이용 내역이 없습니다.</p>
           ) : (

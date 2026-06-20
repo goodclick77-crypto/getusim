@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ymdhm } from "@/lib/format";
 import { answerInquiry, deleteInquiry } from "../actions";
+import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
@@ -77,12 +78,13 @@ export default async function AdminInquiriesPage({
                   </span>
                   <form action={deleteInquiry}>
                     <input type="hidden" name="id" value={q.id} />
-                    <button
-                      className="rounded-lg px-2 py-1 text-red-500 hover:bg-red-50"
+                    <ConfirmButton
+                      message="이 문의를 삭제하시겠습니까? 답변도 함께 삭제됩니다."
                       title="삭제 (스팸 등)"
+                      className="rounded-lg px-2 py-1 text-red-500 hover:bg-red-50"
                     >
                       <i className="fa-solid fa-trash" aria-hidden />
-                    </button>
+                    </ConfirmButton>
                   </form>
                 </div>
               </div>

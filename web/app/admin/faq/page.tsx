@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { createFaq, deleteFaq } from "./actions";
+import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
@@ -74,9 +75,13 @@ export default async function AdminFaqPage({
                 <span className="flex-1 truncate">{f.question}</span>
                 <form action={deleteFaq}>
                   <input type="hidden" name="id" value={f.id} />
-                  <button className="rounded-lg px-2 py-1 text-red-500 hover:bg-red-50" title="삭제">
+                  <ConfirmButton
+                    message="이 FAQ를 삭제하시겠습니까?"
+                    title="삭제"
+                    className="rounded-lg px-2 py-1 text-red-500 hover:bg-red-50"
+                  >
                     <i className="fa-solid fa-trash" aria-hidden />
-                  </button>
+                  </ConfirmButton>
                 </form>
               </li>
             ))}

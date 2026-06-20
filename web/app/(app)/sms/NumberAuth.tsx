@@ -134,16 +134,20 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl bg-zinc-900 p-5 text-white">
-        <p className="text-sm text-zinc-400">보유 포인트</p>
-        <p className="mt-1 text-2xl font-bold">{point.toLocaleString("ko-KR")}P</p>
+      <div className="glass-dark rounded-2xl p-5 text-white">
+        <p className="flex items-center gap-2 text-sm text-zinc-400">
+          <i className="fa-solid fa-wallet text-emerald-400" aria-hidden /> 보유 포인트
+        </p>
+        <p className="font-num mt-1 text-2xl font-bold">
+          {point.toLocaleString("ko-KR")}P
+        </p>
         <p className="mt-1 text-xs text-zinc-400">
           인증코드 수신 성공 시 {SMS_COST_POINT.toLocaleString("ko-KR")}P 차감 (번호
           발급은 무료)
         </p>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-5">
+      <div className="glass rounded-2xl p-5">
         <div className="flex flex-wrap gap-2">
           <select
             value={country}
@@ -172,8 +176,12 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
           <button
             onClick={getNumber}
             disabled={running}
-            className="rounded-lg bg-emerald-600 px-5 py-2.5 font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
           >
+            <i
+              className={`fa-solid ${running ? "fa-spinner fa-spin" : "fa-mobile-screen-button"}`}
+              aria-hidden
+            />
             {running ? "진행 중…" : "번호 받기"}
           </button>
           {running && (
@@ -234,8 +242,8 @@ function Row({
       <dt className="text-zinc-500">{label}</dt>
       <dd
         className={[
-          mono ? "font-mono" : "",
-          highlight ? "text-lg font-bold text-emerald-600" : "",
+          mono ? "font-num" : "",
+          highlight ? "font-num text-lg font-bold text-emerald-600" : "",
         ].join(" ")}
       >
         {value}

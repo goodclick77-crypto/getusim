@@ -22,17 +22,21 @@ export default async function SmsPage() {
   });
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-xl font-bold">해외 SMS 인증</h1>
+    <div className="space-y-6">
+      <h1 className="flex items-center gap-2 text-xl font-bold">
+        <i className="fa-solid fa-comment-sms text-emerald-600" aria-hidden /> 해외 SMS 인증
+      </h1>
 
       <NumberAuth initialPoint={user.point} isAdmin={user.role === "ADMIN"} />
 
       <section>
-        <h2 className="mb-3 font-semibold">발급 내역</h2>
+        <h2 className="mb-3 flex items-center gap-2 font-bold">
+          <i className="fa-solid fa-clock-rotate-left text-emerald-600" aria-hidden /> 발급 내역
+        </h2>
         {rentals.length === 0 ? (
           <p className="text-sm text-zinc-500">발급 내역이 없습니다.</p>
         ) : (
-          <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white">
+          <ul className="glass divide-y divide-black/5 rounded-2xl">
             {rentals.map((r) => (
               <li
                 key={r.id}
@@ -41,9 +45,9 @@ export default async function SmsPage() {
                 <div>
                   <p className="font-medium">
                     {r.service} · {r.country}{" "}
-                    <span className="font-mono text-zinc-600">{r.phoneNumber}</span>
+                    <span className="font-num text-zinc-600">{r.phoneNumber}</span>
                   </p>
-                  <p className="text-xs text-zinc-400">
+                  <p className="font-num text-xs text-zinc-400">
                     {ymdhm(r.createdAt)}
                     {r.smsCode ? ` · 코드 ${r.smsCode} · -${pt(r.pricePoint)}` : ""}
                   </p>

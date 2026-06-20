@@ -15,24 +15,32 @@ export default async function AdminLayout({
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="flex items-center justify-between border-b border-zinc-200 bg-zinc-900 px-6 py-3 text-white">
-        <div className="flex items-center gap-4">
-          <Link href="/admin" className="text-lg font-bold">
-            GetUsim 관리자
+      <header className="glass-dark sticky top-0 z-40 text-white">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+          <Link href="/admin" className="flex items-center gap-2 font-mont text-lg font-extrabold">
+            <i className="fa-solid fa-gauge-high text-emerald-400" aria-hidden /> GetUsim 관리자
           </Link>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <Link href="/dashboard" className="text-zinc-300 hover:text-white">
-            사용자 화면
-          </Link>
-          <form action="/logout" method="POST" className="inline">
-            <button type="submit" className="text-zinc-300 hover:text-white">
-              로그아웃
-            </button>
-          </form>
+          <nav aria-label="관리자 메뉴" className="flex items-center gap-1 text-sm">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-zinc-300 hover:bg-white/10 hover:text-white"
+            >
+              <i className="fa-solid fa-user" aria-hidden /> 사용자 화면
+            </Link>
+            <form action="/logout" method="POST">
+              <button
+                type="submit"
+                className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-zinc-300 hover:bg-white/10 hover:text-white"
+              >
+                <i className="fa-solid fa-right-from-bracket" aria-hidden /> 로그아웃
+              </button>
+            </form>
+          </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">{children}</main>
+      <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+        {children}
+      </main>
     </div>
   );
 }

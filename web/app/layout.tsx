@@ -12,7 +12,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko" className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-zinc-50 text-zinc-900">
+      <body className="flex min-h-full flex-col">
+        <a href="#main" className="skip-link">
+          본문 바로가기
+        </a>
         {children}
       </body>
     </html>

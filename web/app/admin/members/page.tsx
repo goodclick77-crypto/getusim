@@ -5,30 +5,43 @@ import { pt, ymd } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
+const SORTS = [
+  { key: "recent", label: "최근 가입" },
+  { key: "point", label: "포인트 많은순" },
+  { key: "point_asc", label: "포인트 적은순" },
+] as const;
+
 export default async function AdminMembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; sort?: string }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
   const q = (sp.q || "").trim();
+  const sort = SORTS.some((s) => s.key === sp.sort) ? sp.sort! : "recent";
 
   const where = q
     ? {
         OR: [
           { loginId: { contains: q, mode: "insensitive" as const } },
           { name: { contains: q, mode: "insensitive" as const } },
-          { phone: { contains: q } },
           { email: { contains: q, mode: "insensitive" as const } },
         ],
       }
     : {};
 
+  const orderBy =
+    sort === "point"
+      ? { point: "desc" as const }
+      : sort === "point_asc"
+        ? { point: "asc" as const }
+        : { createdAt: "desc" as const };
+
   const [members, total] = await Promise.all([
     prisma.user.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy,
       take: 100,
       include: { _count: { select: { inquiries: true, chargeOrders: true } } },
     }),
@@ -52,20 +65,36 @@ export default async function AdminMembersPage({
           <input
             name="q"
             defaultValue={q}
-            placeholder="아이디 · 이름 · 휴대폰 · 이메일 검색"
+            placeholder="아이디 · 이름 · 이메일 검색"
             aria-label="회원 검색"
             className="w-full bg-transparent outline-none"
           />
         </div>
+        <input type="hidden" name="sort" value={sort} />
         <button className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-700">
           검색
         </button>
       </form>
 
-      <p className="font-num text-sm text-zinc-500">
-        {q ? `"${q}" 검색결과 ` : "전체 "}
-        {total.toLocaleString("ko-KR")}명 {total > 100 && "(최근 100명 표시)"}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <nav aria-label="정렬" className="flex flex-wrap gap-2">
+          {SORTS.map((s) => (
+            <Link
+              key={s.key}
+              href={`/admin/members?sort=${s.key}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+              className={`rounded-xl px-3.5 py-1.5 text-sm font-medium transition ${
+                sort === s.key ? "bg-zinc-900 text-white" : "glass text-zinc-600 hover:bg-white/70"
+              }`}
+            >
+              {s.label}
+            </Link>
+          ))}
+        </nav>
+        <p className="font-num text-sm text-zinc-500">
+          {q ? `"${q}" 검색결과 ` : "전체 "}
+          {total.toLocaleString("ko-KR")}명 {total > 100 && "(100명 표시)"}
+        </p>
+      </div>
 
       <div className="glass overflow-hidden rounded-2xl">
         <div className="overflow-x-auto">
@@ -74,7 +103,6 @@ export default async function AdminMembersPage({
               <tr className="border-b border-black/5 text-xs text-zinc-500">
                 <th className="px-4 py-2.5 text-left font-semibold">아이디</th>
                 <th className="px-4 py-2.5 text-left font-semibold">이름</th>
-                <th className="px-4 py-2.5 text-left font-semibold">휴대폰</th>
                 <th className="px-4 py-2.5 text-right font-semibold">보유P</th>
                 <th className="px-4 py-2.5 text-center font-semibold">문의</th>
                 <th className="px-4 py-2.5 text-left font-semibold">가입일</th>
@@ -90,7 +118,6 @@ export default async function AdminMembersPage({
                     </Link>
                   </td>
                   <td className="px-4 py-2.5">{m.name || "-"}</td>
-                  <td className="font-num px-4 py-2.5 text-zinc-600">{m.phone || "-"}</td>
                   <td className="font-num whitespace-nowrap px-4 py-2.5 text-right font-semibold">
                     {pt(m.point)}
                   </td>

@@ -9,25 +9,25 @@ import {
   smsPointPrice,
 } from "@/lib/config";
 
-// 국가 선택 시 전체 서비스의 수신률·재고·가격 비교표
+// 서비스 선택 시 잘 받아지는 국가 비교 (수신률 높은 순, 번호없음/0% 제외)
 export async function GET(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "login" }, { status: 401 });
 
-  const country = new URL(req.url).searchParams.get("country") || "";
-  if (!COUNTRIES.some((c) => c.value === country)) {
-    return NextResponse.json({ services: [] });
+  const service = new URL(req.url).searchParams.get("service") || "";
+  if (!SERVICES.some((s) => s.value === service)) {
+    return NextResponse.json({ countries: [] });
   }
 
   let data: Record<string, Record<string, Record<string, { cost: number; count: number; rate?: number }>>> = {};
   try {
-    data = (await fivesim.prices({ country })) as typeof data;
+    data = (await fivesim.prices({ product: service })) as typeof data;
   } catch {
-    return NextResponse.json({ services: SERVICES.map((s) => ({ ...s, available: false })) });
+    return NextResponse.json({ countries: [] });
   }
 
-  const services = SERVICES.flatMap((s) => {
-    const ops = data?.[country]?.[s.value] ?? {};
+  const countries = COUNTRIES.flatMap((c) => {
+    const ops = data?.[c.value]?.[service] ?? {};
     let best: { cost: number; rate: number; count: number } | null = null;
     for (const info of Object.values(ops)) {
       const cost = Number(info?.cost);
@@ -38,14 +38,12 @@ export async function GET(req: Request) {
         best = { cost, rate, count };
       }
     }
-    // 번호 없음 / 수신률 0% 는 제외
     if (!best || best.rate <= 0) return [];
     return [
       {
-        value: s.value,
-        label: s.label,
-        slug: s.slug,
-        available: true,
+        value: c.value,
+        label: c.label,
+        iso: c.iso,
         price: smsPointPrice(best.cost),
         rate: Math.round(best.rate),
         stock: best.count,
@@ -53,6 +51,6 @@ export async function GET(req: Request) {
     ];
   });
 
-  services.sort((a, b) => b.rate - a.rate);
-  return NextResponse.json({ services });
+  countries.sort((a, b) => b.rate - a.rate);
+  return NextResponse.json({ countries });
 }

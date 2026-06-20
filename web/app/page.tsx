@@ -13,18 +13,15 @@ const STATS = [
   { icon: "fa-shield-halved", value: "안전결제", label: "포인트 충전" },
 ];
 
-const FEATURES = [
-  { icon: "fa-earth-americas", title: "전 세계 23개국", desc: "미국·러시아·영국 등 다양한 국가의 가상번호를 즉시 발급받습니다.", grad: "from-sky-500 to-blue-600" },
-  { icon: "fa-bolt", title: "실시간 수신", desc: "발급 즉시 SMS 인증번호를 자동으로 받아봅니다.", grad: "from-amber-400 to-orange-500" },
-  { icon: "fa-coins", title: "합리적인 포인트", desc: "수신 성공 시에만 차감. 필요한 만큼만 충전하세요.", grad: "from-emerald-500 to-teal-600" },
-  { icon: "fa-comments", title: "주요 서비스 지원", desc: "텔레그램·왓츠앱·구글·인스타그램 등 주요 서비스.", grad: "from-violet-500 to-purple-600" },
-];
+const FLAGS = ["us", "gb", "ru", "cn", "fr", "br", "ca", "es", "au", "vn"];
+const LOGOS = ["telegram", "whatsapp", "google", "instagram", "facebook", "x", "discord"];
 
 export default async function Home() {
   const user = await getCurrentUser();
   return (
     <div className="flex flex-1 flex-col">
-      <header className="glass sticky top-0 z-40 flex items-center justify-between px-5 py-3.5 sm:px-8">
+      <header className="glass sticky top-0 z-40">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
         <Link href="/" className="font-mont text-xl font-extrabold tracking-tight">
           GetUsim
         </Link>
@@ -50,6 +47,7 @@ export default async function Home() {
             </>
           )}
         </nav>
+        </div>
       </header>
 
       <main id="main" className="flex flex-1 flex-col">
@@ -102,25 +100,107 @@ export default async function Home() {
               왜 <span className="text-emerald-600">GetUsim</span>인가요?
             </h2>
           </Reveal>
-          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {FEATURES.map((f, i) => (
-              <Reveal key={f.title} delay={i * 90}>
-                <Tilt className="h-full">
-                  <article className="glass relative h-full overflow-hidden rounded-3xl p-6">
-                    <span
-                      className={`mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br ${f.grad} text-2xl text-white shadow-lg`}
-                    >
-                      <i className={`fa-solid ${f.icon}`} aria-hidden />
+          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* 전 세계 23개국 */}
+            <Reveal>
+              <Tilt className="h-full">
+                <article className="glass flex h-full flex-col rounded-3xl p-6">
+                  <div className="flex flex-wrap gap-2">
+                    {FLAGS.map((f) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={f}
+                        src={`https://flagcdn.com/h40/${f}.png`}
+                        alt=""
+                        className="h-7 w-10 rounded-md object-cover shadow-sm"
+                        loading="lazy"
+                      />
+                    ))}
+                    <span className="flex h-7 items-center rounded-md bg-zinc-900 px-2 text-xs font-bold text-white">
+                      +13
                     </span>
-                    <h3 className="text-lg font-bold">{f.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-zinc-600">{f.desc}</p>
-                    <div
-                      className={`pointer-events-none absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-gradient-to-br ${f.grad} opacity-10 blur-2xl`}
-                    />
-                  </article>
-                </Tilt>
-              </Reveal>
-            ))}
+                  </div>
+                  <h3 className="mt-5 text-lg font-bold">전 세계 23개국</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">
+                    미국·영국·러시아 등 다양한 국가의 가상번호를 즉시 발급받습니다.
+                  </p>
+                </article>
+              </Tilt>
+            </Reveal>
+
+            {/* 주요 서비스 */}
+            <Reveal delay={90}>
+              <Tilt className="h-full">
+                <article className="glass flex h-full flex-col rounded-3xl p-6">
+                  <div className="flex flex-wrap gap-2.5">
+                    {LOGOS.map((s) => (
+                      <span
+                        key={s}
+                        className="grid h-11 w-11 place-items-center rounded-2xl bg-white shadow-sm ring-1 ring-black/5"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`https://cdn.simpleicons.org/${s}`}
+                          alt=""
+                          className="h-6 w-6"
+                          loading="lazy"
+                        />
+                      </span>
+                    ))}
+                  </div>
+                  <h3 className="mt-5 text-lg font-bold">주요 서비스 지원</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">
+                    텔레그램·왓츠앱·구글·인스타그램 등 주요 서비스를 지원합니다.
+                  </p>
+                </article>
+              </Tilt>
+            </Reveal>
+
+            {/* 실시간 수신 */}
+            <Reveal delay={150}>
+              <Tilt className="h-full">
+                <article className="glass flex h-full flex-col rounded-3xl p-6">
+                  <div className="space-y-2">
+                    <div className="w-fit rounded-2xl rounded-bl-sm bg-zinc-100 px-4 py-2 text-sm text-zinc-600">
+                      [GetUsim] 인증번호를 입력하세요
+                    </div>
+                    <div className="ml-auto w-fit rounded-2xl rounded-br-sm bg-emerald-600 px-4 py-2 text-sm font-bold tracking-widest text-white">
+                      738 291
+                    </div>
+                  </div>
+                  <h3 className="mt-5 text-lg font-bold">실시간 수신</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">
+                    발급 즉시 SMS 인증번호를 자동으로 받아봅니다.
+                  </p>
+                </article>
+              </Tilt>
+            </Reveal>
+
+            {/* 합리적인 포인트 */}
+            <Reveal delay={210}>
+              <Tilt className="h-full">
+                <article className="glass flex h-full flex-col rounded-3xl p-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {["1,000P", "수신 성공 시에만", "최소 1,000P"].map((t, i) => (
+                      <span
+                        key={i}
+                        className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
+                          i === 0
+                            ? "font-num bg-emerald-600 text-white"
+                            : "bg-emerald-50 text-emerald-700"
+                        }`}
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                  <h3 className="mt-5 text-lg font-bold">합리적인 포인트</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">
+                    수신에 성공했을 때만 차감됩니다. 필요한 만큼만 충전하세요.
+                  </p>
+                </article>
+              </Tilt>
+            </Reveal>
           </div>
         </section>
       </main>

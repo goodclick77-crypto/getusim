@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { COUNTRIES, SMS_BASE_POINT } from "@/lib/config";
+import { COUNTRIES, SERVICES, SMS_BASE_POINT } from "@/lib/config";
 import { phoneFmt } from "@/lib/format";
 import ImageSelect from "@/components/ImageSelect";
 import CopyButton from "@/components/CopyButton";
@@ -11,7 +11,14 @@ type Svc = {
   value: string;
   label: string;
   slug: string;
-  available: boolean;
+  price?: number;
+  rate?: number;
+  stock?: number;
+};
+type Cnt = {
+  value: string;
+  label: string;
+  iso: string;
   price?: number;
   rate?: number;
   stock?: number;
@@ -23,6 +30,87 @@ function rateColor(rate: number) {
     : rate >= 20
       ? "bg-amber-100 text-amber-700"
       : "bg-red-100 text-red-600";
+}
+
+type Row = { value: string; label: string; img: string; rate: number; stock: number; price: number };
+
+function CompareTable({
+  colLabel,
+  loading,
+  selected,
+  onPick,
+  imgClass,
+  rows,
+}: {
+  colLabel: string;
+  loading: boolean;
+  selected: string;
+  onPick: (v: string) => void;
+  imgClass: string;
+  rows: Row[];
+}) {
+  return (
+    <div>
+      <p className="mb-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-zinc-700">
+        <i className="fa-solid fa-list-check text-emerald-600" aria-hidden /> {colLabel} 선택
+        <span className="text-xs font-normal text-zinc-400">· 수신률 높은 순</span>
+      </p>
+      {loading ? (
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="skeleton h-11 rounded-xl" />
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          현재 이용 가능한 {colLabel}가 없습니다. 다른 선택을 시도해보세요.
+        </p>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-black/10">
+          <div className="hidden grid-cols-[1fr_4.5rem_4rem_5rem] gap-1 bg-black/[0.03] px-3 py-2 text-xs font-semibold text-zinc-500 sm:grid">
+            <span>{colLabel}</span>
+            <span className="text-center">수신률</span>
+            <span className="text-center">재고</span>
+            <span className="text-right">차감P</span>
+          </div>
+          <ul className="max-h-72 divide-y divide-black/5 overflow-auto">
+            {rows.map((r) => {
+              const sel = selected === r.value;
+              return (
+                <li key={r.value}>
+                  <button
+                    type="button"
+                    onClick={() => onPick(r.value)}
+                    className={`grid w-full grid-cols-[1fr_4.5rem_4rem_5rem] items-center gap-1 px-3 py-2.5 text-left text-sm transition ${
+                      sel ? "bg-emerald-50" : "hover:bg-black/[0.02]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={r.img} alt="" className={`${imgClass} shrink-0`} loading="lazy" />
+                      <span className={sel ? "font-semibold" : ""}>{r.label}</span>
+                      {sel && <i className="fa-solid fa-check text-emerald-600" aria-hidden />}
+                    </span>
+                    <span className="text-center">
+                      <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${rateColor(r.rate)}`}>
+                        {r.rate}%
+                      </span>
+                    </span>
+                    <span className="font-num text-center text-xs text-zinc-500">
+                      {r.stock.toLocaleString("ko-KR")}
+                    </span>
+                    <span className="font-num text-right font-semibold">
+                      {r.price.toLocaleString("ko-KR")}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function NumberAuth({ initialPoint, isAdmin }: Props) {
@@ -37,32 +125,56 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
   const [remain, setRemain] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
   const [balance, setBalance] = useState("");
+  const [mode, setMode] = useState<"country" | "service">("country");
   const [services, setServices] = useState<Svc[]>([]);
-  const [svcLoading, setSvcLoading] = useState(false);
+  const [countries, setCountries] = useState<Cnt[]>([]);
+  const [listLoading, setListLoading] = useState(false);
 
   const stopRef = useRef(false);
   const expiresRef = useRef<number | null>(null);
 
-  // 국가 선택 시 전체 서비스 수신률·재고·가격 조회
+  // 국가 모드: 국가 선택 → 서비스 목록
   useEffect(() => {
-    if (!country) {
+    if (mode !== "country" || !country) {
       setServices([]);
       return;
     }
     let alive = true;
-    setSvcLoading(true);
+    setListLoading(true);
     setServices([]);
     fetch(`/api/sms/services?country=${country}`)
       .then((r) => r.json())
       .then((j) => alive && setServices(j.services || []))
       .catch(() => alive && setServices([]))
-      .finally(() => alive && setSvcLoading(false));
+      .finally(() => alive && setListLoading(false));
     return () => {
       alive = false;
     };
-  }, [country]);
+  }, [mode, country]);
 
-  const selected = services.find((s) => s.value === service);
+  // 서비스 모드: 서비스 선택 → 잘 받아지는 국가 목록
+  useEffect(() => {
+    if (mode !== "service" || !service) {
+      setCountries([]);
+      return;
+    }
+    let alive = true;
+    setListLoading(true);
+    setCountries([]);
+    fetch(`/api/sms/countries?service=${service}`)
+      .then((r) => r.json())
+      .then((j) => alive && setCountries(j.countries || []))
+      .catch(() => alive && setCountries([]))
+      .finally(() => alive && setListLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [mode, service]);
+
+  const selected =
+    mode === "country"
+      ? services.find((s) => s.value === service)
+      : countries.find((c) => c.value === country);
 
   // 카운트다운
   useEffect(() => {
@@ -203,111 +315,116 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
 
       <div className="glass rounded-2xl p-5">
         <div className="space-y-4">
-          {/* 국가 */}
-          <div>
-            <p className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-zinc-700">
-              <i className="fa-solid fa-flag text-emerald-600" aria-hidden /> 국가
-            </p>
-            <ImageSelect
-              placeholder="국가 선택"
-              value={country}
-              onChange={(v) => {
-                setCountry(v);
-                setService("");
-              }}
-              imgClass="h-[18px] w-6 rounded-sm object-cover shadow-sm"
-              options={COUNTRIES.map((c) => ({
-                value: c.value,
-                label: c.label,
-                img: `https://flagcdn.com/w40/${c.iso}.png`,
-              }))}
-            />
+          {/* 검색 모드 */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setMode("country")}
+              className={`flex-1 rounded-xl px-3 py-2 text-sm font-medium transition ${
+                mode === "country"
+                  ? "bg-zinc-900 text-white"
+                  : "bg-black/5 text-zinc-600 hover:bg-black/10"
+              }`}
+            >
+              <i className="fa-solid fa-flag mr-1.5" aria-hidden /> 국가로 찾기
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("service")}
+              className={`flex-1 rounded-xl px-3 py-2 text-sm font-medium transition ${
+                mode === "service"
+                  ? "bg-zinc-900 text-white"
+                  : "bg-black/5 text-zinc-600 hover:bg-black/10"
+              }`}
+            >
+              <i className="fa-solid fa-grip mr-1.5" aria-hidden /> 서비스로 찾기
+            </button>
           </div>
 
-          {/* 서비스 비교표 (수신률·재고·가격) */}
-          {country && (
+          {mode === "country" && (
             <div>
-              <p className="mb-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-zinc-700">
-                <i className="fa-solid fa-grip text-emerald-600" aria-hidden /> 서비스 선택
-                <span className="text-xs font-normal text-zinc-400">· 수신률 높은 순</span>
+              <p className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-zinc-700">
+                <i className="fa-solid fa-flag text-emerald-600" aria-hidden /> 국가
               </p>
-              {svcLoading ? (
-                <div className="space-y-2">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="skeleton h-11 rounded-xl" />
-                  ))}
-                </div>
-              ) : (
-                <div className="overflow-hidden rounded-xl border border-black/10">
-                  <div className="hidden grid-cols-[1fr_4.5rem_4rem_5rem] gap-1 bg-black/[0.03] px-3 py-2 text-xs font-semibold text-zinc-500 sm:grid">
-                    <span>서비스</span>
-                    <span className="text-center">수신률</span>
-                    <span className="text-center">재고</span>
-                    <span className="text-right">차감P</span>
-                  </div>
-                  <ul className="divide-y divide-black/5">
-                    {services.map((s) => {
-                      const sel = service === s.value;
-                      return (
-                        <li key={s.value}>
-                          <button
-                            type="button"
-                            disabled={!s.available}
-                            onClick={() => setService(s.value)}
-                            className={`grid w-full grid-cols-[1fr_4.5rem_4rem_5rem] items-center gap-1 px-3 py-2.5 text-left text-sm transition ${
-                              sel
-                                ? "bg-emerald-50"
-                                : s.available
-                                  ? "hover:bg-black/[0.02]"
-                                  : "opacity-50"
-                            }`}
-                          >
-                            <span className="flex items-center gap-2">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={`https://cdn.simpleicons.org/${s.slug}`}
-                                alt=""
-                                className="h-4 w-4 shrink-0"
-                                loading="lazy"
-                              />
-                              <span className={sel ? "font-semibold" : ""}>{s.label}</span>
-                              {sel && (
-                                <i className="fa-solid fa-check text-emerald-600" aria-hidden />
-                              )}
-                            </span>
-                            {s.available ? (
-                              <>
-                                <span className="text-center">
-                                  <span
-                                    className={`rounded px-1.5 py-0.5 text-xs font-semibold ${rateColor(s.rate ?? 0)}`}
-                                  >
-                                    {s.rate}%
-                                  </span>
-                                </span>
-                                <span className="font-num text-center text-xs text-zinc-500">
-                                  {(s.stock ?? 0).toLocaleString("ko-KR")}
-                                </span>
-                                <span className="font-num text-right font-semibold">
-                                  {(s.price ?? 0).toLocaleString("ko-KR")}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="col-span-3 text-right text-xs text-zinc-400">
-                                번호 없음
-                              </span>
-                            )}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
+              <ImageSelect
+                placeholder="국가 선택"
+                value={country}
+                onChange={(v) => {
+                  setCountry(v);
+                  setService("");
+                }}
+                imgClass="h-[18px] w-6 rounded-sm object-cover shadow-sm"
+                options={COUNTRIES.map((c) => ({
+                  value: c.value,
+                  label: c.label,
+                  img: `https://flagcdn.com/w40/${c.iso}.png`,
+                }))}
+              />
             </div>
           )}
 
+          {mode === "service" && (
+            <div>
+              <p className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-zinc-700">
+                <i className="fa-solid fa-grip text-emerald-600" aria-hidden /> 서비스
+              </p>
+              <ImageSelect
+                placeholder="서비스 선택"
+                value={service}
+                onChange={(v) => {
+                  setService(v);
+                  setCountry("");
+                }}
+                imgClass="h-5 w-5 object-contain"
+                options={SERVICES.map((s) => ({
+                  value: s.value,
+                  label: s.label,
+                  img: `https://cdn.simpleicons.org/${s.slug}`,
+                }))}
+              />
+            </div>
+          )}
+
+          {/* 국가모드: 서비스 비교표 */}
+          {mode === "country" && country && (
+            <CompareTable
+              colLabel="서비스"
+              loading={listLoading}
+              selected={service}
+              onPick={setService}
+              imgClass="h-4 w-4"
+              rows={services.map((s) => ({
+                value: s.value,
+                label: s.label,
+                img: `https://cdn.simpleicons.org/${s.slug}`,
+                rate: s.rate ?? 0,
+                stock: s.stock ?? 0,
+                price: s.price ?? 0,
+              }))}
+            />
+          )}
+
+          {/* 서비스모드: 국가 비교표 */}
+          {mode === "service" && service && (
+            <CompareTable
+              colLabel="국가"
+              loading={listLoading}
+              selected={country}
+              onPick={setCountry}
+              imgClass="h-3.5 w-5 rounded-[2px] object-cover shadow-sm"
+              rows={countries.map((c) => ({
+                value: c.value,
+                label: c.label,
+                img: `https://flagcdn.com/w40/${c.iso}.png`,
+                rate: c.rate ?? 0,
+                stock: c.stock ?? 0,
+                price: c.price ?? 0,
+              }))}
+            />
+          )}
+
           {/* 낮은 수신률 경고 */}
-          {selected && selected.available && (selected.rate ?? 0) < 20 && (
+          {selected && (selected.rate ?? 0) < 20 && (
             <div className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
               <i className="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden />
               <span>
@@ -321,7 +438,7 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
           <div className="flex gap-2">
             <button
               onClick={getNumber}
-              disabled={running || (!!service && !selected?.available)}
+              disabled={running || !country || !service}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
             >
               <i

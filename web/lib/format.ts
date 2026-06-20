@@ -53,3 +53,17 @@ export const ymdhm = (d: Date | string | null | undefined) => {
   if (isNaN(dt.getTime())) return "-";
   return dt.toISOString().slice(0, 16).replace("T", " ");
 };
+
+/** "YYYY-MM-DD" from/to → Prisma createdAt 필터({gte,lte}). 둘 다 비면 null. to는 그 날 끝까지 포함. */
+export function dateRange(from?: string, to?: string): { gte?: Date; lte?: Date } | null {
+  const r: { gte?: Date; lte?: Date } = {};
+  if (from) {
+    const d = new Date(`${from}T00:00:00`);
+    if (!isNaN(d.getTime())) r.gte = d;
+  }
+  if (to) {
+    const d = new Date(`${to}T23:59:59.999`);
+    if (!isNaN(d.getTime())) r.lte = d;
+  }
+  return r.gte || r.lte ? r : null;
+}

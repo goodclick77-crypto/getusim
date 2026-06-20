@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { ymdhm } from "@/lib/format";
+import { ymdhm, dateRange } from "@/lib/format";
 import { answerInquiry, deleteInquiry, updateReply } from "../actions";
 import ConfirmButton from "@/components/ConfirmButton";
 
@@ -16,15 +16,19 @@ const TABS = [
 export default async function AdminInquiriesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; from?: string; to?: string }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
   const status = (sp.status || "OPEN").toUpperCase();
-  const where =
-    status === "ALL"
-      ? { parentId: null }
-      : { parentId: null, status: status as "OPEN" | "ANSWERED" };
+  const from = (sp.from || "").trim();
+  const to = (sp.to || "").trim();
+  const createdAt = dateRange(from, to);
+  const where = {
+    parentId: null,
+    ...(status === "ALL" ? {} : { status: status as "OPEN" | "ANSWERED" }),
+    ...(createdAt ? { createdAt } : {}),
+  };
 
   const inquiries = await prisma.inquiry.findMany({
     where,
@@ -48,7 +52,7 @@ export default async function AdminInquiriesPage({
         {TABS.map((t) => (
           <Link
             key={t.key}
-            href={`/admin/inquiries?status=${t.key}`}
+            href={`/admin/inquiries?status=${t.key}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`}
             className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
               status === t.key
                 ? "bg-zinc-900 text-white"
@@ -59,6 +63,37 @@ export default async function AdminInquiriesPage({
           </Link>
         ))}
       </nav>
+
+      <form action="/admin/inquiries" method="GET" className="flex flex-wrap items-center gap-2 text-sm">
+        <input type="hidden" name="status" value={status} />
+        <span className="text-zinc-500">기간</span>
+        <input
+          type="date"
+          name="from"
+          defaultValue={from}
+          aria-label="시작일"
+          className="glass font-num rounded-lg px-3 py-1.5 outline-none"
+        />
+        <span className="text-zinc-400">~</span>
+        <input
+          type="date"
+          name="to"
+          defaultValue={to}
+          aria-label="종료일"
+          className="glass font-num rounded-lg px-3 py-1.5 outline-none"
+        />
+        <button className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-700">
+          조회
+        </button>
+        {(from || to) && (
+          <Link
+            href={`/admin/inquiries?status=${status}`}
+            className="text-xs text-zinc-400 hover:text-zinc-600"
+          >
+            기간 해제
+          </Link>
+        )}
+      </form>
 
       {inquiries.length === 0 ? (
         <p className="text-sm text-zinc-500">해당 문의가 없습니다.</p>

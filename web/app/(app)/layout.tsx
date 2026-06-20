@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { pt } from "@/lib/format";
 import MobileNav from "@/components/MobileNav";
+import Footer from "@/components/Footer";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ const NAV = [
   { href: "/sms", label: "SMS 인증", icon: "fa-comment-sms" },
   { href: "/charge", label: "포인트 충전", icon: "fa-coins" },
   { href: "/notice", label: "공지사항", icon: "fa-bullhorn" },
+  { href: "/faq", label: "FAQ", icon: "fa-circle-question" },
   { href: "/inquiry", label: "1:1 문의", icon: "fa-headset" },
 ];
 
@@ -78,6 +80,7 @@ export default async function AppLayout({
       <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
         {children}
       </main>
+      <Footer />
     </div>
   );
 }

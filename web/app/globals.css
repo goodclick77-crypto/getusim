@@ -1,7 +1,7 @@
 @import "tailwindcss";
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@1.3.9/dist/web/static/pretendard.min.css");
-@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap");
-@import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css");
+
+/* Pretendard / Montserrat / Font Awesome 는 app/layout.tsx 의 <link> 로 로드
+   (Tailwind v4 빌더가 @import url() 을 제거하므로 CSS @import 사용 불가) */
 
 @theme {
   --font-sans: "Pretendard", "Pretendard Variable", system-ui, sans-serif;

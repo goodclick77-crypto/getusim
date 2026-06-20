@@ -1,12 +1,13 @@
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import Tilt from "@/components/Tilt";
+import Footer from "@/components/Footer";
 
 const FEATURES = [
-  { icon: "fa-globe", title: "전 세계 23개국", desc: "미국·러시아·영국 등 다양한 국가의 가상번호를 즉시 발급받습니다.", cls: "sm:col-span-2" },
-  { icon: "fa-bolt", title: "실시간 수신", desc: "발급 즉시 SMS 인증번호를 자동으로 받아봅니다.", cls: "" },
-  { icon: "fa-shield-halved", title: "안전한 결제", desc: "포인트 충전으로 필요한 만큼만.", cls: "" },
-  { icon: "fa-comment-sms", title: "주요 서비스 지원", desc: "텔레그램·왓츠앱·구글·인스타 등 23종.", cls: "sm:col-span-2" },
+  { icon: "fa-earth-americas", title: "전 세계 23개국", desc: "미국·러시아·영국 등 다양한 국가의 가상번호를 즉시 발급받습니다.", cls: "sm:col-span-2", grad: "from-sky-500 to-blue-600" },
+  { icon: "fa-bolt", title: "실시간 수신", desc: "발급 즉시 SMS 인증번호를 자동으로 받아봅니다.", cls: "", grad: "from-amber-400 to-orange-500" },
+  { icon: "fa-shield-halved", title: "안전한 결제", desc: "포인트 충전으로 필요한 만큼만.", cls: "", grad: "from-emerald-500 to-teal-600" },
+  { icon: "fa-comments", title: "주요 서비스 지원", desc: "텔레그램·왓츠앱·구글·인스타 등 23종.", cls: "sm:col-span-2", grad: "from-violet-500 to-purple-600" },
 ];
 
 export default function Home() {
@@ -72,12 +73,16 @@ export default function Home() {
           {FEATURES.map((f, i) => (
             <Reveal key={f.title} delay={i * 90} className={f.cls}>
               <Tilt className="h-full">
-                <article className="glass flex h-full flex-col gap-3 rounded-3xl p-6">
-                  <span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-600/10 text-xl text-emerald-600">
+                <article className="glass flex h-full flex-col gap-4 rounded-3xl p-6">
+                  <span
+                    className={`grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br ${f.grad} text-2xl text-white shadow-lg`}
+                  >
                     <i className={`fa-solid ${f.icon}`} aria-hidden />
                   </span>
-                  <h2 className="text-lg font-bold">{f.title}</h2>
-                  <p className="text-sm leading-relaxed text-zinc-600">{f.desc}</p>
+                  <div>
+                    <h2 className="text-lg font-bold">{f.title}</h2>
+                    <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">{f.desc}</p>
+                  </div>
                 </article>
               </Tilt>
             </Reveal>
@@ -85,9 +90,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="mt-auto border-t border-black/5 px-5 py-8 text-center text-sm text-zinc-500">
-        <p className="font-num">© {new Date().getFullYear()} GetUsim. All rights reserved.</p>
-      </footer>
+      <Footer />
     </div>
   );
 }

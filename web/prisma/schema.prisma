@@ -180,6 +180,19 @@ model Notice {
   @@map("notice")
 }
 
+/// FAQ (자주 묻는 질문) — 관리자 작성
+model Faq {
+  id        Int      @id @default(autoincrement())
+  category  String   @default("일반")
+  question  String
+  answer    String   @db.Text
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([order])
+  @@map("faq")
+}
+
 enum RentalStatus {
   PENDING  // 번호 발급, SMS 대기
   RECEIVED // SMS 수신 완료

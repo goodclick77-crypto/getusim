@@ -27,12 +27,18 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-8">
-      <nav aria-label="관리 메뉴" className="flex gap-2">
+      <nav aria-label="관리 메뉴" className="flex flex-wrap gap-2">
         <Link
           href="/admin/notice"
           className="glass inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium hover:bg-white/70"
         >
           <i className="fa-solid fa-bullhorn text-emerald-600" aria-hidden /> 공지 관리
+        </Link>
+        <Link
+          href="/admin/faq"
+          className="glass inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium hover:bg-white/70"
+        >
+          <i className="fa-solid fa-circle-question text-emerald-600" aria-hidden /> FAQ 관리
         </Link>
       </nav>
 

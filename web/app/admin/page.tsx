@@ -22,6 +22,13 @@ export default async function AdminPage() {
 
   const MENU = [
     {
+      href: "/admin/sales",
+      icon: "fa-chart-line",
+      label: "매출 / 정산",
+      desc: "충전매출·원가·마진·사용자별",
+      badge: 0,
+    },
+    {
       href: "/admin/members",
       icon: "fa-users",
       label: "회원 관리",

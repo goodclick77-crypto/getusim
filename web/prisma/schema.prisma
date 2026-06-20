@@ -153,7 +153,8 @@ model NumberRental {
   phoneNumber String       @default("") @map("phone_number")
   smsCode     String?      @map("sms_code")              // 수신된 인증코드
   smsText     String?      @map("sms_text") @db.Text     // 수신 원문
-  pricePoint  Int          @map("price_point")           // 차감 포인트
+  pricePoint  Int          @map("price_point")           // 차감 포인트(매출)
+  costKrw     Int          @default(0) @map("cost_krw")  // 5sim 실제 원가(원) — 마진 계산용
   status      RentalStatus @default(PENDING)
   expiresAt   DateTime?    @map("expires_at")
   createdAt   DateTime     @default(now()) @map("created_at")

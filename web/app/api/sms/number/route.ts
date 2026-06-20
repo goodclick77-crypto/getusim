@@ -9,6 +9,7 @@ import {
   FIVESIM_MAX_PRICE,
   FIVESIM_MIN_STOCK,
   smsPointPrice,
+  SMS_USD_TO_KRW,
 } from "@/lib/config";
 
 // 번호 발급(무료). 동적 가격: 원가에 따라 차감 포인트가 달라짐(수신 성공 시 차감).
@@ -78,6 +79,7 @@ export async function POST(req: Request) {
       service,
       phoneNumber: order.phone,
       pricePoint,
+      costKrw: Math.round((order.price || 0) * SMS_USD_TO_KRW),
       status: "PENDING",
       expiresAt: order.expires ? new Date(order.expires) : null,
     },

@@ -36,6 +36,8 @@ export async function confirmCharge(formData: FormData) {
   });
 
   revalidatePath("/admin");
+  revalidatePath("/admin/charges");
+  revalidatePath("/admin/inquiries");
 }
 
 export async function cancelCharge(formData: FormData) {
@@ -49,6 +51,8 @@ export async function cancelCharge(formData: FormData) {
     });
   }
   revalidatePath("/admin");
+  revalidatePath("/admin/charges");
+  revalidatePath("/admin/inquiries");
 }
 
 /** 1:1 문의 답변 */
@@ -78,4 +82,6 @@ export async function answerInquiry(formData: FormData) {
   ]);
 
   revalidatePath("/admin");
+  revalidatePath("/admin/charges");
+  revalidatePath("/admin/inquiries");
 }

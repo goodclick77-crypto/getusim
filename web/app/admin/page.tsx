@@ -1,134 +1,117 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { won, pt, ymdhm } from "@/lib/format";
-import { confirmCharge, cancelCharge, answerInquiry } from "./actions";
+import { won, pt } from "@/lib/format";
 import Tilt from "@/components/Tilt";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   await requireAdmin();
-  const [pendingCharges, openInquiries, userCount, pointSum] = await Promise.all([
-    prisma.chargeOrder.findMany({
-      where: { status: "PENDING" },
-      orderBy: { createdAt: "desc" },
-      include: { user: { select: { loginId: true, name: true } } },
-      take: 50,
-    }),
-    prisma.inquiry.findMany({
-      where: { parentId: null, status: "OPEN" },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-    }),
-    prisma.user.count(),
-    prisma.user.aggregate({ _sum: { point: true } }),
-  ]);
+  const [userCount, pointSum, pendingCharges, openInquiries, todayCharge] =
+    await Promise.all([
+      prisma.user.count(),
+      prisma.user.aggregate({ _sum: { point: true } }),
+      prisma.chargeOrder.count({ where: { status: "PENDING" } }),
+      prisma.inquiry.count({ where: { parentId: null, status: "OPEN" } }),
+      prisma.chargeOrder.aggregate({
+        _sum: { amount: true },
+        where: { status: "COMPLETED" },
+      }),
+    ]);
+
+  const MENU = [
+    {
+      href: "/admin/charges",
+      icon: "fa-building-columns",
+      label: "입금 확인",
+      desc: "충전 신청 입금확인·지급",
+      badge: pendingCharges,
+    },
+    {
+      href: "/admin/inquiries",
+      icon: "fa-comments",
+      label: "문의 관리",
+      desc: "1:1 문의 답변",
+      badge: openInquiries,
+    },
+    {
+      href: "/admin/notice",
+      icon: "fa-bullhorn",
+      label: "공지 관리",
+      desc: "공지사항 작성·고정",
+      badge: 0,
+    },
+    {
+      href: "/admin/faq",
+      icon: "fa-circle-question",
+      label: "FAQ 관리",
+      desc: "자주 묻는 질문 관리",
+      badge: 0,
+    },
+  ];
 
   return (
     <div className="space-y-8">
-      <nav aria-label="관리 메뉴" className="flex flex-wrap gap-2">
-        <Link
-          href="/admin/notice"
-          className="glass inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium hover:bg-white/70"
-        >
-          <i className="fa-solid fa-bullhorn text-emerald-600" aria-hidden /> 공지 관리
-        </Link>
-        <Link
-          href="/admin/faq"
-          className="glass inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium hover:bg-white/70"
-        >
-          <i className="fa-solid fa-circle-question text-emerald-600" aria-hidden /> FAQ 관리
-        </Link>
-      </nav>
-
-      <section aria-label="통계" className="grid grid-cols-3 gap-3">
+      <section aria-label="통계" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat icon="fa-users" label="총 회원" value={userCount.toLocaleString("ko-KR")} />
         <Stat icon="fa-coins" label="발행 포인트" value={pt(pointSum._sum.point ?? 0)} />
-        <Stat icon="fa-hourglass-half" label="입금대기" value={`${pendingCharges.length}건`} />
+        <Stat icon="fa-hourglass-half" label="입금 대기" value={`${pendingCharges}건`} alert={pendingCharges > 0} />
+        <Stat icon="fa-comment-dots" label="미답변 문의" value={`${openInquiries}건`} alert={openInquiries > 0} />
       </section>
 
       <section>
-        <h2 className="mb-3 flex items-center gap-2 font-bold">
-          <i className="fa-solid fa-building-columns text-emerald-600" aria-hidden /> 입금 확인 대기
-        </h2>
-        {pendingCharges.length === 0 ? (
-          <p className="text-sm text-zinc-500">대기 중인 충전 신청이 없습니다.</p>
-        ) : (
-          <ul className="glass divide-y divide-black/5 rounded-2xl">
-            {pendingCharges.map((o) => (
-              <li key={o.id} className="flex items-center justify-between px-4 py-3 text-sm">
-                <div>
-                  <p>
-                    {o.user.name || o.user.loginId} · 입금자 <b>{o.depositName}</b>
-                  </p>
-                  <p className="font-num text-xs text-zinc-400">
-                    {won(o.amount)} → {pt(o.chargePoint)} · {ymdhm(o.createdAt)}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <form action={confirmCharge}>
-                    <input type="hidden" name="id" value={o.id} />
-                    <button className="rounded-lg bg-emerald-600 px-3 py-1.5 text-white transition hover:bg-emerald-500">
-                      입금확인·지급
-                    </button>
-                  </form>
-                  <form action={cancelCharge}>
-                    <input type="hidden" name="id" value={o.id} />
-                    <button className="rounded-lg border border-black/10 px-3 py-1.5 hover:bg-black/5">
-                      취소
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <h2 className="mb-3 font-bold">관리 메뉴</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {MENU.map((m) => (
+            <Tilt key={m.href}>
+              <Link
+                href={m.href}
+                className="glass flex items-center gap-4 rounded-2xl p-5 transition hover:bg-white/70"
+              >
+                <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-600/10 text-xl text-emerald-600">
+                  <i className={`fa-solid ${m.icon}`} aria-hidden />
+                  {m.badge > 0 && (
+                    <span className="font-num absolute -right-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
+                      {m.badge}
+                    </span>
+                  )}
+                </span>
+                <span>
+                  <span className="block font-bold">{m.label}</span>
+                  <span className="block text-sm text-zinc-500">{m.desc}</span>
+                </span>
+                <i className="fa-solid fa-chevron-right ml-auto text-zinc-300" aria-hidden />
+              </Link>
+            </Tilt>
+          ))}
+        </div>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="flex items-center gap-2 font-bold">
-          <i className="fa-solid fa-comments text-emerald-600" aria-hidden /> 미답변 문의
-        </h2>
-        {openInquiries.length === 0 ? (
-          <p className="text-sm text-zinc-500">미답변 문의가 없습니다.</p>
-        ) : (
-          openInquiries.map((q) => (
-            <article key={q.id} className="glass rounded-2xl p-4">
-              <p className="font-semibold">{q.title}</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-600">{q.content}</p>
-              <p className="font-num mt-1 text-xs text-zinc-400">
-                {q.name} · {ymdhm(q.createdAt)}
-              </p>
-              <form action={answerInquiry} className="mt-3 flex gap-2">
-                <input type="hidden" name="parentId" value={q.id} />
-                <input
-                  name="content"
-                  placeholder="답변 입력"
-                  aria-label="답변"
-                  className="flex-1 rounded-xl border border-black/10 bg-white/60 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                />
-                <button className="rounded-xl bg-zinc-900 px-3 py-2 text-sm text-white transition hover:bg-zinc-700">
-                  답변
-                </button>
-              </form>
-            </article>
-          ))
-        )}
-      </section>
+      <p className="font-num text-sm text-zinc-400">
+        누적 충전 매출 {won(todayCharge._sum.amount ?? 0)}
+      </p>
     </div>
   );
 }
 
-function Stat({ icon, label, value }: { icon: string; label: string; value: string }) {
+function Stat({
+  icon,
+  label,
+  value,
+  alert,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  alert?: boolean;
+}) {
   return (
-    <Tilt>
-      <div className="glass rounded-2xl p-4">
-        <p className="flex items-center gap-2 text-xs text-zinc-500">
-          <i className={`fa-solid ${icon} text-emerald-600`} aria-hidden /> {label}
-        </p>
-        <p className="font-num mt-1 text-lg font-bold">{value}</p>
-      </div>
-    </Tilt>
+    <div className={`glass rounded-2xl p-4 ${alert ? "ring-2 ring-red-400/40" : ""}`}>
+      <p className="flex items-center gap-2 text-xs text-zinc-500">
+        <i className={`fa-solid ${icon} text-emerald-600`} aria-hidden /> {label}
+      </p>
+      <p className="font-num mt-1 text-lg font-bold">{value}</p>
+    </div>
   );
 }

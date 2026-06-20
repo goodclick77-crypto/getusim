@@ -4,6 +4,7 @@ import { won, pt, ymdhm } from "@/lib/format";
 import { CHARGE_PACKAGES, BANK_INFO } from "@/lib/config";
 import { createChargeRequest } from "./actions";
 import Reveal from "@/components/Reveal";
+import CopyButton from "@/components/CopyButton";
 
 export const dynamic = "force-dynamic";
 
@@ -44,10 +45,16 @@ export default async function ChargePage({
           <h2 className="flex items-center gap-2 font-bold">
             <i className="fa-solid fa-building-columns text-zinc-500" aria-hidden /> 무통장 입금 계좌
           </h2>
-          <p className="mt-2 text-sm text-zinc-600">
-            {BANK_INFO.bank} <b className="font-num">{BANK_INFO.account}</b> (예금주{" "}
-            {BANK_INFO.holder})
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-zinc-700">
+            <span>{BANK_INFO.bank}</span>
+            <b className="font-num text-base">{BANK_INFO.account}</b>
+            <span className="text-zinc-500">예금주 {BANK_INFO.holder}</span>
+            <CopyButton
+              text={BANK_INFO.account.replace(/[^\d]/g, "")}
+              label="계좌복사"
+              className="border border-black/10"
+            />
+          </div>
         </section>
       </Reveal>
 

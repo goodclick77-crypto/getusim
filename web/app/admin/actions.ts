@@ -55,6 +55,16 @@ export async function cancelCharge(formData: FormData) {
   revalidatePath("/admin/inquiries");
 }
 
+/** 1:1 문의 삭제 (스팸 등) — 답변(자식)도 함께 삭제 */
+export async function deleteInquiry(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  await prisma.inquiry.deleteMany({ where: { parentId: id } });
+  await prisma.inquiry.delete({ where: { id } }).catch(() => {});
+  revalidatePath("/admin");
+  revalidatePath("/admin/inquiries");
+}
+
 /** 1:1 문의 답변 */
 export async function answerInquiry(formData: FormData) {
   await requireAdmin();

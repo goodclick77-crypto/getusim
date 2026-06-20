@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { pt } from "@/lib/format";
 import MobileNav from "@/components/MobileNav";
+import NavLinks from "@/components/NavLinks";
 import Footer from "@/components/Footer";
 
 export const dynamic = "force-dynamic";
@@ -27,42 +28,32 @@ export default async function AppLayout({
   return (
     <div className="flex flex-1 flex-col">
       <header className="glass sticky top-0 z-40">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-6">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-5">
             <Link href="/dashboard" className="font-mont text-lg font-extrabold tracking-tight">
               GetUsim
             </Link>
-            <nav aria-label="주 메뉴" className="hidden gap-1 sm:flex">
-              {NAV.map((n) => (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-zinc-600 transition hover:bg-black/5 hover:text-zinc-900"
-                >
-                  <i className={`fa-solid ${n.icon} text-emerald-600`} aria-hidden />
-                  {n.label}
-                </Link>
-              ))}
-            </nav>
+            <NavLinks items={NAV} />
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
-            <span className="rounded-xl bg-emerald-600/10 px-3 py-1.5 font-semibold text-emerald-700">
+          <div className="flex shrink-0 items-center gap-2 text-sm">
+            <Link
+              href="/charge"
+              className="rounded-xl bg-emerald-600/10 px-3 py-1.5 font-semibold text-emerald-700 hover:bg-emerald-600/15"
+              title="포인트 충전"
+            >
               <i className="fa-solid fa-coins mr-1.5" aria-hidden />
               <span className="font-num">{pt(user.point)}</span>
-            </span>
+            </Link>
             {user.role === "ADMIN" && (
               <Link
                 href="/admin"
-                className="hidden items-center gap-1.5 rounded-xl bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 sm:inline-flex"
+                className="hidden items-center gap-1.5 rounded-xl bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 md:inline-flex"
               >
                 <i className="fa-solid fa-gauge-high" aria-hidden /> 관리자
               </Link>
             )}
-            <span className="hidden text-zinc-500 sm:inline">
-              {user.name || user.loginId}님
-            </span>
-            <form action="/logout" method="POST" className="hidden sm:block">
+            <form action="/logout" method="POST" className="hidden md:block">
               <button
                 type="submit"
                 className="rounded-xl px-3 py-1.5 text-zinc-500 hover:bg-black/5 hover:text-zinc-900"

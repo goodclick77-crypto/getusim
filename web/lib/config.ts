@@ -1,10 +1,10 @@
 // 서비스 운영 상수 (추후 DB 설정/관리자 화면으로 이전 가능)
 
-/** 무통장입금 안내 계좌 */
+/** 무통장입금 안내 계좌 (레거시와 동일: 국민 681702-00-118395 엄전혜) */
 export const BANK_INFO = {
   bank: process.env.DEPOSIT_BANK || "국민은행",
-  account: process.env.DEPOSIT_ACCOUNT || "000000-00-000000",
-  holder: process.env.DEPOSIT_HOLDER || "(주)겟유심",
+  account: process.env.DEPOSIT_ACCOUNT || "681702-00-118395",
+  holder: process.env.DEPOSIT_HOLDER || "엄전혜",
 };
 
 /** 충전 패키지 (결제금액 → 지급 포인트). 보너스 포함. */

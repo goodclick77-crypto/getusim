@@ -24,23 +24,45 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELED: "취소",
 };
 
+const PER = 60;
+
 export default async function AdminChargesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
   const status = (sp.status || "PENDING").toUpperCase();
-  const where =
-    status === "ALL" ? {} : { status: status as "PENDING" | "COMPLETED" | "CANCELED" };
+  const q = (sp.q || "").trim();
+  const page = Math.max(1, Number(sp.page) || 1);
 
-  const orders = await prisma.chargeOrder.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: { user: { select: { loginId: true, name: true } } },
-    take: 200,
-  });
+  const where = {
+    ...(status === "ALL"
+      ? {}
+      : { status: status as "PENDING" | "COMPLETED" | "CANCELED" }),
+    ...(q
+      ? {
+          OR: [
+            { depositName: { contains: q, mode: "insensitive" as const } },
+            { user: { loginId: { contains: q, mode: "insensitive" as const } } },
+            { user: { name: { contains: q, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+
+  const [orders, count] = await Promise.all([
+    prisma.chargeOrder.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: { user: { select: { loginId: true, name: true } } },
+      skip: (page - 1) * PER,
+      take: PER,
+    }),
+    prisma.chargeOrder.count({ where }),
+  ]);
+  const lastPage = Math.max(1, Math.ceil(count / PER));
 
   // 날짜별 그룹
   const groups = new Map<string, typeof orders>();
@@ -63,12 +85,29 @@ export default async function AdminChargesPage({
         </Link>
       </div>
 
+      <form action="/admin/charges" method="GET" className="flex gap-2">
+        <input type="hidden" name="status" value={status} />
+        <div className="glass flex flex-1 items-center gap-3 rounded-xl px-3.5 py-2.5">
+          <i className="fa-solid fa-magnifying-glass text-zinc-400" aria-hidden />
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="회원 아이디·이름·입금자명 검색"
+            aria-label="검색"
+            className="w-full bg-transparent text-sm outline-none"
+          />
+        </div>
+        <button className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-700">
+          검색
+        </button>
+      </form>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="상태 필터" className="flex flex-wrap gap-2">
           {TABS.map((t) => (
             <Link
               key={t.key}
-              href={`/admin/charges?status=${t.key}`}
+              href={`/admin/charges?status=${t.key}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
               className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
                 status === t.key
                   ? "bg-zinc-900 text-white"
@@ -80,7 +119,7 @@ export default async function AdminChargesPage({
           ))}
         </nav>
         <p className="font-num text-sm text-zinc-500">
-          {orders.length}건 · 합계 {won(sumAmount)}
+          총 {count.toLocaleString("ko-KR")}건 · 이 페이지 {won(sumAmount)}
         </p>
       </div>
 
@@ -108,6 +147,30 @@ export default async function AdminChargesPage({
             </table>
           </div>
         </div>
+      )}
+
+      {lastPage > 1 && (
+        <nav className="flex items-center justify-center gap-2" aria-label="페이지">
+          {page > 1 && (
+            <Link
+              href={`/admin/charges?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}&page=${page - 1}`}
+              className="glass rounded-lg px-3 py-1.5 text-sm hover:bg-white/70"
+            >
+              이전
+            </Link>
+          )}
+          <span className="font-num text-sm text-zinc-500">
+            {page} / {lastPage}
+          </span>
+          {page < lastPage && (
+            <Link
+              href={`/admin/charges?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}&page=${page + 1}`}
+              className="glass rounded-lg px-3 py-1.5 text-sm hover:bg-white/70"
+            >
+              다음
+            </Link>
+          )}
+        </nav>
       )}
     </div>
   );

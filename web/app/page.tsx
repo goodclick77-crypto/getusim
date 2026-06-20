@@ -71,7 +71,7 @@ export default function Home() {
           </div>
 
           {/* 제품 미리보기 목업 */}
-          <Reveal delay={200} className="hidden lg:block">
+          <Reveal delay={200} className="mt-2 lg:mt-0">
             <Tilt max={6}>
               <PhonePreview />
             </Tilt>

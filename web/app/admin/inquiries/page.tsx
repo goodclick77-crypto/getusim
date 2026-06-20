@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ymdhm } from "@/lib/format";
-import { answerInquiry } from "../actions";
+import { answerInquiry, deleteInquiry } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -67,15 +67,24 @@ export default async function AdminInquiriesPage({
             <li key={q.id} className="glass rounded-2xl p-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold">{q.title}</p>
-                <span
-                  className={
-                    q.status === "ANSWERED"
-                      ? "shrink-0 text-sm text-emerald-600"
-                      : "shrink-0 text-sm text-amber-600"
-                  }
-                >
-                  {q.status === "ANSWERED" ? "답변완료" : "미답변"}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span
+                    className={
+                      q.status === "ANSWERED" ? "text-sm text-emerald-600" : "text-sm text-amber-600"
+                    }
+                  >
+                    {q.status === "ANSWERED" ? "답변완료" : "미답변"}
+                  </span>
+                  <form action={deleteInquiry}>
+                    <input type="hidden" name="id" value={q.id} />
+                    <button
+                      className="rounded-lg px-2 py-1 text-red-500 hover:bg-red-50"
+                      title="삭제 (스팸 등)"
+                    >
+                      <i className="fa-solid fa-trash" aria-hidden />
+                    </button>
+                  </form>
+                </div>
               </div>
               <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-600">{q.content}</p>
               <p className="font-num mt-1 text-xs text-zinc-400">

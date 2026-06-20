@@ -23,10 +23,11 @@ export async function POST(req: Request) {
   const loginId = String(form.get("loginId") || "").trim();
   const password = String(form.get("password") || "");
 
-  if (!loginId || !password) return redirectTo("/login?error=empty");
+  const keep = `&id=${encodeURIComponent(loginId)}`;
+  if (!loginId || !password) return redirectTo(`/login?error=empty${keep}`);
 
   const user = await authenticate(loginId, password);
-  if (!user) return redirectTo("/login?error=invalid");
+  if (!user) return redirectTo(`/login?error=invalid${keep}`);
 
   const token = await signSession(user.id, user.role);
   return setCookieAndGo(token, "/dashboard");

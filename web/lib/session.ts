@@ -25,6 +25,24 @@ export function sessionCookieOptions() {
   };
 }
 
+/** 비밀번호 재설정 토큰 (본인확인 통과 후 15분) */
+export async function signResetToken(uid: number) {
+  return new SignJWT({ uid, purpose: "reset" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("15m")
+    .sign(secret);
+}
+export async function verifyResetToken(token: string): Promise<number | null> {
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    if (payload.purpose !== "reset") return null;
+    return Number(payload.uid);
+  } catch {
+    return null;
+  }
+}
+
 /** 세션 JWT 발급 */
 export async function signSession(uid: number, role: string) {
   return new SignJWT({ uid, role })

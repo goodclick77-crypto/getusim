@@ -106,9 +106,14 @@ export default async function DashboardPage() {
       {/* 포인트 내역 */}
       <Reveal delay={160} className="sm:col-span-2">
         <section className="glass h-full rounded-3xl p-5">
-          <h2 className="mb-3 flex items-center gap-2 font-bold">
-            <i className="fa-solid fa-receipt text-emerald-600" aria-hidden /> 포인트 내역
-          </h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-bold">
+              <i className="fa-solid fa-receipt text-emerald-600" aria-hidden /> 포인트 내역
+            </h2>
+            <Link href="/history" className="text-sm text-emerald-600 hover:underline">
+              전체보기
+            </Link>
+          </div>
           {points.length === 0 ? (
             <p className="text-sm text-zinc-500">내역이 없습니다.</p>
           ) : (

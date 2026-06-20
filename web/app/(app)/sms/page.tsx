@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { pt, ymdhm } from "@/lib/format";
+import { pt, ymdhm, phoneFmt } from "@/lib/format";
 import NumberAuth from "./NumberAuth";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +45,7 @@ export default async function SmsPage() {
                 <div>
                   <p className="font-medium">
                     {r.service} · {r.country}{" "}
-                    <span className="font-num text-zinc-600">{r.phoneNumber}</span>
+                    <span className="font-num text-zinc-600">{phoneFmt(r.phoneNumber)}</span>
                   </p>
                   <p className="font-num text-xs text-zinc-400">
                     {ymdhm(r.createdAt)}

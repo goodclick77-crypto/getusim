@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { ymdhm } from "@/lib/format";
+import { ymdhm, htmlToText } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +45,7 @@ export default async function NoticeDetail({
       </header>
 
       <div className="glass whitespace-pre-wrap rounded-2xl p-6 leading-relaxed text-zinc-700">
-        {notice.content || "(내용 없음)"}
+        {htmlToText(notice.content) || "(내용 없음)"}
       </div>
     </article>
   );

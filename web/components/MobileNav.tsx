@@ -16,7 +16,7 @@ export default function MobileNav({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="sm:hidden">
+    <div className="md:hidden">
       <button
         type="button"
         aria-label="메뉴 열기"

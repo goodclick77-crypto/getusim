@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { COUNTRIES, SERVICES, SMS_COST_POINT } from "@/lib/config";
+import { phoneFmt } from "@/lib/format";
 import ImageSelect from "@/components/ImageSelect";
+import CopyButton from "@/components/CopyButton";
 
 type Props = { initialPoint: number; isAdmin: boolean };
 
@@ -209,16 +211,54 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
           </div>
         </div>
 
-        <dl className="mt-5 divide-y divide-zinc-100 text-sm">
-          <Row label="번호" value={phone || "-"} mono />
-          <Row label="남은 시간" value={remain != null ? `${remain}초` : "-"} />
-          <Row
-            label="SMS 코드"
-            value={code || (running ? "대기중…" : "-")}
-            highlight={!!code}
-          />
-          <Row label="상태" value={status || "-"} />
-        </dl>
+        {status && (
+          <div
+            className={`mt-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium ${
+              code
+                ? "bg-emerald-50 text-emerald-700"
+                : /부족|없|오류|실패/.test(status)
+                  ? "bg-red-50 text-red-600"
+                  : "bg-amber-50 text-amber-700"
+            }`}
+          >
+            <i
+              className={`fa-solid ${code ? "fa-circle-check" : "fa-circle-info"}`}
+              aria-hidden
+            />
+            {status}
+          </div>
+        )}
+
+        {(phone || running) && (
+          <div className="mt-4 space-y-2.5 rounded-2xl border border-black/5 bg-black/[0.02] p-4 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-zinc-500">발급 번호</span>
+              <span className="flex items-center gap-1">
+                <span className="font-num text-lg font-bold">
+                  {phone ? phoneFmt(phone) : "요청 중…"}
+                </span>
+                {phone && <CopyButton text={phone} />}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-500">남은 시간</span>
+              <span className="font-num">{remain != null ? `${remain}초` : "-"}</span>
+            </div>
+            <div className="flex items-center justify-between gap-2 border-t border-black/5 pt-2.5">
+              <span className="text-zinc-500">인증코드</span>
+              {code ? (
+                <span className="flex items-center gap-1">
+                  <span className="font-num rounded-lg bg-emerald-100 px-3 py-1 text-xl font-bold tracking-widest text-emerald-700">
+                    {code}
+                  </span>
+                  <CopyButton text={code} label="복사" />
+                </span>
+              ) : (
+                <span className="text-zinc-400">{running ? "수신 대기중…" : "-"}</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <p className="rounded-lg bg-amber-50 px-4 py-3 text-xs text-amber-700">
@@ -237,32 +277,6 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
           {balance && <span className="text-sm text-zinc-600">{balance}</span>}
         </div>
       )}
-    </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  mono,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  highlight?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between py-2.5">
-      <dt className="text-zinc-500">{label}</dt>
-      <dd
-        className={[
-          mono ? "font-num" : "",
-          highlight ? "font-num text-lg font-bold text-emerald-600" : "",
-        ].join(" ")}
-      >
-        {value}
-      </dd>
     </div>
   );
 }

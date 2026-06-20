@@ -10,9 +10,9 @@ const ERRORS: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; id?: string; reset?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, id, reset } = await searchParams;
   return (
     <main id="main" className="flex flex-1 items-center justify-center px-5 py-16">
       <div className="glass w-full max-w-sm rounded-3xl p-8">
@@ -22,6 +22,12 @@ export default async function LoginPage({
         <h1 className="mt-7 flex items-center gap-2 text-lg font-bold">
           <i className="fa-solid fa-right-to-bracket text-emerald-600" aria-hidden /> 로그인
         </h1>
+        {reset && (
+          <p className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <i className="fa-solid fa-circle-check" aria-hidden />
+            비밀번호가 변경되었습니다. 새 비밀번호로 로그인하세요.
+          </p>
+        )}
         {error && (
           <p
             role="alert"
@@ -39,6 +45,7 @@ export default async function LoginPage({
               placeholder="아이디"
               autoComplete="username"
               aria-label="아이디"
+              defaultValue={id}
               className="w-full bg-transparent outline-none"
             />
           </label>
@@ -57,12 +64,15 @@ export default async function LoginPage({
             로그인
           </button>
         </form>
-        <p className="mt-5 text-center text-sm text-zinc-500">
-          계정이 없으신가요?{" "}
+        <div className="mt-5 flex items-center justify-center gap-3 text-sm text-zinc-500">
           <Link href="/register" className="font-medium text-emerald-600">
             회원가입
           </Link>
-        </p>
+          <span className="text-zinc-300">|</span>
+          <Link href="/find-password" className="hover:text-zinc-900">
+            비밀번호 찾기
+          </Link>
+        </div>
       </div>
     </main>
   );

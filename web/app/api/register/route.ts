@@ -24,6 +24,21 @@ export async function POST(req: Request) {
     email: String(form.get("email") || ""),
     phone: String(form.get("phone") || ""),
   };
+  const passwordConfirm = String(form.get("passwordConfirm") || "");
+  const agree = form.get("agree") === "on";
+
+  // 비밀번호 외 입력값 보존
+  const keep = new URLSearchParams({
+    loginId: input.loginId,
+    name: input.name,
+    email: input.email,
+    phone: input.phone,
+  }).toString();
+  const back = (msg: string) =>
+    redirectTo(`/register?error=${encodeURIComponent(msg)}&${keep}`);
+
+  if (input.password !== passwordConfirm) return back("비밀번호가 일치하지 않습니다.");
+  if (!agree) return back("이용약관 및 개인정보처리방침에 동의해주세요.");
 
   let userId: number;
   let role = "USER";
@@ -32,9 +47,7 @@ export async function POST(req: Request) {
     userId = user.id;
     role = user.role;
   } catch (e) {
-    if (e instanceof RegisterError) {
-      return redirectTo(`/register?error=${encodeURIComponent(e.message)}`);
-    }
+    if (e instanceof RegisterError) return back(e.message);
     throw e;
   }
 

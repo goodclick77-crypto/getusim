@@ -195,6 +195,36 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
     return out;
   }
 
+  // 진행 중(수신대기) 번호 이어받기 — 다른 메뉴 갔다 와도 받은 번호/코드 유지
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/sms/active")
+      .then((r) => r.json())
+      .then((j) => {
+        if (!alive || !j.rental) return;
+        const r = j.rental;
+        setCountry(r.country);
+        setService(r.service);
+        setRentalId(r.id);
+        setPhone(r.phoneNumber || "");
+        expiresRef.current = r.expiresAt ? new Date(r.expiresAt).getTime() : null;
+        if (r.smsCode) {
+          setCode(r.smsCode);
+          setStatus("인증코드 수신 완료");
+        } else {
+          // 폴링 재개 (남은 시간 있으면)
+          if (expiresRef.current == null || expiresRef.current - Date.now() > 0) {
+            pollCode(r.id, r.pricePoint ?? SMS_BASE_POINT);
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const stopRef = useRef(false);
   const expiresRef = useRef<number | null>(null);
 
@@ -320,14 +350,27 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
     setRentalId(data.rentalId);
     setPhone(data.phone || "");
     expiresRef.current = data.expires ? new Date(data.expires).getTime() : null;
-    setStatus("SMS 코드 수신 대기 중…");
 
-    // 2.5초 간격 폴링
+    await pollCode(data.rentalId, charged);
+  }
+
+  // 코드 수신 폴링 (발급 직후 / 새로고침 후 이어받기 공용)
+  async function pollCode(id: number, charged: number) {
+    stopRef.current = false;
+    setRunning(true);
+    setStatus("SMS 코드 수신 대기 중…");
     while (!stopRef.current) {
       await new Promise((r) => setTimeout(r, 2500));
       if (stopRef.current) break;
+      // 만료되면 중단
+      if (expiresRef.current != null && expiresRef.current - Date.now() <= 0) {
+        setStatus("번호가 만료되었습니다. 다시 받아주세요.");
+        setRunning(false);
+        stopRef.current = true;
+        break;
+      }
       try {
-        const res = await fetch(`/api/sms/code?rentalId=${data.rentalId}`);
+        const res = await fetch(`/api/sms/code?rentalId=${id}`);
         const j = await res.json();
         if (j.code) {
           setCode(j.code);

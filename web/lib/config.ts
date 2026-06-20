@@ -240,12 +240,8 @@ export const SERVICES: { value: string; slug: string; label: string }[] = [
   { value: "discord", slug: "discord", label: "디스코드" },
   { value: "tiktok", slug: "tiktok", label: "틱톡" },
   { value: "wechat", slug: "wechat", label: "위챗" },
-  { value: "amazon", slug: "amazon", label: "아마존" },
   { value: "apple", slug: "apple", label: "애플" },
-  { value: "microsoft", slug: "microsoft", label: "마이크로소프트" },
   { value: "paypal", slug: "paypal", label: "페이팔" },
   { value: "steam", slug: "steam", label: "스팀" },
-  { value: "netflix", slug: "netflix", label: "넷플릭스" },
   { value: "snapchat", slug: "snapchat", label: "스냅챗" },
-  { value: "uber", slug: "uber", label: "우버" },
 ];

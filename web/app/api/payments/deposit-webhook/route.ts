@@ -74,11 +74,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, matched });
   } catch (e) {
-    // 임시 진단: 실제 오류 노출 (토큰 보호됨)
-    const err = e as { message?: string; code?: string };
-    return NextResponse.json(
-      { error: "server", code: err?.code, message: err?.message },
-      { status: 500 },
-    );
+    console.error("[deposit-webhook]", e);
+    return NextResponse.json({ error: "server" }, { status: 500 });
   }
 }

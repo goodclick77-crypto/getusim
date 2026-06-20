@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { COUNTRIES, SERVICES, SMS_COST_POINT } from "@/lib/config";
+import ImageSelect from "@/components/ImageSelect";
 
 type Props = { initialPoint: number; isAdmin: boolean };
 
@@ -148,67 +149,39 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
       </div>
 
       <div className="glass rounded-2xl p-5">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <div className="space-y-5">
-          {/* 국가 선택 */}
-          <div>
-            <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-700">
-              <i className="fa-solid fa-flag text-emerald-600" aria-hidden /> 국가 선택
-            </p>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-              {COUNTRIES.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  onClick={() => setCountry(c.value)}
-                  aria-pressed={country === c.value}
-                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition ${
-                    country === c.value
-                      ? "border-emerald-500 bg-emerald-50 font-semibold"
-                      : "border-black/10 bg-white/60 hover:bg-white"
-                  }`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`https://flagcdn.com/w40/${c.iso}.png`}
-                    alt=""
-                    className="h-[18px] w-6 shrink-0 rounded-sm object-cover shadow-sm"
-                    loading="lazy"
-                  />
-                  <span className="truncate">{c.label}</span>
-                </button>
-              ))}
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-zinc-700">
+                <i className="fa-solid fa-flag text-emerald-600" aria-hidden /> 국가
+              </p>
+              <ImageSelect
+                placeholder="국가 선택"
+                value={country}
+                onChange={setCountry}
+                imgClass="h-[18px] w-6 rounded-sm object-cover shadow-sm"
+                options={COUNTRIES.map((c) => ({
+                  value: c.value,
+                  label: c.label,
+                  img: `https://flagcdn.com/w40/${c.iso}.png`,
+                }))}
+              />
             </div>
-          </div>
-
-          {/* 서비스 선택 */}
-          <div>
-            <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-700">
-              <i className="fa-solid fa-grip text-emerald-600" aria-hidden /> 서비스 선택
-            </p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {SERVICES.map((s) => (
-                <button
-                  key={s.value}
-                  type="button"
-                  onClick={() => setService(s.value)}
-                  aria-pressed={service === s.value}
-                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition ${
-                    service === s.value
-                      ? "border-emerald-500 bg-emerald-50 font-semibold"
-                      : "border-black/10 bg-white/60 hover:bg-white"
-                  }`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`https://cdn.simpleicons.org/${s.slug}`}
-                    alt=""
-                    className="h-5 w-5 shrink-0"
-                    loading="lazy"
-                  />
-                  <span className="truncate">{s.label}</span>
-                </button>
-              ))}
+            <div>
+              <p className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-zinc-700">
+                <i className="fa-solid fa-grip text-emerald-600" aria-hidden /> 서비스
+              </p>
+              <ImageSelect
+                placeholder="서비스 선택"
+                value={service}
+                onChange={setService}
+                imgClass="h-5 w-5 object-contain"
+                options={SERVICES.map((s) => ({
+                  value: s.value,
+                  label: s.label,
+                  img: `https://cdn.simpleicons.org/${s.slug}`,
+                }))}
+              />
             </div>
           </div>
 

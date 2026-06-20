@@ -167,26 +167,10 @@ export default async function AdminChargesPage({
       {orders.length === 0 ? (
         <p className="text-sm text-zinc-500">해당 내역이 없습니다.</p>
       ) : (
-        <div className="glass overflow-hidden rounded-2xl">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-black/5 text-xs text-zinc-500">
-                  <th className="px-4 py-2.5 text-left font-semibold">시간</th>
-                  <th className="px-4 py-2.5 text-left font-semibold">회원</th>
-                  <th className="px-4 py-2.5 text-left font-semibold">입금자명</th>
-                  <th className="px-4 py-2.5 text-right font-semibold">금액</th>
-                  <th className="px-4 py-2.5 text-right font-semibold">지급P</th>
-                  <th className="px-4 py-2.5 text-center font-semibold">처리</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...groups.entries()].map(([date, list]) => (
-                  <DateGroup key={date} date={date} list={list} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="space-y-5">
+          {[...groups.entries()].map(([date, list]) => (
+            <DateGroup key={date} date={date} list={list} />
+          ))}
         </div>
       )}
 
@@ -232,50 +216,78 @@ function DateGroup({
     user: { loginId: string; name: string };
   }[];
 }) {
+  const dayTotal = list.reduce((a, o) => a + o.amount, 0);
   return (
-    <>
-      <tr className="bg-black/[0.04]">
-        <td colSpan={6} className="font-num px-4 py-1.5 text-xs font-semibold text-zinc-500">
-          {date} · {list.length}건
-        </td>
-      </tr>
-      {list.map((o) => (
-        <tr key={o.id} className="border-b border-black/5 last:border-0 hover:bg-black/[0.02]">
-          <td className="font-num whitespace-nowrap px-4 py-2.5 text-zinc-500">
-            {ymdhm(o.createdAt).slice(11)}
-          </td>
-          <td className="px-4 py-2.5 font-medium">{o.user.name || o.user.loginId}</td>
-          <td className="px-4 py-2.5">{o.depositName || "-"}</td>
-          <td className="font-num whitespace-nowrap px-4 py-2.5 text-right">{won(o.amount)}</td>
-          <td className="font-num whitespace-nowrap px-4 py-2.5 text-right text-emerald-700">
-            {pt(o.chargePoint)}
-          </td>
-          <td className="px-4 py-2.5 text-center">
-            {o.status === "PENDING" ? (
-              <div className="flex justify-center gap-1.5">
-                <form action={confirmCharge}>
-                  <input type="hidden" name="id" value={o.id} />
-                  <button className="whitespace-nowrap rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-emerald-500">
-                    지급
-                  </button>
-                </form>
-                <form action={cancelCharge}>
-                  <input type="hidden" name="id" value={o.id} />
-                  <button className="rounded-lg border border-black/10 px-2.5 py-1 text-xs hover:bg-black/5">
-                    취소
-                  </button>
-                </form>
+    <section>
+      <h3 className="mb-2 flex items-center justify-between px-1">
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-zinc-500">
+          <i className="fa-regular fa-calendar" aria-hidden /> {date}
+          <span className="font-normal text-zinc-400">· {list.length}건</span>
+        </span>
+        <span className="font-num text-xs text-zinc-400">{won(dayTotal)}</span>
+      </h3>
+      <ul className="space-y-2">
+        {list.map((o) => {
+          const pending = o.status === "PENDING";
+          return (
+            <li
+              key={o.id}
+              className={`glass flex items-center gap-3 rounded-2xl p-4 ${
+                pending ? "border-l-4 border-amber-400" : ""
+              }`}
+            >
+              {/* 입금자 / 회원 */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-base font-bold">
+                    {o.depositName || "(입금자명 없음)"}
+                  </span>
+                  {pending && (
+                    <span className="shrink-0 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                      입금대기
+                    </span>
+                  )}
+                </div>
+                <p className="font-num mt-0.5 truncate text-xs text-zinc-400">
+                  {o.user.name || o.user.loginId} · {ymdhm(o.createdAt).slice(11)}
+                </p>
               </div>
-            ) : (
-              <span
-                className={`rounded-md px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[o.status]}`}
-              >
-                {STATUS_LABEL[o.status]}
-              </span>
-            )}
-          </td>
-        </tr>
-      ))}
-    </>
+
+              {/* 금액 / 지급포인트 */}
+              <div className="shrink-0 text-right">
+                <p className="font-num text-lg font-bold tracking-tight">{won(o.amount)}</p>
+                <p className="font-num text-xs text-emerald-600">{pt(o.chargePoint)}</p>
+              </div>
+
+              {/* 처리 */}
+              <div className="flex w-[5.5rem] shrink-0 justify-end">
+                {pending ? (
+                  <div className="flex flex-col gap-1.5">
+                    <form action={confirmCharge}>
+                      <input type="hidden" name="id" value={o.id} />
+                      <button className="w-full whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-500">
+                        지급
+                      </button>
+                    </form>
+                    <form action={cancelCharge}>
+                      <input type="hidden" name="id" value={o.id} />
+                      <button className="w-full rounded-lg border border-black/10 px-3 py-1 text-xs text-zinc-500 hover:bg-black/5">
+                        취소
+                      </button>
+                    </form>
+                  </div>
+                ) : (
+                  <span
+                    className={`rounded-md px-2 py-1 text-xs font-medium ${STATUS_BADGE[o.status]}`}
+                  >
+                    {STATUS_LABEL[o.status]}
+                  </span>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

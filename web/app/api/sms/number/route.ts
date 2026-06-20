@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   // 최저가 통신사 선택
   let operator = "any";
   try {
-    const pick = await fivesim.cheapest(country, service, FIVESIM_MAX_PRICE, FIVESIM_MIN_STOCK);
+    const pick = await fivesim.bestOperator(country, service, FIVESIM_MAX_PRICE, FIVESIM_MIN_STOCK);
     if (pick) operator = pick.operator;
   } catch {
     /* 가격표 실패 → any */

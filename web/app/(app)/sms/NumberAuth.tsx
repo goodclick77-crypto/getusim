@@ -21,6 +21,7 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
   const [running, setRunning] = useState(false);
   const [balance, setBalance] = useState("");
   const [estPrice, setEstPrice] = useState<number | null>(null);
+  const [estRate, setEstRate] = useState<number | null>(null);
   const [estLoading, setEstLoading] = useState(false);
 
   const stopRef = useRef(false);
@@ -38,7 +39,9 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
     fetch(`/api/sms/price?country=${country}&service=${service}`)
       .then((r) => r.json())
       .then((j) => {
-        if (alive) setEstPrice(j.available ? j.price : 0);
+        if (!alive) return;
+        setEstPrice(j.available ? j.price : 0);
+        setEstRate(j.available ? (j.rate ?? null) : null);
       })
       .catch(() => alive && setEstPrice(null))
       .finally(() => alive && setEstLoading(false));
@@ -232,10 +235,23 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
               ) : estPrice === 0 ? (
                 <span className="text-amber-600">현재 이용 가능한 번호가 없습니다</span>
               ) : (
-                <span>
-                  예상 차감{" "}
-                  <b className="font-num">{estPrice.toLocaleString("ko-KR")}P</b> · 수신
-                  성공 시에만 차감
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span>
+                    예상 차감 <b className="font-num">{estPrice.toLocaleString("ko-KR")}P</b>
+                  </span>
+                  {estRate != null && (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ${
+                        estRate >= 50
+                          ? "bg-emerald-100 text-emerald-700"
+                          : estRate >= 20
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-red-100 text-red-600"
+                      }`}
+                    >
+                      <i className="fa-solid fa-signal" aria-hidden /> 수신률 {estRate}%
+                    </span>
+                  )}
                 </span>
               )}
             </div>

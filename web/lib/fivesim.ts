@@ -78,26 +78,28 @@ export const fivesim = {
   },
 
   /**
-   * 재고(minStock) 초과 & 단가(maxPrice) 이하 중 가장 싼 통신사+원가.
-   * 조건에 맞는 게 없으면 null.
+   * 재고(minStock) 초과 & 단가(maxPrice) 이하 중 **수신 성공률(rate)이 가장 높은** 통신사.
+   * 동률이면 더 싼 쪽. 조건에 맞는 게 없으면 null.
    */
-  cheapest: async (
+  bestOperator: async (
     country: string,
     product: string,
     maxPrice: number,
     minStock: number,
-  ): Promise<{ operator: string; cost: number } | null> => {
+  ): Promise<{ operator: string; cost: number; rate: number } | null> => {
     const data = await call<PricesResponse>(
       `/guest/prices?country=${encodeURIComponent(country)}&product=${encodeURIComponent(product)}`,
       { auth: false },
     );
     const ops = data?.[country]?.[product] ?? {};
-    let best: { operator: string; cost: number } | null = null;
+    let best: { operator: string; cost: number; rate: number } | null = null;
     for (const [op, info] of Object.entries(ops)) {
       const cost = Number(info?.cost);
       const count = Number(info?.count);
-      if (count > minStock && cost <= maxPrice && (!best || cost < best.cost)) {
-        best = { operator: op, cost };
+      const rate = Number(info?.rate) || 0;
+      if (count <= minStock || cost > maxPrice) continue;
+      if (!best || rate > best.rate || (rate === best.rate && cost < best.cost)) {
+        best = { operator: op, cost, rate };
       }
     }
     return best;

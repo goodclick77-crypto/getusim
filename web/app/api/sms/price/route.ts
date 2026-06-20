@@ -25,9 +25,13 @@ export async function GET(req: Request) {
   }
 
   try {
-    const pick = await fivesim.cheapest(country, service, FIVESIM_MAX_PRICE, FIVESIM_MIN_STOCK);
+    const pick = await fivesim.bestOperator(country, service, FIVESIM_MAX_PRICE, FIVESIM_MIN_STOCK);
     if (!pick) return NextResponse.json({ available: false });
-    return NextResponse.json({ available: true, price: smsPointPrice(pick.cost) });
+    return NextResponse.json({
+      available: true,
+      price: smsPointPrice(pick.cost),
+      rate: Math.round(pick.rate),
+    });
   } catch {
     return NextResponse.json({ available: false });
   }

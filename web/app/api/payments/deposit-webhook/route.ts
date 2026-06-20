@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createHash } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { parseKbDeposit } from "@/lib/bank";
 import { completeCharge } from "@/lib/charge";
@@ -9,12 +9,19 @@ import { notifyAdmin } from "@/lib/notify";
 // 보안: 환경변수 DEPOSIT_WEBHOOK_TOKEN 과 일치하는 X-Webhook-Token 헤더 필요.
 const MATCH_WINDOW_DAYS = 14;
 
+// 타이밍 공격 방지용 상수시간 비교(길이 동일화를 위해 해시 후 비교)
+function tokenEquals(a: string, b: string): boolean {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
 export async function POST(req: Request) {
   const secret = process.env.DEPOSIT_WEBHOOK_TOKEN;
   // 헤더(X-Webhook-Token) 또는 쿼리(?token=) 둘 다 허용 — 헤더 못 넣는 앱 대비
   const token =
-    req.headers.get("x-webhook-token") || new URL(req.url).searchParams.get("token");
-  if (!secret || token !== secret) {
+    req.headers.get("x-webhook-token") || new URL(req.url).searchParams.get("token") || "";
+  if (!secret || !tokenEquals(token, secret)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

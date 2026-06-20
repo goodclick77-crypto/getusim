@@ -155,6 +155,8 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
   const [countries, setCountries] = useState<Cnt[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [favs, setFavs] = useState<Set<string>>(new Set()); // `${kind}:${value}`
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const pollGenRef = useRef(0); // 폴링 세대 토큰(동시 폴링 방지)
 
   // 즐겨찾기 로드 (회원별)
   useEffect(() => {
@@ -207,15 +209,14 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
         setService(r.service);
         setRentalId(r.id);
         setPhone(r.phoneNumber || "");
-        expiresRef.current = r.expiresAt ? new Date(r.expiresAt).getTime() : null;
+        const deadline = r.expiresAt ? new Date(r.expiresAt).getTime() : null;
+        setExpiresAt(deadline);
         if (r.smsCode) {
           setCode(r.smsCode);
           setStatus("인증코드 수신 완료");
-        } else {
+        } else if (deadline == null || deadline - Date.now() > 0) {
           // 폴링 재개 (남은 시간 있으면)
-          if (expiresRef.current == null || expiresRef.current - Date.now() > 0) {
-            pollCode(r.id, r.pricePoint ?? SMS_BASE_POINT);
-          }
+          pollCode(r.id, r.pricePoint ?? SMS_BASE_POINT, deadline);
         }
       })
       .catch(() => {});
@@ -224,9 +225,6 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const stopRef = useRef(false);
-  const expiresRef = useRef<number | null>(null);
 
   // 국가 모드: 국가 선택 → 서비스 목록
   useEffect(() => {
@@ -271,26 +269,28 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
       ? services.find((s) => s.value === service)
       : countries.find((c) => c.value === country);
 
-  // 카운트다운
+  // 카운트다운 (표시 전용 — 중단은 pollCode가 처리)
   useEffect(() => {
-    if (!running || expiresRef.current == null) return;
-    const t = setInterval(() => {
-      const left = Math.ceil((expiresRef.current! - Date.now()) / 1000);
+    if (expiresAt == null) {
+      setRemain(null);
+      return;
+    }
+    const tick = () => {
+      const left = Math.ceil((expiresAt - Date.now()) / 1000);
       setRemain(left > 0 ? left : 0);
-      if (left <= 0) {
-        clearInterval(t);
-        stopRef.current = true;
-        setRunning(false);
-      }
-    }, 1000);
+    };
+    tick();
+    const t = setInterval(tick, 1000);
     return () => clearInterval(t);
-  }, [running]);
+  }, [expiresAt]);
 
   async function getNumber() {
     if (running) return;
+    pollGenRef.current++; // 진행 중 폴링(이어받기 등) 취소
     setCode("");
     setPhone("");
     setRemain(null);
+    setExpiresAt(null);
     setStatus("");
     setNeedCharge(false);
     if (!country || !service) {
@@ -308,7 +308,6 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
     }
 
     setStatus("번호 요청 중…");
-    stopRef.current = false;
     setRunning(true);
 
     let data: {
@@ -346,39 +345,42 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
     }
 
     const charged = data.pricePoint ?? SMS_BASE_POINT;
+    const deadline = data.expires ? new Date(data.expires).getTime() : Date.now() + 15 * 60 * 1000;
 
     setRentalId(data.rentalId);
     setPhone(data.phone || "");
-    expiresRef.current = data.expires ? new Date(data.expires).getTime() : null;
+    setExpiresAt(deadline);
 
-    await pollCode(data.rentalId, charged);
+    await pollCode(data.rentalId, charged, deadline);
   }
 
-  // 코드 수신 폴링 (발급 직후 / 새로고침 후 이어받기 공용)
-  async function pollCode(id: number, charged: number) {
-    stopRef.current = false;
+  // 코드 수신 폴링 (발급 직후 / 이어받기 공용). 세대 토큰으로 동시 폴링 방지.
+  async function pollCode(id: number, charged: number, deadline: number | null) {
+    const myGen = ++pollGenRef.current;
     setRunning(true);
     setStatus("SMS 코드 수신 대기 중…");
-    while (!stopRef.current) {
+    // 절대 상한(만료 정보 없거나 잘못돼도 무한루프 방지)
+    const hardStop = Math.min(deadline ?? Infinity, Date.now() + 20 * 60 * 1000);
+    while (pollGenRef.current === myGen) {
       await new Promise((r) => setTimeout(r, 2500));
-      if (stopRef.current) break;
-      // 만료되면 중단
-      if (expiresRef.current != null && expiresRef.current - Date.now() <= 0) {
+      if (pollGenRef.current !== myGen) return; // 다른 폴링/취소로 무효화됨
+      if (Date.now() >= hardStop) {
         setStatus("번호가 만료되었습니다. 다시 받아주세요.");
         setRunning(false);
-        stopRef.current = true;
-        break;
+        return;
       }
       try {
         const res = await fetch(`/api/sms/code?rentalId=${id}`);
         const j = await res.json();
+        if (pollGenRef.current !== myGen) return;
         if (j.code) {
           setCode(j.code);
           setStatus("인증코드 수신 완료");
-          setPoint((p) => Math.max(0, p - charged));
+          if (typeof j.balanceAfter === "number") setPoint(Math.max(0, j.balanceAfter));
+          else setPoint((p) => Math.max(0, p - charged));
           setRunning(false);
-          stopRef.current = true;
-          break;
+          pollGenRef.current++; // 이 폴링 종료
+          return;
         }
       } catch {
         /* 폴링 실패는 무시하고 재시도 */
@@ -388,8 +390,9 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
 
   async function ban() {
     if (!rentalId) return;
-    stopRef.current = true;
+    pollGenRef.current++; // 폴링 중단
     setRunning(false);
+    setExpiresAt(null);
     try {
       await fetch("/api/sms/ban", {
         method: "POST",

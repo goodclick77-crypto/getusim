@@ -6,9 +6,15 @@ import { prisma } from "./prisma";
 
 export const SESSION_COOKIE = "getusim_session";
 const COOKIE = SESSION_COOKIE;
+
+// 운영에서 AUTH_SECRET 미설정이면 공개된 기본값으로 서명되어 세션 위조 위험 → 즉시 중단
+if (!process.env.AUTH_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error("AUTH_SECRET 환경변수가 설정되지 않았습니다 (운영 필수).");
+}
 const secret = new TextEncoder().encode(
   process.env.AUTH_SECRET || "dev-secret-change-in-production",
 );
+const JWT_ALG = { algorithms: ["HS256"] };
 
 export type SessionPayload = { uid: number; role: string };
 
@@ -35,7 +41,7 @@ export async function signResetToken(uid: number) {
 }
 export async function verifyResetToken(token: string): Promise<number | null> {
   try {
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, secret, JWT_ALG);
     if (payload.purpose !== "reset") return null;
     return Number(payload.uid);
   } catch {
@@ -69,7 +75,7 @@ async function readPayload(): Promise<SessionPayload | null> {
   const token = store.get(COOKIE)?.value;
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, secret, JWT_ALG);
     return { uid: Number(payload.uid), role: String(payload.role) };
   } catch {
     return null;

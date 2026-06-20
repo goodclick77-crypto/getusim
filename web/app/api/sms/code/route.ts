@@ -34,32 +34,32 @@ export async function GET(req: Request) {
   if (!sms?.code) return NextResponse.json({ code: null });
 
   // 코드 수신 → PENDING 인 경우에만 차감 (동시 폴링 중복차감 방지)
-  const code = await prisma.$transaction(async (tx) => {
+  let balanceAfter: number | undefined;
+  await prisma.$transaction(async (tx) => {
     const upd = await tx.numberRental.updateMany({
       where: { id: rental.id, status: "PENDING" },
       data: { status: "RECEIVED", smsCode: sms.code, smsText: sms.text },
     });
     if (upd.count === 1) {
-      const u = await tx.user.findUnique({
+      // 원자적 차감(정액). 동시 충전/차감과의 lost-update 방지.
+      const updated = await tx.user.update({
         where: { id: user.id },
+        data: { point: { decrement: rental.pricePoint } },
         select: { point: true },
       });
-      const deduct = Math.min(rental.pricePoint, u?.point ?? 0);
-      const balanceAfter = (u?.point ?? 0) - deduct;
-      await tx.user.update({ where: { id: user.id }, data: { point: balanceAfter } });
+      balanceAfter = updated.point;
       await tx.pointLog.create({
         data: {
           userId: user.id,
-          amount: -deduct,
-          balanceAfter,
+          amount: -rental.pricePoint,
+          balanceAfter: updated.point,
           reason: `SMS 인증코드 (NO:${rental.fivesimId})`,
           relType: "rental",
           relId: String(rental.id),
         },
       });
     }
-    return sms.code;
   });
 
-  return NextResponse.json({ code });
+  return NextResponse.json({ code: sms.code, balanceAfter });
 }

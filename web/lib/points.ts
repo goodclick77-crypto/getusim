@@ -27,25 +27,36 @@ export async function adjustPoint(
   tx?: Prisma.TransactionClient,
 ) {
   const run = async (db: Prisma.TransactionClient) => {
-    const user = await db.user.findUnique({
+    const exists = await db.user.findUnique({
+      where: { id: args.userId },
+      select: { id: true },
+    });
+    if (!exists) throw new Error("USER_NOT_FOUND");
+
+    // 원자적 증감으로 lost-update 방지. 차감 시 잔액부족이면 0건 갱신 → 에러.
+    if (args.amount < 0) {
+      const res = await db.user.updateMany({
+        where: { id: args.userId, point: { gte: -args.amount } },
+        data: { point: { increment: args.amount } },
+      });
+      if (res.count === 0) throw new InsufficientPointError();
+    } else {
+      await db.user.update({
+        where: { id: args.userId },
+        data: { point: { increment: args.amount } },
+      });
+    }
+
+    const after = await db.user.findUnique({
       where: { id: args.userId },
       select: { point: true },
-    });
-    if (!user) throw new Error("USER_NOT_FOUND");
-
-    const balanceAfter = user.point + args.amount;
-    if (balanceAfter < 0) throw new InsufficientPointError();
-
-    await db.user.update({
-      where: { id: args.userId },
-      data: { point: balanceAfter },
     });
 
     return db.pointLog.create({
       data: {
         userId: args.userId,
         amount: args.amount,
-        balanceAfter,
+        balanceAfter: after?.point ?? 0,
         reason: args.reason,
         relType: args.relType ?? "",
         relId: args.relId != null ? String(args.relId) : "",

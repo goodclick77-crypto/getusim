@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { authenticate } from "@/lib/auth-service";
+import { prisma } from "@/lib/prisma";
 import { signSession, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
 
 // 에러는 303 리다이렉트(쿠키 불필요)
@@ -28,6 +29,12 @@ export async function POST(req: Request) {
 
   const user = await authenticate(loginId, password);
   if (!user) return redirectTo(`/login?error=invalid${keep}`);
+
+  // 최근 접속 기록 (실패해도 로그인은 진행)
+  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+  await prisma.user
+    .update({ where: { id: user.id }, data: { lastLoginAt: new Date(), lastLoginIp: ip } })
+    .catch(() => {});
 
   const token = await signSession(user.id, user.role);
   return setCookieAndGo(token, "/dashboard");

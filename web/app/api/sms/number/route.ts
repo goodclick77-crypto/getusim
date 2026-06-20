@@ -101,21 +101,31 @@ export async function POST(req: Request) {
     });
   }
 
-  const rental = await prisma.numberRental.create({
-    data: {
-      userId: user.id,
-      provider: "5sim",
-      fivesimId: String(order.id),
-      country,
-      operator,
-      service,
-      phoneNumber: order.phone,
-      pricePoint,
-      costKrw: Math.round((order.price || 0) * fx),
-      status: "PENDING",
-      expiresAt: order.expires ? new Date(order.expires) : null,
-    },
-  });
+  let rental;
+  try {
+    rental = await prisma.numberRental.create({
+      data: {
+        userId: user.id,
+        provider: "5sim",
+        fivesimId: String(order.id),
+        country,
+        operator,
+        service,
+        phoneNumber: order.phone,
+        pricePoint,
+        costKrw: Math.round((order.price || 0) * fx),
+        status: "PENDING",
+        // 5sim이 만료시간을 안 주면 15분 후로 기본 설정(이어받기/만료처리 위해 null 금지)
+        expiresAt: order.expires ? new Date(order.expires) : new Date(Date.now() + 15 * 60 * 1000),
+      },
+    });
+  } catch (e) {
+    // DB 저장 실패 → 산 번호를 취소해 원가 손실 방지
+    try {
+      await fivesim.cancel(order.id);
+    } catch {}
+    throw e;
+  }
 
   await notifyAdmin(
     "order",

@@ -63,6 +63,13 @@ export default async function AdminPage() {
       desc: "자주 묻는 질문 관리",
       badge: 0,
     },
+    {
+      href: "/admin/settings",
+      icon: "fa-bell",
+      label: "알림 설정",
+      desc: "이메일 알림 받을 상황 설정",
+      badge: 0,
+    },
   ];
 
   return (

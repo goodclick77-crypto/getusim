@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { parseKbDeposit } from "@/lib/bank";
 import { completeCharge } from "@/lib/charge";
+import { notifyAdmin } from "@/lib/notify";
 
 // 은행 입금 알림(폰 SMS 포워딩) 수신 → 충전 주문 자동 매칭/지급.
 // 보안: 환경변수 DEPOSIT_WEBHOOK_TOKEN 과 일치하는 X-Webhook-Token 헤더 필요.
@@ -69,6 +70,24 @@ export async function POST(req: Request) {
             data: { matched: true, matchedOrderId: hits[0].id },
           });
         }
+      }
+    }
+
+    // 관리자 이메일 알림 (파싱된 입금만)
+    if (parsed && parsed.amount > 0) {
+      const won = parsed.amount.toLocaleString("ko-KR");
+      if (matched) {
+        await notifyAdmin(
+          "deposit",
+          `입금 자동확인 ${won}원`,
+          `입금자명: ${parsed.name}\n금액: ${won}원\n→ 충전 자동지급 완료`,
+        );
+      } else {
+        await notifyAdmin(
+          "deposit",
+          `미매칭 입금 ${won}원 (수동확인 필요)`,
+          `입금자명: ${parsed.name}\n금액: ${won}원\n일치하는 충전 신청을 찾지 못했습니다. 관리자 > 입금 확인에서 직접 처리하세요.`,
+        );
       }
     }
 

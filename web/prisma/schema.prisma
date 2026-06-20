@@ -41,10 +41,38 @@ model User {
   chargeOrders ChargeOrder[]
   inquiries    Inquiry[]
   rentals      NumberRental[]
+  favorites    Favorite[]
 
   @@index([email])
   @@index([phone])
   @@map("user")
+}
+
+/// 회원별 즐겨찾기 (국가/서비스). 즐겨찾기한 항목이 목록 상단에 노출.
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  kind      String // "country" | "service"
+  value     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, value])
+  @@index([userId])
+  @@map("favorite")
+}
+
+/// 관리자 이메일 알림 on/off 설정 (단일 행 id=1).
+model NotifyConfig {
+  id              Int      @id @default(1)
+  onDeposit       Boolean  @default(true) @map("on_deposit")        // 충전 입금 감지
+  onChargeRequest Boolean  @default(true) @map("on_charge_request") // 충전 신청
+  onOrder         Boolean  @default(false) @map("on_order")         // 번호 주문(발급)
+  onInquiry       Boolean  @default(true) @map("on_inquiry")        // 1:1 문의 등록
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("notify_config")
 }
 
 enum Role {

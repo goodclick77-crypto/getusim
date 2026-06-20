@@ -42,6 +42,8 @@ function CompareTable({
   onPick,
   imgClass,
   rows,
+  favValues,
+  onToggleFav,
 }: {
   colLabel: string;
   loading: boolean;
@@ -49,12 +51,18 @@ function CompareTable({
   onPick: (v: string) => void;
   imgClass: string;
   rows: Row[];
+  favValues: Set<string>;
+  onToggleFav: (value: string) => void;
 }) {
+  // 즐겨찾기한 항목을 위로 (그 안에서는 기존 수신률 순서 유지)
+  const sorted = [...rows].sort(
+    (a, b) => (favValues.has(b.value) ? 1 : 0) - (favValues.has(a.value) ? 1 : 0),
+  );
   return (
     <div>
       <p className="mb-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-zinc-700">
         <i className="fa-solid fa-list-check text-emerald-600" aria-hidden /> {colLabel} 선택
-        <span className="text-xs font-normal text-zinc-400">· 수신률 높은 순</span>
+        <span className="text-xs font-normal text-zinc-400">· 즐겨찾기 · 수신률 높은 순</span>
       </p>
       {loading ? (
         <div className="space-y-2">
@@ -75,15 +83,30 @@ function CompareTable({
             <span className="text-right">차감P</span>
           </div>
           <ul className="max-h-72 divide-y divide-black/5 overflow-auto">
-            {rows.map((r) => {
+            {sorted.map((r) => {
               const sel = selected === r.value;
+              const fav = favValues.has(r.value);
               return (
-                <li key={r.value}>
+                <li key={r.value} className={`flex items-stretch ${sel ? "bg-emerald-50" : ""}`}>
+                  <button
+                    type="button"
+                    onClick={() => onToggleFav(r.value)}
+                    aria-label={fav ? "즐겨찾기 해제" : "즐겨찾기"}
+                    aria-pressed={fav}
+                    className="shrink-0 px-2.5 transition hover:bg-black/[0.03]"
+                  >
+                    <i
+                      className={`fa-${fav ? "solid" : "regular"} fa-star ${
+                        fav ? "text-amber-400" : "text-zinc-300"
+                      }`}
+                      aria-hidden
+                    />
+                  </button>
                   <button
                     type="button"
                     onClick={() => onPick(r.value)}
-                    className={`grid w-full grid-cols-[1fr_4.5rem_4rem_5rem] items-center gap-1 px-3 py-2.5 text-left text-sm transition ${
-                      sel ? "bg-emerald-50" : "hover:bg-black/[0.02]"
+                    className={`grid flex-1 grid-cols-[1fr_4.5rem_4rem_5rem] items-center gap-1 py-2.5 pr-3 text-left text-sm transition ${
+                      sel ? "" : "hover:bg-black/[0.02]"
                     }`}
                   >
                     <span className="flex items-center gap-2">
@@ -131,6 +154,46 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
   const [services, setServices] = useState<Svc[]>([]);
   const [countries, setCountries] = useState<Cnt[]>([]);
   const [listLoading, setListLoading] = useState(false);
+  const [favs, setFavs] = useState<Set<string>>(new Set()); // `${kind}:${value}`
+
+  // 즐겨찾기 로드 (회원별)
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/sms/favorite")
+      .then((r) => r.json())
+      .then((j) => {
+        if (!alive) return;
+        const arr: { kind: string; value: string }[] = j.favorites || [];
+        setFavs(new Set(arr.map((f) => `${f.kind}:${f.value}`)));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  function toggleFav(kind: "country" | "service", value: string) {
+    const key = `${kind}:${value}`;
+    const on = !favs.has(key);
+    setFavs((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+    fetch("/api/sms/favorite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, value, on }),
+    }).catch(() => {});
+  }
+
+  function favValues(kind: "country" | "service") {
+    const prefix = `${kind}:`;
+    const out = new Set<string>();
+    for (const k of favs) if (k.startsWith(prefix)) out.add(k.slice(prefix.length));
+    return out;
+  }
 
   const stopRef = useRef(false);
   const expiresRef = useRef<number | null>(null);
@@ -402,6 +465,8 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
               selected={service}
               onPick={setService}
               imgClass="h-4 w-4"
+              favValues={favValues("service")}
+              onToggleFav={(v) => toggleFav("service", v)}
               rows={services.map((s) => ({
                 value: s.value,
                 label: s.label,
@@ -421,6 +486,8 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
               selected={country}
               onPick={setCountry}
               imgClass="h-3.5 w-5 rounded-[2px] object-cover shadow-sm"
+              favValues={favValues("country")}
+              onToggleFav={(v) => toggleFav("country", v)}
               rows={countries.map((c) => ({
                 value: c.value,
                 label: c.label,

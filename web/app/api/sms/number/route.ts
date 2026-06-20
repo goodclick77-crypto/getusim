@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { fivesim, FiveSimError } from "@/lib/fivesim";
 import { getUsdKrw } from "@/lib/fx";
+import { notifyAdmin } from "@/lib/notify";
+import { countryLabel, serviceLabel } from "@/lib/config";
 import {
   COUNTRIES,
   SERVICES,
@@ -114,6 +116,12 @@ export async function POST(req: Request) {
       expiresAt: order.expires ? new Date(order.expires) : null,
     },
   });
+
+  await notifyAdmin(
+    "order",
+    `번호 주문 ${countryLabel(country)}/${serviceLabel(service)}`,
+    `회원: ${user.name || user.loginId}\n국가/서비스: ${countryLabel(country)} / ${serviceLabel(service)}\n번호: ${order.phone}\n차감예정: ${pricePoint.toLocaleString("ko-KR")}P`,
+  );
 
   return NextResponse.json({
     rentalId: rental.id,

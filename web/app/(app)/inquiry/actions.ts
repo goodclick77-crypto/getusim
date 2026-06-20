@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { notifyAdmin } from "@/lib/notify";
 
 export async function createInquiry(formData: FormData) {
   const user = await requireUser();
@@ -22,6 +23,12 @@ export async function createInquiry(formData: FormData) {
       phone: user.phone,
     },
   });
+
+  await notifyAdmin(
+    "inquiry",
+    `새 1:1 문의: ${title}`,
+    `회원: ${user.name || user.loginId}\n제목: ${title}\n\n${content}`,
+  );
 
   revalidatePath("/inquiry");
   redirect("/inquiry?ok=1");

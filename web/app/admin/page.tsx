@@ -22,6 +22,13 @@ export default async function AdminPage() {
 
   const MENU = [
     {
+      href: "/admin/members",
+      icon: "fa-users",
+      label: "회원 관리",
+      desc: "회원 조회·포인트 지급/차감",
+      badge: 0,
+    },
+    {
       href: "/admin/charges",
       icon: "fa-building-columns",
       label: "입금 확인",

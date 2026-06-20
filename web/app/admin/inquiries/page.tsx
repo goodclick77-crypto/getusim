@@ -91,17 +91,24 @@ export default async function AdminInquiriesPage({
                 </div>
               ))}
 
-              <form action={answerInquiry} className="mt-3 flex gap-2">
+              <form action={answerInquiry} className="mt-3 space-y-2">
                 <input type="hidden" name="parentId" value={q.id} />
-                <input
+                <textarea
                   name="content"
-                  placeholder={q.status === "ANSWERED" ? "추가 답변 입력" : "답변 입력"}
+                  rows={3}
+                  placeholder={
+                    q.status === "ANSWERED"
+                      ? "추가 답변 입력 (엔터로 줄바꿈)"
+                      : "답변 입력 (엔터로 줄바꿈)"
+                  }
                   aria-label="답변"
-                  className="flex-1 rounded-xl border border-black/10 bg-white/60 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                  className="w-full rounded-xl border border-black/10 bg-white/60 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
                 />
-                <button className="rounded-xl bg-zinc-900 px-4 py-2 text-sm text-white transition hover:bg-zinc-700">
-                  답변
-                </button>
+                <div className="flex justify-end">
+                  <button className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-sm text-white transition hover:bg-zinc-700">
+                    <i className="fa-solid fa-paper-plane" aria-hidden /> 답변 등록
+                  </button>
+                </div>
               </form>
             </li>
           ))}

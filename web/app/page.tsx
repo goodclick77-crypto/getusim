@@ -7,14 +7,23 @@ import { getCurrentUser } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 const STATS = [
-  { icon: "fa-earth-americas", value: "23개국", label: "지원 국가" },
-  { icon: "fa-grip", value: "8종", label: "지원 서비스" },
+  { icon: "fa-earth-americas", value: "150여 개국", label: "지원 국가" },
+  { icon: "fa-grip", value: "16종", label: "지원 서비스" },
   { icon: "fa-bolt", value: "실시간", label: "SMS 수신" },
   { icon: "fa-shield-halved", value: "안전결제", label: "포인트 충전" },
 ];
 
-const FLAGS = ["us", "gb", "ru", "cn", "fr", "br", "ca", "es", "au", "vn"];
-const LOGOS = ["telegram", "whatsapp", "google", "instagram", "facebook", "x", "discord"];
+const FLAGS = ["kr", "us", "gb", "jp", "ru", "cn", "fr", "br", "ca", "vn"];
+const LOGOS = [
+  "kakaotalk",
+  "naver",
+  "line",
+  "telegram",
+  "whatsapp",
+  "google",
+  "instagram",
+  "x",
+];
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -117,12 +126,12 @@ export default async function Home() {
                       />
                     ))}
                     <span className="flex h-7 items-center rounded-md bg-zinc-900 px-2 text-xs font-bold text-white">
-                      +13
+                      +140
                     </span>
                   </div>
-                  <h3 className="mt-5 text-lg font-bold">전 세계 23개국</h3>
+                  <h3 className="mt-5 text-lg font-bold">전 세계 150여 개국</h3>
                   <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">
-                    미국·영국·러시아 등 다양한 국가의 가상번호를 즉시 발급받습니다.
+                    한국·미국·영국·일본 등 전 세계 국가의 가상번호를 즉시 발급받습니다.
                   </p>
                 </article>
               </Tilt>
@@ -150,7 +159,7 @@ export default async function Home() {
                   </div>
                   <h3 className="mt-5 text-lg font-bold">주요 서비스 지원</h3>
                   <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">
-                    텔레그램·왓츠앱·구글·인스타그램 등 주요 서비스를 지원합니다.
+                    카카오톡·네이버·라인·텔레그램·구글 등 16종 서비스를 지원합니다.
                   </p>
                 </article>
               </Tilt>

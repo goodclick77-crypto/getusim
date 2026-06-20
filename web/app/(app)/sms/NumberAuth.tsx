@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { COUNTRIES, SERVICES, SMS_BASE_POINT } from "@/lib/config";
 import { phoneFmt } from "@/lib/format";
@@ -125,6 +126,7 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
   const [remain, setRemain] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
   const [balance, setBalance] = useState("");
+  const [needCharge, setNeedCharge] = useState(false);
   const [mode, setMode] = useState<"country" | "service">("country");
   const [services, setServices] = useState<Svc[]>([]);
   const [countries, setCountries] = useState<Cnt[]>([]);
@@ -197,12 +199,18 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
     setPhone("");
     setRemain(null);
     setStatus("");
+    setNeedCharge(false);
     if (!country || !service) {
       setStatus("국가와 서비스를 선택하세요");
       return;
     }
-    if (point < SMS_BASE_POINT) {
-      setStatus("포인트가 부족합니다");
+    // 선택한 서비스 가격을 미리 알고 있으면, 발급 요청 전에 부족 안내
+    const need = selected?.price ?? SMS_BASE_POINT;
+    if (point < Math.max(need, SMS_BASE_POINT)) {
+      setStatus(
+        `포인트가 부족합니다 (${need.toLocaleString("ko-KR")}P 필요, 보유 ${point.toLocaleString("ko-KR")}P)`,
+      );
+      setNeedCharge(true);
       return;
     }
 
@@ -232,6 +240,7 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
     }
 
     if (data.error || !data.rentalId) {
+      if (data.error === "need") setNeedCharge(true);
       setStatus(
         data.error === "00"
           ? "현재 이용 가능한 번호가 없습니다. 다시 시도해주세요."
@@ -474,6 +483,16 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
             />
             {status}
           </div>
+        )}
+
+        {needCharge && (
+          <Link
+            href="/charge"
+            className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+          >
+            <i className="fa-solid fa-bolt" aria-hidden />
+            충전하러 가기
+          </Link>
         )}
 
         {(phone || running) && (

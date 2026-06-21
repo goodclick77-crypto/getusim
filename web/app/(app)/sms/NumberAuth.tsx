@@ -62,7 +62,7 @@ function CompareTable({
     <div>
       <p className="mb-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-zinc-700">
         <i className="fa-solid fa-list-check text-emerald-600" aria-hidden /> {colLabel} 선택
-        <span className="text-xs font-normal text-zinc-400">· 즐겨찾기 · 수신률 높은 순</span>
+        <span className="text-xs font-normal text-zinc-400">· 실시간 · 수신률 높은 순</span>
       </p>
       {loading ? (
         <div className="space-y-2">

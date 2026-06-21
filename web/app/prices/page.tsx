@@ -47,6 +47,10 @@ export default async function PricesPage() {
           국가·서비스별 실시간 수신률과 가격을 확인하세요. 회원가입 후 포인트를 충전하면 바로 번호를
           받을 수 있습니다.
         </p>
+        <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
+          <i className="fa-solid fa-arrows-rotate" aria-hidden />
+          가격·재고·수신률은 5sim 시세와 환율에 따라 실시간으로 변동됩니다.
+        </p>
 
         <div className="mt-6">
           <PriceBrowser />

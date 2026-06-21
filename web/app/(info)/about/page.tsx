@@ -22,9 +22,9 @@ export default function AboutPage() {
           ["지원 서비스", "텔레그램·왓츠앱·구글·인스타그램 등 23종"],
           ["고객지원", "1:1 문의 게시판"],
         ].map(([k, v]) => (
-          <div key={k} className="grid grid-cols-3 gap-4 py-3">
+          <div key={k} className="grid grid-cols-[5.5rem_1fr] gap-3 py-3 sm:gap-4">
             <dt className="text-zinc-500">{k}</dt>
-            <dd className="col-span-2 font-medium text-zinc-800">{v}</dd>
+            <dd className="font-medium text-zinc-800">{v}</dd>
           </div>
         ))}
       </dl>

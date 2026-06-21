@@ -10,26 +10,26 @@ export default async function PricesPage() {
   return (
     <div className="flex flex-1 flex-col">
       <header className="glass sticky top-0 z-40">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-3.5">
-          <Link href="/" className="font-mont text-xl font-extrabold tracking-tight">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-3.5 sm:px-6">
+          <Link href="/" className="font-mont text-lg font-extrabold tracking-tight sm:text-xl">
             GetUsim
           </Link>
-          <nav className="flex items-center gap-2 text-sm">
+          <nav className="flex items-center gap-1 text-sm sm:gap-2">
             {user ? (
               <Link
                 href="/sms"
-                className="rounded-xl bg-zinc-900 px-4 py-2 font-medium text-white transition hover:bg-zinc-700"
+                className="rounded-xl bg-zinc-900 px-3 py-2 font-medium text-white transition hover:bg-zinc-700 sm:px-4"
               >
                 번호 받기
               </Link>
             ) : (
               <>
-                <Link href="/login" className="rounded-xl px-4 py-2 font-medium hover:bg-black/5">
+                <Link href="/login" className="rounded-xl px-2.5 py-2 font-medium hover:bg-black/5 sm:px-4">
                   로그인
                 </Link>
                 <Link
                   href="/register"
-                  className="rounded-xl bg-zinc-900 px-4 py-2 font-medium text-white transition hover:bg-zinc-700"
+                  className="rounded-xl bg-zinc-900 px-3 py-2 font-medium text-white transition hover:bg-zinc-700 sm:px-4"
                 >
                   회원가입
                 </Link>
@@ -39,7 +39,7 @@ export default async function PricesPage() {
         </div>
       </header>
 
-      <main id="main" className="mx-auto w-full max-w-3xl flex-1 px-6 py-8">
+      <main id="main" className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
         <h1 className="flex items-center gap-2 text-2xl font-bold">
           <i className="fa-solid fa-tags text-emerald-600" aria-hidden /> 실시간 가격표
         </h1>
@@ -49,7 +49,7 @@ export default async function PricesPage() {
         </p>
         <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
           <i className="fa-solid fa-arrows-rotate" aria-hidden />
-          가격·재고·수신률은 5sim 시세와 환율에 따라 실시간으로 변동됩니다.
+          가격·재고·수신률은 환율에 따라 실시간으로 변동됩니다.
         </p>
 
         <div className="mt-6">

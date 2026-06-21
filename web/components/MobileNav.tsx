@@ -39,7 +39,7 @@ export default function MobileNav({
           />
           <nav
             aria-label="모바일 메뉴"
-            className="absolute right-0 top-0 flex h-full w-72 flex-col gap-1 bg-white p-5 shadow-2xl"
+            className="absolute right-0 top-0 flex h-full w-72 max-w-[85vw] flex-col gap-1 bg-white p-5 shadow-2xl"
           >
             <div className="mb-4 flex items-center justify-between">
               <span className="font-mont text-lg font-bold">GetUsim</span>

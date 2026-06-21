@@ -30,29 +30,29 @@ export default async function Home() {
   return (
     <div className="flex flex-1 flex-col">
       <header className="glass sticky top-0 z-40">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-        <Link href="/" className="font-mont text-xl font-extrabold tracking-tight">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3.5 sm:px-6">
+        <Link href="/" className="font-mont text-lg font-extrabold tracking-tight sm:text-xl">
           GetUsim
         </Link>
-        <nav aria-label="상단 메뉴" className="flex items-center gap-2 text-sm">
-          <Link href="/prices" className="rounded-xl px-3 py-2 font-medium hover:bg-black/5">
+        <nav aria-label="상단 메뉴" className="flex items-center gap-1 text-sm sm:gap-2">
+          <Link href="/prices" className="rounded-xl px-2.5 py-2 font-medium hover:bg-black/5 sm:px-3">
             가격표
           </Link>
           {user ? (
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 font-medium text-white transition hover:bg-zinc-700"
+              className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-3 py-2 font-medium text-white transition hover:bg-zinc-700 sm:px-4"
             >
               <i className="fa-solid fa-gauge" aria-hidden /> 대시보드
             </Link>
           ) : (
             <>
-              <Link href="/login" className="rounded-xl px-4 py-2 font-medium hover:bg-black/5">
+              <Link href="/login" className="rounded-xl px-2.5 py-2 font-medium hover:bg-black/5 sm:px-4">
                 로그인
               </Link>
               <Link
                 href="/register"
-                className="rounded-xl bg-zinc-900 px-4 py-2 font-medium text-white transition hover:bg-zinc-700"
+                className="rounded-xl bg-zinc-900 px-3 py-2 font-medium text-white transition hover:bg-zinc-700 sm:px-4"
               >
                 회원가입
               </Link>
@@ -64,7 +64,7 @@ export default async function Home() {
 
       <main id="main" className="flex flex-1 flex-col">
         {/* 히어로 */}
-        <section className="mx-auto grid w-full max-w-6xl items-center gap-12 px-6 pb-12 pt-20 lg:grid-cols-2 lg:pt-28">
+        <section className="mx-auto grid w-full max-w-6xl items-center gap-12 px-4 pb-12 pt-20 sm:px-6 lg:grid-cols-2 lg:pt-28">
           <div>
             <Reveal>
               <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-medium text-emerald-700">
@@ -106,7 +106,7 @@ export default async function Home() {
         </section>
 
         {/* 기능 */}
-        <section aria-label="주요 기능" className="mx-auto w-full max-w-6xl px-6 py-16">
+        <section aria-label="주요 기능" className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
           <Reveal>
             <h2 className="text-center text-2xl font-bold sm:text-3xl">
               왜 <span className="text-emerald-600">GetUsim</span>인가요?

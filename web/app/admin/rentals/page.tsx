@@ -153,38 +153,44 @@ export default async function AdminRentalsPage({
                 {list.map((r) => {
                   const b = statusBadge(r.status, r.expiresAt);
                   return (
-                    <li key={r.id} className="glass flex items-center gap-3 rounded-2xl p-3.5">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <Link
-                            href={`/admin/members/${r.userId}`}
-                            className="font-num shrink-0 text-sm font-semibold text-emerald-700 hover:underline"
-                          >
-                            {r.user.name || r.user.loginId}
-                          </Link>
-                          <span
-                            className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${b.cls}`}
-                          >
-                            {b.label}
-                          </span>
-                        </div>
-                        <div className="mt-1">
-                          <RentalLabel country={r.country} service={r.service} />
-                        </div>
-                        <p className="font-num mt-0.5 text-xs text-zinc-400">
-                          {r.phoneNumber ? phoneFmt(r.phoneNumber) : "-"}
-                          {r.smsCode ? ` · 코드 ${r.smsCode}` : ""} · {ymdhm(r.createdAt).slice(11)}
-                        </p>
+                    <li key={r.id} className="glass rounded-2xl p-3.5">
+                      {/* 상단: 회원 + 상태 배지(오른쪽 분리) */}
+                      <div className="flex items-center justify-between gap-2">
+                        <Link
+                          href={`/admin/members/${r.userId}`}
+                          className="font-num min-w-0 truncate text-sm font-semibold text-emerald-700 hover:underline"
+                        >
+                          {r.user.name || r.user.loginId}
+                        </Link>
+                        <span
+                          className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${b.cls}`}
+                        >
+                          {b.label}
+                        </span>
                       </div>
-                      <div className="shrink-0 text-right">
-                        {r.status === "RECEIVED" ? (
-                          <>
-                            <p className="font-num text-sm font-bold">{pt(r.pricePoint)}</p>
-                            <p className="font-num text-xs text-zinc-400">원가 {won(r.costKrw)}</p>
-                          </>
-                        ) : (
-                          <p className="font-num text-xs text-zinc-400">차감 없음</p>
-                        )}
+                      {/* 국가/서비스 */}
+                      <div className="mt-1.5">
+                        <RentalLabel country={r.country} service={r.service} />
+                      </div>
+                      {/* 하단: 번호·코드·시간(왼쪽) + 금액(오른쪽) */}
+                      <div className="mt-1.5 flex items-end justify-between gap-3">
+                        <p className="font-num min-w-0 text-xs text-zinc-400">
+                          {r.phoneNumber ? phoneFmt(r.phoneNumber) : "-"}
+                          {r.smsCode ? ` · 코드 ${r.smsCode}` : ""}
+                          <br className="sm:hidden" />
+                          <span className="hidden sm:inline"> · </span>
+                          {ymdhm(r.createdAt).slice(11)}
+                        </p>
+                        <div className="shrink-0 text-right">
+                          {r.status === "RECEIVED" ? (
+                            <>
+                              <p className="font-num text-sm font-bold">{pt(r.pricePoint)}</p>
+                              <p className="font-num text-xs text-zinc-400">원가 {won(r.costKrw)}</p>
+                            </>
+                          ) : (
+                            <p className="font-num text-xs text-zinc-400">차감 없음</p>
+                          )}
+                        </div>
                       </div>
                     </li>
                   );

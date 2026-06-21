@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { pt, won, ymd, ymdhm, phoneFmt, dateRange } from "@/lib/format";
+import { expireStaleRentals } from "@/lib/rentals";
 import RentalLabel from "@/components/RentalLabel";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,8 @@ function statusBadge(status: string, expiresAt: Date | null) {
   if (status === "RECEIVED")
     return { label: "성공", cls: "bg-emerald-100 text-emerald-700" };
   if (status === "CANCELED") return { label: "실패", cls: "bg-red-100 text-red-600" };
+  if (status === "EXPIRED") return { label: "만료", cls: "bg-zinc-200 text-zinc-500" };
+  if (status === "FINISHED") return { label: "완료", cls: "bg-zinc-200 text-zinc-500" };
   if (status === "PENDING") {
     if (expiresAt && new Date(expiresAt) < new Date())
       return { label: "만료", cls: "bg-zinc-200 text-zinc-500" };
@@ -33,6 +36,7 @@ export default async function AdminRentalsPage({
   searchParams: Promise<{ status?: string; q?: string; page?: string; from?: string; to?: string }>;
 }) {
   await requireAdmin();
+  await expireStaleRentals(); // 지난 수신대기건 만료 처리
   const sp = await searchParams;
   const status = (sp.status || "ALL").toUpperCase();
   const q = (sp.q || "").trim();

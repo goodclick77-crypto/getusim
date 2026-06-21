@@ -35,6 +35,9 @@ export default async function Home() {
           GetUsim
         </Link>
         <nav aria-label="상단 메뉴" className="flex items-center gap-2 text-sm">
+          <Link href="/prices" className="rounded-xl px-3 py-2 font-medium hover:bg-black/5">
+            가격표
+          </Link>
           {user ? (
             <Link
               href="/dashboard"

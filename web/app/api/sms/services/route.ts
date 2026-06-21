@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/session";
 import { fivesim } from "@/lib/fivesim";
 import { getUsdKrw } from "@/lib/fx";
 import {
@@ -11,11 +10,8 @@ import {
   smsPointPrice,
 } from "@/lib/config";
 
-// 국가 선택 시 전체 서비스의 수신률·재고·가격 비교표
+// 국가 선택 시 전체 서비스의 수신률·재고·가격 비교표 (가격은 공개 정보 → 비회원도 조회 가능)
 export async function GET(req: Request) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "login" }, { status: 401 });
-
   const country = new URL(req.url).searchParams.get("country") || "";
   if (!COUNTRIES.some((c) => c.value === country)) {
     return NextResponse.json({ services: [] });

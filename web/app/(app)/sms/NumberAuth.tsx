@@ -76,13 +76,7 @@ function CompareTable({
         </p>
       ) : (
         <div className="overflow-hidden rounded-xl border border-black/10">
-          <div className="hidden grid-cols-[1fr_4.5rem_4rem_5rem] gap-1 bg-black/[0.03] px-3 py-2 text-xs font-semibold text-zinc-500 sm:grid">
-            <span>{colLabel}</span>
-            <span className="text-center">수신률</span>
-            <span className="text-center">재고</span>
-            <span className="text-right">차감P</span>
-          </div>
-          <ul className="max-h-72 divide-y divide-black/5 overflow-auto">
+          <ul className="max-h-80 divide-y divide-black/5 overflow-auto">
             {sorted.map((r) => {
               const sel = selected === r.value;
               const fav = favValues.has(r.value);
@@ -93,7 +87,7 @@ function CompareTable({
                     onClick={() => onToggleFav(r.value)}
                     aria-label={fav ? "즐겨찾기 해제" : "즐겨찾기"}
                     aria-pressed={fav}
-                    className="shrink-0 px-2.5 transition hover:bg-black/[0.03]"
+                    className="shrink-0 px-3 transition hover:bg-black/[0.03]"
                   >
                     <i
                       className={`fa-${fav ? "solid" : "regular"} fa-star ${
@@ -105,27 +99,32 @@ function CompareTable({
                   <button
                     type="button"
                     onClick={() => onPick(r.value)}
-                    className={`grid flex-1 grid-cols-[1fr_4.5rem_4rem_5rem] items-center gap-1 py-2.5 pr-3 text-left text-sm transition ${
+                    className={`min-w-0 flex-1 py-2.5 pr-3 text-left transition ${
                       sel ? "" : "hover:bg-black/[0.02]"
                     }`}
                   >
-                    <span className="flex items-center gap-2">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={r.img} alt="" className={`${imgClass} shrink-0`} loading="lazy" />
-                      <span className={sel ? "font-semibold" : ""}>{r.label}</span>
-                      {sel && <i className="fa-solid fa-check text-emerald-600" aria-hidden />}
-                    </span>
-                    <span className="text-center">
-                      <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${rateColor(r.rate)}`}>
-                        {r.rate}%
+                    {/* 1줄: 이름 + 가격 */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={r.img} alt="" className={`${imgClass} shrink-0`} loading="lazy" />
+                        <span className={`truncate text-sm ${sel ? "font-bold" : "font-medium"}`}>
+                          {r.label}
+                        </span>
+                        {sel && <i className="fa-solid fa-check shrink-0 text-emerald-600" aria-hidden />}
                       </span>
-                    </span>
-                    <span className="font-num text-center text-xs text-zinc-500">
-                      {r.stock.toLocaleString("ko-KR")}
-                    </span>
-                    <span className="font-num text-right font-semibold">
-                      {r.price.toLocaleString("ko-KR")}
-                    </span>
+                      <span className="font-num shrink-0 text-base font-bold">
+                        {r.price.toLocaleString("ko-KR")}
+                        <span className="text-xs font-normal text-zinc-400">P</span>
+                      </span>
+                    </div>
+                    {/* 2줄: 수신률 + 재고 */}
+                    <div className="mt-1 flex items-center gap-2 text-xs">
+                      <span className={`rounded px-1.5 py-0.5 font-semibold ${rateColor(r.rate)}`}>
+                        수신률 {r.rate}%
+                      </span>
+                      <span className="text-zinc-400">재고 {r.stock.toLocaleString("ko-KR")}</span>
+                    </div>
                   </button>
                 </li>
               );

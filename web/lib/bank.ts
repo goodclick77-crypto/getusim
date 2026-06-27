@@ -26,7 +26,11 @@ function parseWhen(text: string): Date | null {
   );
 }
 
-/** 농협(NH) 입금 알림 파서. "입금1,100원 … 원준수 잔액1,110원" 형식. */
+/** 농협(NH) 입금 알림 파서.
+ *  예) "농협 입금1,100원 06/27 12:55 302-****-3953-71 원준수 [잔액1,110원]"
+ *  - 금액: '입금' 직후 금액(원)
+ *  - 입금자명: 마스킹 계좌번호 다음 토큰(잔액 유무와 무관) → 없으면 '잔액' 앞 토큰
+ */
 export function parseNhDeposit(text: string): ParsedDeposit | null {
   if (!text || !text.includes("입금")) return null;
   // 금액: '입금' 직후 금액(원). 예: "입금1,100원"
@@ -34,10 +38,19 @@ export function parseNhDeposit(text: string): ParsedDeposit | null {
   if (!am) return null;
   const amount = Number(am[1].replace(/,/g, ""));
   if (!amount || isNaN(amount)) return null;
-  // 입금자명: '잔액' 바로 앞의 한글/영문 이름 토큰
-  const nm = text.match(/([가-힣A-Za-z][가-힣A-Za-z0-9]*)\s+잔액/);
-  const name = nm ? nm[1].trim() : "";
-  if (!name) return null;
+
+  // 입금자명 (둘 중 먼저 잡히는 것)
+  //  1순위: 마스킹 계좌번호(예 302-****-3953-71) 다음에 오는 이름 토큰
+  //  2순위: '잔액' 바로 앞 이름 토큰
+  let name = "";
+  const m1 = text.match(/[\d*]{2,}(?:-[\d*]+)+\s+([가-힣A-Za-z][가-힣A-Za-z0-9]*)/);
+  if (m1) name = m1[1].trim();
+  if (!name) {
+    const m2 = text.match(/([가-힣A-Za-z][가-힣A-Za-z0-9]*)\s*잔액/);
+    if (m2) name = m2[1].trim();
+  }
+
+  // 금액은 인식됐으므로 이름을 못 뽑아도 로그/표시용으로 반환(자동매칭은 webhook에서 name 있을 때만)
   return { amount, name, occurredAt: parseWhen(text) };
 }
 

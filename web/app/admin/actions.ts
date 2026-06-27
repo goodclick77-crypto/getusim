@@ -129,7 +129,7 @@ export async function approveRefund(formData: FormData) {
         {
           userId: inq.userId!,
           amount: -inq.refundPoint!,
-          reason: `[환불] ${inq.title}`,
+          reason: "포인트 환불",
           relType: "refund",
           relId: inq.id,
         },

@@ -27,11 +27,41 @@ export default async function ChargePage({
 }) {
   const user = await requireUser();
   const sp = await searchParams;
-  const orders = await prisma.chargeOrder.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-  });
+  const [orders, refunds] = await Promise.all([
+    prisma.chargeOrder.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.pointLog.findMany({
+      where: { userId: user.id, relType: "refund" },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+  ]);
+
+  // 충전(ChargeOrder)과 환불(PointLog)을 한 내역으로 병합(날짜순)
+  type Item =
+    | { kind: "charge"; id: number; createdAt: Date; chargePoint: number; amount: number; status: string }
+    | { kind: "refund"; id: number; createdAt: Date; amount: number };
+  const items: Item[] = [
+    ...orders.map((o) => ({
+      kind: "charge" as const,
+      id: o.id,
+      createdAt: o.createdAt,
+      chargePoint: o.chargePoint,
+      amount: o.amount,
+      status: o.status,
+    })),
+    ...refunds.map((r) => ({
+      kind: "refund" as const,
+      id: r.id,
+      createdAt: r.createdAt,
+      amount: r.amount,
+    })),
+  ]
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 20);
 
   return (
     <div className="space-y-6">
@@ -91,29 +121,44 @@ export default async function ChargePage({
       </Reveal>
 
       <section>
-        <h2 className="mb-3 font-bold">충전 내역</h2>
-        {orders.length === 0 ? (
-          <p className="text-sm text-zinc-500">충전 내역이 없습니다.</p>
+        <h2 className="mb-3 font-bold">충전·환불 내역</h2>
+        {items.length === 0 ? (
+          <p className="text-sm text-zinc-500">내역이 없습니다.</p>
         ) : (
           <ul className="space-y-2">
-            {orders.map((o) => (
-              <li key={o.id} className="glass flex items-center gap-3 rounded-2xl p-4">
-                <div className="min-w-0 flex-1">
-                  <p className="font-num text-base font-bold">
-                    {pt(o.chargePoint)}{" "}
-                    <span className="text-sm font-normal text-zinc-400">충전</span>
-                  </p>
-                  <p className="font-num mt-0.5 text-xs text-zinc-400">
-                    입금액 {won(o.amount)} · {ymdhm(o.createdAt)}
-                  </p>
-                </div>
-                <span
-                  className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[o.status]}`}
-                >
-                  {STATUS_LABEL[o.status]}
-                </span>
-              </li>
-            ))}
+            {items.map((it) =>
+              it.kind === "charge" ? (
+                <li key={`c-${it.id}`} className="glass flex items-center gap-3 rounded-2xl p-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-num text-base font-bold">
+                      {pt(it.chargePoint)}{" "}
+                      <span className="text-sm font-normal text-zinc-400">충전</span>
+                    </p>
+                    <p className="font-num mt-0.5 text-xs text-zinc-400">
+                      입금액 {won(it.amount)} · {ymdhm(it.createdAt)}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[it.status]}`}
+                  >
+                    {STATUS_LABEL[it.status]}
+                  </span>
+                </li>
+              ) : (
+                <li key={`r-${it.id}`} className="glass flex items-center gap-3 rounded-2xl p-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-num text-base font-bold text-red-500">
+                      {pt(it.amount)}{" "}
+                      <span className="text-sm font-normal text-zinc-400">환불</span>
+                    </p>
+                    <p className="font-num mt-0.5 text-xs text-zinc-400">{ymdhm(it.createdAt)}</p>
+                  </div>
+                  <span className="shrink-0 rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                    환불
+                  </span>
+                </li>
+              ),
+            )}
           </ul>
         )}
       </section>

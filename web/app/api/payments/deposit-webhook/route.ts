@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHash, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { parseKbDeposit } from "@/lib/bank";
+import { parseDeposit } from "@/lib/bank";
 import { completeCharge } from "@/lib/charge";
 import { notifyAdmin } from "@/lib/notify";
 
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     const dup = await prisma.depositLog.findUnique({ where: { txKey } });
     if (dup) return NextResponse.json({ ok: true, dup: true, matched: dup.matched });
 
-    const parsed = parseKbDeposit(text);
+    const parsed = parseDeposit(text);
 
     const log = await prisma.depositLog.create({
       data: {

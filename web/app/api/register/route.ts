@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { registerUser, RegisterError } from "@/lib/auth-service";
 import { signSession, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 function redirectTo(path: string) {
   return new NextResponse(null, { status: 303, headers: { Location: path } });
@@ -16,6 +17,12 @@ function setCookieAndGo(token: string, path: string) {
 }
 
 export async function POST(req: Request) {
+  // 가입 스팸 제한: IP당 10분에 5회
+  if (!rateLimit(`register:${clientIp(req)}`, 5, 10 * 60 * 1000)) {
+    return redirectTo(
+      `/register?error=${encodeURIComponent("가입 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.")}`,
+    );
+  }
   const form = await req.formData();
   const input = {
     loginId: String(form.get("loginId") || ""),

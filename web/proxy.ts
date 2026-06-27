@@ -20,9 +20,11 @@ const ALLOW_PREFIXES = [
   "/login",
   "/logout",
   "/find-password",
+  "/find-id",
   "/api/login",
   "/api/logout",
   "/api/find-password",
+  "/api/find-id",
   "/api/reset-password",
   "/api/payments/deposit-webhook",
 ];

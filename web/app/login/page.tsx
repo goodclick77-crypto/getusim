@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 const ERRORS: Record<string, string> = {
   empty: "아이디와 비밀번호를 입력하세요.",
   invalid: "아이디 또는 비밀번호가 올바르지 않습니다.",
+  rate: "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.",
 };
 
 export default async function LoginPage({
@@ -67,6 +68,10 @@ export default async function LoginPage({
         <div className="mt-5 flex items-center justify-center gap-3 text-sm text-zinc-500">
           <Link href="/register" className="font-medium text-emerald-600">
             회원가입
+          </Link>
+          <span className="text-zinc-300">|</span>
+          <Link href="/find-id" className="hover:text-zinc-900">
+            아이디 찾기
           </Link>
           <span className="text-zinc-300">|</span>
           <Link href="/find-password" className="hover:text-zinc-900">

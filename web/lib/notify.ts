@@ -57,10 +57,10 @@ function gmailTransport() {
   return transporter;
 }
 
-/** 실제 발송. 실패 시 throw. */
-async function deliver(subject: string, text: string) {
-  const to = recipient();
-  if (!to) throw new Error("받는 주소(ADMIN_EMAIL)가 설정되지 않았습니다.");
+/** 실제 발송. 실패 시 throw. to 미지정 시 관리자 주소로. */
+async function deliver(subject: string, text: string, toAddr?: string) {
+  const to = toAddr || recipient();
+  if (!to) throw new Error("받는 주소가 설정되지 않았습니다.");
   const fullSubject = `[GetUsim] ${subject}`;
 
   // 1순위: Resend (HTTPS)
@@ -104,6 +104,14 @@ export async function notifyAdmin(event: NotifyEvent, subject: string, body: str
   } catch (e) {
     console.error("[notify]", e);
   }
+}
+
+/** 특정 회원 주소로 메일 발송(아이디/비밀번호 찾기 등). 실패 시 throw. */
+export async function sendMail(to: string, subject: string, text: string) {
+  if (!mailerConfigured()) {
+    throw new Error("이메일 발송 수단이 설정되지 않았습니다.");
+  }
+  await deliver(subject, text, to);
 }
 
 /** 설정 화면의 '테스트 발송'용. 성공/실패 여부를 반환. */

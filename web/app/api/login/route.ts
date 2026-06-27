@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authenticate } from "@/lib/auth-service";
 import { prisma } from "@/lib/prisma";
 import { signSession, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 // 에러는 303 리다이렉트(쿠키 불필요)
 function redirectTo(path: string) {
@@ -20,6 +21,10 @@ function setCookieAndGo(token: string, path: string) {
 }
 
 export async function POST(req: Request) {
+  // 무차별 로그인 시도 제한: IP당 5분에 10회
+  if (!rateLimit(`login:${clientIp(req)}`, 10, 5 * 60 * 1000)) {
+    return redirectTo("/login?error=rate");
+  }
   const form = await req.formData();
   const loginId = String(form.get("loginId") || "").trim();
   const password = String(form.get("password") || "");

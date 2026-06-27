@@ -36,6 +36,13 @@ export default async function AdminPage() {
       badge: 0,
     },
     {
+      href: "/admin/logins",
+      icon: "fa-right-to-bracket",
+      label: "로그인 현황",
+      desc: "최근 접속자·마지막 로그인 기록",
+      badge: 0,
+    },
+    {
       href: "/admin/rentals",
       icon: "fa-mobile-screen-button",
       label: "발급 내역",

@@ -14,6 +14,7 @@ const secret = process.env.AUTH_SECRET
   : null;
 
 // 점검 중에도 접근 허용: 관리자 로그인/로그아웃·비번찾기·점검 페이지 자체
+// + 입금 웹훅(자체 토큰 인증 → 점검 중에도 입금 자동처리 유지)
 const ALLOW_PREFIXES = [
   "/maintenance",
   "/login",
@@ -23,6 +24,7 @@ const ALLOW_PREFIXES = [
   "/api/logout",
   "/api/find-password",
   "/api/reset-password",
+  "/api/payments/deposit-webhook",
 ];
 
 function maintenanceOn(): boolean {

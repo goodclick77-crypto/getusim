@@ -60,6 +60,23 @@ export async function deleteInquiry(formData: FormData) {
   revalidatePath("/admin/inquiries");
 }
 
+/** 문의 보관(숨김): 관리자 목록에서만 숨김 — 사용자 기록은 유지 */
+export async function hideInquiry(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  await prisma.inquiry.update({ where: { id }, data: { hidden: true } });
+  revalidatePath("/admin");
+  revalidatePath("/admin/inquiries");
+}
+
+/** 보관 해제(복원) */
+export async function unhideInquiry(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  await prisma.inquiry.update({ where: { id }, data: { hidden: false } });
+  revalidatePath("/admin/inquiries");
+}
+
 /** 1:1 문의 답변 */
 export async function answerInquiry(formData: FormData) {
   await requireAdmin();

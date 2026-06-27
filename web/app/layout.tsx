@@ -2,9 +2,18 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://getusim.com"),
   title: "GetUsim — 글로벌 SMS 인증",
-  description:
-    "포인트 충전으로 이용하는 글로벌 가상번호 SMS 인증 서비스 GetUsim",
+  description: "포인트 충전으로 이용하는 글로벌 가상번호 SMS 인증 서비스 GetUsim",
+  // 카카오톡 등 공유 미리보기: 이미지 없이 제목·설명·주소만 깔끔하게
+  openGraph: {
+    type: "website",
+    siteName: "GetUsim",
+    title: "GetUsim — 글로벌 SMS 인증",
+    description: "포인트 충전으로 이용하는 글로벌 가상번호 SMS 인증 서비스",
+    url: "https://getusim.com",
+    locale: "ko_KR",
+  },
 };
 
 export default function RootLayout({

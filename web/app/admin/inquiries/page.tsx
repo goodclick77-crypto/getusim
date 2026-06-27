@@ -1,8 +1,16 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { ymdhm, pt, dateRange } from "@/lib/format";
-import { answerInquiry, deleteInquiry, updateReply, approveRefund } from "../actions";
+import { ymdhm, pt, won, dateRange } from "@/lib/format";
+import { chargeAmount } from "@/lib/config";
+import {
+  answerInquiry,
+  deleteInquiry,
+  updateReply,
+  approveRefund,
+  hideInquiry,
+  unhideInquiry,
+} from "../actions";
 import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +19,7 @@ const TABS = [
   { key: "OPEN", label: "미답변" },
   { key: "ANSWERED", label: "답변완료" },
   { key: "ALL", label: "전체" },
+  { key: "HIDDEN", label: "보관" },
 ] as const;
 
 const CAT_LABEL: Record<string, string> = {
@@ -30,9 +39,13 @@ export default async function AdminInquiriesPage({
   const from = (sp.from || "").trim();
   const to = (sp.to || "").trim();
   const createdAt = dateRange(from, to);
+  const isHidden = status === "HIDDEN";
   const where = {
     parentId: null,
-    ...(status === "ALL" ? {} : { status: status as "OPEN" | "ANSWERED" }),
+    hidden: isHidden, // 기본 탭은 보관 제외, '보관' 탭에서만 숨긴 것 표시
+    ...(status === "ALL" || isHidden
+      ? {}
+      : { status: status as "OPEN" | "ANSWERED" }),
     ...(createdAt ? { createdAt } : {}),
   };
 
@@ -144,6 +157,27 @@ export default async function AdminInquiriesPage({
                   >
                     {q.status === "ANSWERED" ? "답변완료" : "미답변"}
                   </span>
+                  {isHidden ? (
+                    <form action={unhideInquiry}>
+                      <input type="hidden" name="id" value={q.id} />
+                      <button
+                        title="복원(보관 해제)"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 px-2.5 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
+                      >
+                        <i className="fa-solid fa-rotate-left" aria-hidden /> 복원
+                      </button>
+                    </form>
+                  ) : (
+                    <form action={hideInquiry}>
+                      <input type="hidden" name="id" value={q.id} />
+                      <button
+                        title="보관(목록에서 숨김 · 사용자 기록은 유지)"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-black/10 px-2.5 py-1 text-xs font-medium text-zinc-600 transition hover:bg-black/5"
+                      >
+                        <i className="fa-solid fa-box-archive" aria-hidden /> 보관
+                      </button>
+                    </form>
+                  )}
                   <form action={deleteInquiry}>
                     <input type="hidden" name="id" value={q.id} />
                     <ConfirmButton
@@ -169,6 +203,10 @@ export default async function AdminInquiriesPage({
                   <p className="font-num mt-1">
                     환불 포인트(전액): <b>{pt(q.refundPoint ?? 0)}</b>
                   </p>
+                  <p className="font-num mt-0.5 text-base">
+                    입금할 금액: <b className="text-amber-700">{won(chargeAmount(q.refundPoint ?? 0))}</b>
+                    <span className="ml-1 text-xs font-normal text-zinc-500">(부가세 포함)</span>
+                  </p>
                   {q.refundInfo && (
                     <p className="mt-1 whitespace-pre-wrap text-zinc-600">
                       환불 정보: {q.refundInfo}
@@ -183,7 +221,7 @@ export default async function AdminInquiriesPage({
                     <form action={approveRefund} className="mt-2">
                       <input type="hidden" name="id" value={q.id} />
                       <ConfirmButton
-                        message={`${q.name}님에게 ${pt(q.refundPoint ?? 0)} 환불을 승인하고 포인트를 차감할까요? (실제 송금은 별도로 진행하세요)`}
+                        message={`${q.name}님 환불 승인: 포인트 ${pt(q.refundPoint ?? 0)} 차감 / 계좌로 ${won(chargeAmount(q.refundPoint ?? 0))}(부가세 포함) 입금. 진행할까요? (실제 송금은 별도로 진행)`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-500"
                       >
                         <i className="fa-solid fa-check" aria-hidden /> 환불 승인 (포인트 차감)

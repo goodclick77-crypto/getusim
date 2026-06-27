@@ -9,7 +9,13 @@ const CATS = [
   { v: "OTHER", label: "기타문의", icon: "fa-ellipsis" },
 ] as const;
 
-export default function InquiryForm({ currentPoint }: { currentPoint: number }) {
+export default function InquiryForm({
+  currentPoint,
+  refundWon,
+}: {
+  currentPoint: number;
+  refundWon: number;
+}) {
   const [category, setCategory] = useState<"USAGE" | "REFUND" | "OTHER">("USAGE");
   const refund = category === "REFUND";
   const canRefund = currentPoint > 0;
@@ -56,9 +62,13 @@ export default function InquiryForm({ currentPoint }: { currentPoint: number }) 
                 <p className="font-num text-2xl font-bold text-zinc-900">
                   {currentPoint.toLocaleString("ko-KR")} P
                 </p>
+                <p className="font-num mt-1 text-sm font-semibold text-emerald-700">
+                  환불 금액 {refundWon.toLocaleString("ko-KR")}원{" "}
+                  <span className="text-xs font-normal text-zinc-500">(부가세 포함)</span>
+                </p>
                 <p className="mt-1 text-xs text-zinc-500">
                   환불은 <b>보유 포인트 전액</b>으로만 신청됩니다. 승인되면 위 포인트가
-                  차감됩니다.
+                  차감되고 환불 금액이 입금됩니다.
                 </p>
               </div>
               <textarea

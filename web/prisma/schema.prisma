@@ -171,6 +171,7 @@ model Inquiry {
   refundPoint Int?        @map("refund_point")           // 환불 신청 포인트(승인 시 차감)
   refundInfo  String?     @map("refund_info") @db.Text   // 환불 받을 계좌/연락처 등
   refundedAt  DateTime?   @map("refunded_at")            // 환불 승인(포인트 차감) 처리 시각
+  hidden      Boolean     @default(false)                // 관리자 보관(숨김) — 관리자 목록에서만 숨김, 사용자 기록은 유지
   name      String        @default("")                   // ← qa_name
   email     String        @default("")                   // ← qa_email
   phone     String        @default("")                   // ← qa_hp

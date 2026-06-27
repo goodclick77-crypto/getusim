@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ymdhm, pt } from "@/lib/format";
+import { chargeAmount } from "@/lib/config";
 import InquiryForm from "./InquiryForm";
 import Reveal from "@/components/Reveal";
 
@@ -51,7 +52,7 @@ export default async function InquiryPage({
       <Reveal>
         <section className="glass rounded-2xl p-5">
           <h2 className="mb-4 font-bold">문의하기</h2>
-          <InquiryForm currentPoint={user.point} />
+          <InquiryForm currentPoint={user.point} refundWon={chargeAmount(user.point)} />
         </section>
       </Reveal>
 

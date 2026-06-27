@@ -114,13 +114,19 @@ export async function sendMail(to: string, subject: string, text: string) {
   await deliver(subject, text, to);
 }
 
-/** 설정 화면의 '테스트 발송'용. 성공/실패 여부를 반환. */
-export async function sendTestEmail(): Promise<{ ok: boolean; error?: string }> {
+/** 설정 화면의 '테스트 발송'용. 성공/실패 여부를 반환. to 미지정 시 관리자 주소로. */
+export async function sendTestEmail(
+  to?: string,
+): Promise<{ ok: boolean; error?: string }> {
   if (!mailerConfigured()) {
     return { ok: false, error: "발송 수단 미설정 (RESEND_API_KEY 또는 GMAIL_USER/GMAIL_APP_PASSWORD)" };
   }
   try {
-    await deliver("알림 테스트", "이 메일이 보이면 관리자 이메일 알림이 정상 작동합니다.");
+    await deliver(
+      "발송 테스트",
+      `이 메일이 보이면 ${to || "관리자"} 로의 이메일 발송이 정상 작동합니다.`,
+      to,
+    );
     return { ok: true };
   } catch (e) {
     return { ok: false, error: (e as Error).message };

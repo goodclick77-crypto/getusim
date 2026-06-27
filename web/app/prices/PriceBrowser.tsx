@@ -179,10 +179,6 @@ export default function PriceBrowser() {
         )}
       </div>
 
-      <p className="mt-3 text-xs text-zinc-400">
-        ※ 표시 금액(P)은 인증코드 수신 성공 시 차감되는 포인트입니다. 1P = 1원 가치이며, 충전은 결제금액의
-        약 91%가 포인트로 적립됩니다(10% 수수료).
-      </p>
     </div>
   );
 }

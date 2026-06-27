@@ -15,6 +15,7 @@ const NAV = [
   { href: "/notice", label: "공지사항", icon: "fa-bullhorn" },
   { href: "/faq", label: "FAQ", icon: "fa-circle-question" },
   { href: "/inquiry", label: "1:1 문의", icon: "fa-headset" },
+  { href: "/account", label: "내 정보", icon: "fa-user" },
 ];
 
 export default async function AppLayout({

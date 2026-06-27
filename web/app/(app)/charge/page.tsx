@@ -27,23 +27,25 @@ export default async function ChargePage({
 }) {
   const user = await requireUser();
   const sp = await searchParams;
-  const [orders, refunds] = await Promise.all([
+  const [orders, logs] = await Promise.all([
     prisma.chargeOrder.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
+    // 환불 + 관리자 수동 지급/차감
     prisma.pointLog.findMany({
-      where: { userId: user.id, relType: "refund" },
+      where: { userId: user.id, relType: { in: ["refund", "admin"] } },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
   ]);
 
-  // 충전(ChargeOrder)과 환불(PointLog)을 한 내역으로 병합(날짜순)
+  // 충전(ChargeOrder) + 환불/관리자조정(PointLog)을 한 내역으로 병합(날짜순)
   type Item =
     | { kind: "charge"; id: number; createdAt: Date; chargePoint: number; amount: number; status: string }
-    | { kind: "refund"; id: number; createdAt: Date; amount: number };
+    | { kind: "refund"; id: number; createdAt: Date; amount: number }
+    | { kind: "adjust"; id: number; createdAt: Date; amount: number; reason: string };
   const items: Item[] = [
     ...orders.map((o) => ({
       kind: "charge" as const,
@@ -53,12 +55,17 @@ export default async function ChargePage({
       amount: o.amount,
       status: o.status,
     })),
-    ...refunds.map((r) => ({
-      kind: "refund" as const,
-      id: r.id,
-      createdAt: r.createdAt,
-      amount: r.amount,
-    })),
+    ...logs.map((l) =>
+      l.relType === "refund"
+        ? { kind: "refund" as const, id: l.id, createdAt: l.createdAt, amount: l.amount }
+        : {
+            kind: "adjust" as const,
+            id: l.id,
+            createdAt: l.createdAt,
+            amount: l.amount,
+            reason: l.reason.replace(/^\[관리자\]\s*/, ""),
+          },
+    ),
   ]
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, 20);
@@ -121,44 +128,76 @@ export default async function ChargePage({
       </Reveal>
 
       <section>
-        <h2 className="mb-3 font-bold">충전·환불 내역</h2>
+        <h2 className="mb-3 font-bold">충전·환불·지급 내역</h2>
         {items.length === 0 ? (
           <p className="text-sm text-zinc-500">내역이 없습니다.</p>
         ) : (
           <ul className="space-y-2">
-            {items.map((it) =>
-              it.kind === "charge" ? (
-                <li key={`c-${it.id}`} className="glass flex items-center gap-3 rounded-2xl p-4">
+            {items.map((it) => {
+              if (it.kind === "charge") {
+                return (
+                  <li key={`c-${it.id}`} className="glass flex items-center gap-3 rounded-2xl p-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-num text-base font-bold">
+                        {pt(it.chargePoint)}{" "}
+                        <span className="text-sm font-normal text-zinc-400">충전</span>
+                      </p>
+                      <p className="font-num mt-0.5 text-xs text-zinc-400">
+                        입금액 {won(it.amount)} · {ymdhm(it.createdAt)}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[it.status]}`}
+                    >
+                      {STATUS_LABEL[it.status]}
+                    </span>
+                  </li>
+                );
+              }
+              if (it.kind === "refund") {
+                return (
+                  <li key={`r-${it.id}`} className="glass flex items-center gap-3 rounded-2xl p-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-num text-base font-bold text-red-500">
+                        {pt(it.amount)}{" "}
+                        <span className="text-sm font-normal text-zinc-400">환불</span>
+                      </p>
+                      <p className="font-num mt-0.5 text-xs text-zinc-400">{ymdhm(it.createdAt)}</p>
+                    </div>
+                    <span className="shrink-0 rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                      환불
+                    </span>
+                  </li>
+                );
+              }
+              // 관리자 수동 지급/차감
+              const plus = it.amount >= 0;
+              return (
+                <li key={`a-${it.id}`} className="glass flex items-center gap-3 rounded-2xl p-4">
                   <div className="min-w-0 flex-1">
-                    <p className="font-num text-base font-bold">
-                      {pt(it.chargePoint)}{" "}
-                      <span className="text-sm font-normal text-zinc-400">충전</span>
+                    <p
+                      className={`font-num text-base font-bold ${plus ? "text-emerald-600" : "text-red-500"}`}
+                    >
+                      {plus ? "+" : ""}
+                      {pt(it.amount)}{" "}
+                      <span className="text-sm font-normal text-zinc-400">
+                        {plus ? "지급" : "차감"}
+                      </span>
                     </p>
-                    <p className="font-num mt-0.5 text-xs text-zinc-400">
-                      입금액 {won(it.amount)} · {ymdhm(it.createdAt)}
+                    <p className="font-num mt-0.5 truncate text-xs text-zinc-400">
+                      {it.reason || "관리자 조정"} · {ymdhm(it.createdAt)}
                     </p>
                   </div>
                   <span
-                    className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[it.status]}`}
+                    className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${
+                      plus ? "bg-emerald-100 text-emerald-700" : "bg-zinc-200 text-zinc-600"
+                    }`}
                   >
-                    {STATUS_LABEL[it.status]}
+                    {plus ? "지급" : "차감"}
                   </span>
                 </li>
-              ) : (
-                <li key={`r-${it.id}`} className="glass flex items-center gap-3 rounded-2xl p-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-num text-base font-bold text-red-500">
-                      {pt(it.amount)}{" "}
-                      <span className="text-sm font-normal text-zinc-400">환불</span>
-                    </p>
-                    <p className="font-num mt-0.5 text-xs text-zinc-400">{ymdhm(it.createdAt)}</p>
-                  </div>
-                  <span className="shrink-0 rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                    환불
-                  </span>
-                </li>
-              ),
-            )}
+              );
+            })}
           </ul>
         )}
       </section>

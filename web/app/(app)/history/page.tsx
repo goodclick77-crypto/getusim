@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { pt, ymdhm, phoneFmt } from "@/lib/format";
 import RentalLabel from "@/components/RentalLabel";
 import CopyButton from "@/components/CopyButton";
-import { expireStaleRentals } from "@/lib/rentals";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +22,6 @@ export default async function HistoryPage({
   searchParams: Promise<{ tab?: string; page?: string }>;
 }) {
   const user = await requireUser();
-  await expireStaleRentals(); // 지난 수신대기건 만료 처리
   const sp = await searchParams;
   const tab = sp.tab === "rental" ? "rental" : "point";
   const page = Math.max(1, Number(sp.page) || 1);

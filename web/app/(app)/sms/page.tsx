@@ -1,7 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { pt, ymdhm, phoneFmt } from "@/lib/format";
-import { expireStaleRentals } from "@/lib/rentals";
 import NumberAuth from "./NumberAuth";
 import RentalLabel from "@/components/RentalLabel";
 
@@ -24,7 +23,6 @@ const STATUS_STYLE: Record<string, string> = {
 
 export default async function SmsPage() {
   const user = await requireUser();
-  await expireStaleRentals(); // 지난 수신대기건 만료 처리
   const rentals = await prisma.numberRental.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
@@ -47,16 +45,21 @@ export default async function SmsPage() {
           <p className="text-sm text-zinc-500">발급 내역이 없습니다.</p>
         ) : (
           <ul className="glass divide-y divide-black/5 rounded-2xl">
-            {rentals.map((r) => (
+            {rentals.map((r) => {
+              // 만료시간이 지난 수신대기건은 '만료'로 표시(DB 상태는 관리자 정산 때 갱신)
+              const isExpired =
+                r.status === "PENDING" && r.expiresAt && new Date(r.expiresAt) < new Date();
+              const st = isExpired ? "EXPIRED" : r.status;
+              return (
               <li key={r.id} className="px-4 py-3 text-sm">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <RentalLabel country={r.country} service={r.service} />
                   </div>
                   <span
-                    className={`shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[r.status] ?? "bg-zinc-200 text-zinc-500"}`}
+                    className={`shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[st] ?? "bg-zinc-200 text-zinc-500"}`}
                   >
-                    {STATUS_LABEL[r.status] ?? r.status}
+                    {STATUS_LABEL[st] ?? st}
                   </span>
                 </div>
                 <p className="font-num mt-1 text-xs text-zinc-400">
@@ -64,7 +67,8 @@ export default async function SmsPage() {
                   {r.smsCode ? ` · 코드 ${r.smsCode} · -${pt(r.pricePoint)}` : ""}
                 </p>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </section>

@@ -41,7 +41,7 @@ export default async function PricesPage() {
 
       <main id="main" className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
         <h1 className="flex items-center gap-2 text-2xl font-bold">
-          <i className="fa-solid fa-tags text-emerald-600" aria-hidden /> 실시간 가격표
+          <i className="fa-solid fa-tags text-emerald-600" aria-hidden /> 실시간 가격
         </h1>
         <p className="mt-2 text-sm text-zinc-500">
           국가·서비스별 실시간 수신률과 가격을 확인하세요. 회원가입 후 포인트를 충전하면 바로 번호를

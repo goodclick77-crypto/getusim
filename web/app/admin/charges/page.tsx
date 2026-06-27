@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymd, ymdhm, dateRange } from "@/lib/format";
 import { confirmCharge, cancelCharge, restoreCharge } from "../actions";
+import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,8 @@ export default async function AdminChargesPage({
   const carry = `${q ? `&q=${encodeURIComponent(q)}` : ""}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`;
 
   const where = {
-    ...(status === "ALL"
+    // 검색(q) 중에는 상태 탭에 상관없이 전체에서 찾는다(완료/취소 입금도 검색되도록)
+    ...(status === "ALL" || q
       ? {}
       : { status: status as "PENDING" | "COMPLETED" | "CANCELED" }),
     ...(createdAt ? { createdAt } : {}),
@@ -193,6 +195,7 @@ export default async function AdminChargesPage({
           ))}
         </nav>
         <p className="font-num text-sm text-zinc-500">
+          {q && <span className="text-emerald-600">전체 상태 검색 · </span>}
           총 {count.toLocaleString("ko-KR")}건 · 이 페이지 {won(sumAmount)}
         </p>
       </div>
@@ -298,15 +301,21 @@ function DateGroup({
                   <div className="flex flex-col gap-1.5">
                     <form action={confirmCharge}>
                       <input type="hidden" name="id" value={o.id} />
-                      <button className="w-full whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-500">
+                      <ConfirmButton
+                        message={`[${o.depositName || "입금자명 없음"}] ${won(o.amount)} 입금을 확인하고 충전완료(${pt(o.chargePoint)} 지급) 처리할까요?`}
+                        className="w-full whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
+                      >
                         지급
-                      </button>
+                      </ConfirmButton>
                     </form>
                     <form action={cancelCharge}>
                       <input type="hidden" name="id" value={o.id} />
-                      <button className="w-full rounded-lg border border-black/10 px-3 py-1 text-xs text-zinc-500 hover:bg-black/5">
+                      <ConfirmButton
+                        message={`[${o.depositName || "입금자명 없음"}] ${won(o.amount)} 충전 신청을 취소할까요?`}
+                        className="w-full rounded-lg border border-black/10 px-3 py-1 text-xs text-zinc-500 hover:bg-black/5"
+                      >
                         취소
-                      </button>
+                      </ConfirmButton>
                     </form>
                   </div>
                 ) : o.status === "CANCELED" ? (

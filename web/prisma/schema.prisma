@@ -164,9 +164,13 @@ model Inquiry {
   id        Int           @id @default(autoincrement()) // ← qa_id
   userId    Int?          @map("user_id")
   parentId  Int?          @map("parent_id")              // ← qa_parent (답변 스레드)
+  category  String        @default("USAGE")              // USAGE(사용문의) | REFUND(환불문의)
   title     String        @default("")                   // ← qa_subject
   content   String        @db.Text                       // ← qa_content
   status    InquiryStatus @default(OPEN)
+  refundPoint Int?        @map("refund_point")           // 환불 신청 포인트(승인 시 차감)
+  refundInfo  String?     @map("refund_info") @db.Text   // 환불 받을 계좌/연락처 등
+  refundedAt  DateTime?   @map("refunded_at")            // 환불 승인(포인트 차감) 처리 시각
   name      String        @default("")                   // ← qa_name
   email     String        @default("")                   // ← qa_email
   phone     String        @default("")                   // ← qa_hp

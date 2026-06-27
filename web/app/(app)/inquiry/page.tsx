@@ -1,8 +1,14 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { ymdhm } from "@/lib/format";
-import { createInquiry } from "./actions";
+import { ymdhm, pt } from "@/lib/format";
+import InquiryForm from "./InquiryForm";
 import Reveal from "@/components/Reveal";
+
+const ERRORS: Record<string, string> = {
+  empty: "제목과 내용을 입력하세요.",
+  refund: "환불 포인트(1 이상)와 환불 정보를 입력하세요.",
+  refund_over: "환불 포인트가 보유 포인트보다 큽니다.",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -31,28 +37,16 @@ export default async function InquiryPage({
           <i className="fa-solid fa-circle-check" aria-hidden /> 문의가 접수되었습니다.
         </p>
       )}
+      {sp.error && ERRORS[sp.error] && (
+        <p role="alert" className="glass flex items-center gap-2 rounded-2xl px-4 py-3 text-sm text-red-600">
+          <i className="fa-solid fa-circle-exclamation" aria-hidden /> {ERRORS[sp.error]}
+        </p>
+      )}
 
       <Reveal>
         <section className="glass rounded-2xl p-5">
           <h2 className="mb-4 font-bold">문의하기</h2>
-          <form action={createInquiry} className="space-y-3">
-            <input
-              name="title"
-              placeholder="제목"
-              aria-label="제목"
-              className="w-full rounded-xl border border-black/10 bg-white/60 px-3.5 py-3 outline-none focus:border-emerald-500"
-            />
-            <textarea
-              name="content"
-              placeholder="내용"
-              rows={4}
-              aria-label="내용"
-              className="w-full rounded-xl border border-black/10 bg-white/60 px-3.5 py-3 outline-none focus:border-emerald-500"
-            />
-            <button className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-500">
-              <i className="fa-solid fa-paper-plane" aria-hidden /> 등록
-            </button>
-          </form>
+          <InquiryForm currentPoint={user.point} />
         </section>
       </Reveal>
 
@@ -63,19 +57,36 @@ export default async function InquiryPage({
         ) : (
           inquiries.map((q) => (
             <article key={q.id} className="glass rounded-2xl p-4">
-              <div className="flex items-center justify-between">
-                <p className="font-semibold">{q.title}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-2 font-semibold">
+                  {q.category === "REFUND" && (
+                    <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                      환불
+                    </span>
+                  )}
+                  {q.title}
+                </p>
                 <span
                   className={
                     q.status === "ANSWERED"
-                      ? "text-sm text-emerald-600"
-                      : "text-sm text-amber-600"
+                      ? "shrink-0 text-sm text-emerald-600"
+                      : "shrink-0 text-sm text-amber-600"
                   }
                 >
                   {q.status === "ANSWERED" ? "답변완료" : "접수"}
                 </span>
               </div>
               <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-600">{q.content}</p>
+              {q.category === "REFUND" && (
+                <p className="mt-2 text-xs text-zinc-500">
+                  환불 신청 {pt(q.refundPoint ?? 0)}
+                  {q.refundedAt ? (
+                    <span className="ml-1 font-medium text-emerald-600">· 환불 완료(차감됨)</span>
+                  ) : (
+                    <span className="ml-1 text-amber-600">· 처리 대기</span>
+                  )}
+                </p>
+              )}
               <p className="font-num mt-1 text-xs text-zinc-400">{ymdhm(q.createdAt)}</p>
               {q.replies.map((rep) => (
                 <div key={rep.id} className="mt-3 rounded-xl bg-emerald-50/70 p-3">

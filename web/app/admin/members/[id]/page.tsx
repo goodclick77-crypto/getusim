@@ -4,6 +4,8 @@ import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { pt, won, ymd, ymdhm } from "@/lib/format";
 import { adjustMemberPoint, toggleBlock } from "../actions";
+import ConfirmButton from "@/components/ConfirmButton";
+import PointApplyButton from "@/components/PointApplyButton";
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +82,12 @@ export default async function MemberDetail({
           </dl>
           <form action={toggleBlock} className="mt-4">
             <input type="hidden" name="userId" value={user.id} />
-            <button
+            <ConfirmButton
+              message={
+                user.leftAt
+                  ? `${user.name || user.loginId} 회원의 이용정지를 해제할까요?`
+                  : `${user.name || user.loginId} 회원을 이용정지(차단)할까요? 차단되면 로그인이 막힙니다.`
+              }
               className={`rounded-xl px-4 py-2 text-sm font-medium ${
                 user.leftAt
                   ? "bg-emerald-600 text-white hover:bg-emerald-500"
@@ -88,7 +95,7 @@ export default async function MemberDetail({
               }`}
             >
               {user.leftAt ? "이용정지 해제" : "이용정지(차단)"}
-            </button>
+            </ConfirmButton>
           </form>
         </section>
 
@@ -115,9 +122,9 @@ export default async function MemberDetail({
               aria-label="사유"
               className="w-full rounded-xl bg-white/10 px-3.5 py-3 text-white placeholder:text-zinc-400 outline-none focus:bg-white/15"
             />
-            <button className="w-full rounded-xl bg-emerald-500 py-3 font-semibold text-white transition hover:bg-emerald-400">
+            <PointApplyButton className="w-full rounded-xl bg-emerald-500 py-3 font-semibold text-white transition hover:bg-emerald-400">
               포인트 적용
-            </button>
+            </PointApplyButton>
           </form>
         </section>
       </div>

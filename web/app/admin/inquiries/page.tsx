@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { ymdhm, dateRange } from "@/lib/format";
-import { answerInquiry, deleteInquiry, updateReply } from "../actions";
+import { ymdhm, pt, dateRange } from "@/lib/format";
+import { answerInquiry, deleteInquiry, updateReply, approveRefund } from "../actions";
 import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ const TABS = [
 export default async function AdminInquiriesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ status?: string; from?: string; to?: string; ok?: string; error?: string }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
@@ -47,6 +47,22 @@ export default async function AdminInquiriesPage({
           ← 관리자 홈
         </Link>
       </div>
+
+      {sp.ok === "refund" && (
+        <p role="status" className="glass rounded-2xl px-4 py-3 text-sm text-emerald-700">
+          환불 승인 완료 — 신청 포인트가 차감되었습니다.
+        </p>
+      )}
+      {sp.error === "insufficient" && (
+        <p role="alert" className="glass rounded-2xl px-4 py-3 text-sm text-red-600">
+          회원의 보유 포인트가 환불 신청 포인트보다 적어 차감할 수 없습니다.
+        </p>
+      )}
+      {sp.error === "refund_invalid" && (
+        <p role="alert" className="glass rounded-2xl px-4 py-3 text-sm text-red-600">
+          이미 처리되었거나 환불 정보가 올바르지 않은 신청입니다.
+        </p>
+      )}
 
       <nav aria-label="상태 필터" className="flex flex-wrap gap-2">
         {TABS.map((t) => (
@@ -102,7 +118,14 @@ export default async function AdminInquiriesPage({
           {inquiries.map((q) => (
             <li key={q.id} className="glass rounded-2xl p-4">
               <div className="flex items-center justify-between gap-2">
-                <p className="font-semibold">{q.title}</p>
+                <p className="flex min-w-0 items-center gap-2 font-semibold">
+                  {q.category === "REFUND" && (
+                    <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                      환불
+                    </span>
+                  )}
+                  <span className="truncate">{q.title}</span>
+                </p>
                 <div className="flex shrink-0 items-center gap-2">
                   <span
                     className={
@@ -127,6 +150,38 @@ export default async function AdminInquiriesPage({
               <p className="font-num mt-1 text-xs text-zinc-400">
                 {q.name} · {ymdhm(q.createdAt)}
               </p>
+
+              {q.category === "REFUND" && (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-sm">
+                  <p className="flex items-center gap-1.5 font-semibold text-amber-700">
+                    <i className="fa-solid fa-rotate-left" aria-hidden /> 환불 신청
+                  </p>
+                  <p className="font-num mt-1">
+                    환불 포인트: <b>{pt(q.refundPoint ?? 0)}</b>
+                  </p>
+                  {q.refundInfo && (
+                    <p className="mt-1 whitespace-pre-wrap text-zinc-600">
+                      환불 정보: {q.refundInfo}
+                    </p>
+                  )}
+                  {q.refundedAt ? (
+                    <p className="mt-2 flex items-center gap-1.5 text-emerald-700">
+                      <i className="fa-solid fa-circle-check" aria-hidden /> 환불 승인됨(포인트 차감
+                      완료) · {ymdhm(q.refundedAt)}
+                    </p>
+                  ) : (
+                    <form action={approveRefund} className="mt-2">
+                      <input type="hidden" name="id" value={q.id} />
+                      <ConfirmButton
+                        message={`${q.name}님에게 ${pt(q.refundPoint ?? 0)} 환불을 승인하고 포인트를 차감할까요? (실제 송금은 별도로 진행하세요)`}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-500"
+                      >
+                        <i className="fa-solid fa-check" aria-hidden /> 환불 승인 (포인트 차감)
+                      </ConfirmButton>
+                    </form>
+                  )}
+                </div>
+              )}
 
               {q.replies.map((rep) => (
                 <div key={rep.id} className="mt-3 rounded-xl bg-emerald-50/70 p-3">

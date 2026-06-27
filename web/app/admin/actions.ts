@@ -1,9 +1,11 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { completeCharge } from "@/lib/charge";
+import { adjustPoint, InsufficientPointError } from "@/lib/points";
 
 /** 입금확인 → 포인트 지급 (멱등) */
 export async function confirmCharge(formData: FormData) {
@@ -97,4 +99,53 @@ export async function updateReply(formData: FormData) {
   if (!id || !content) return;
   await prisma.inquiry.update({ where: { id }, data: { content } });
   revalidatePath("/admin/inquiries");
+}
+
+/** 환불 승인 → 신청 포인트 자동 차감 (멱등: 이미 처리됐거나 잔액부족이면 변동 없음) */
+export async function approveRefund(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const inq = await prisma.inquiry.findUnique({ where: { id } });
+  if (
+    !inq ||
+    inq.category !== "REFUND" ||
+    inq.refundedAt ||
+    !inq.userId ||
+    !inq.refundPoint ||
+    inq.refundPoint <= 0
+  ) {
+    redirect("/admin/inquiries?error=refund_invalid");
+  }
+  try {
+    await prisma.$transaction(async (tx) => {
+      // 먼저 처리표시를 선점(동시/중복 승인 방지). 이미 처리됐으면 count=0 → 중단.
+      const claim = await tx.inquiry.updateMany({
+        where: { id, category: "REFUND", refundedAt: null },
+        data: { refundedAt: new Date(), status: "ANSWERED" },
+      });
+      if (claim.count === 0) throw new Error("ALREADY");
+      // 포인트 차감(잔액부족이면 InsufficientPointError → 트랜잭션 롤백)
+      await adjustPoint(
+        {
+          userId: inq.userId!,
+          amount: -inq.refundPoint!,
+          reason: `[환불] ${inq.title}`,
+          relType: "refund",
+          relId: inq.id,
+        },
+        tx,
+      );
+    });
+  } catch (e) {
+    if (e instanceof InsufficientPointError) {
+      redirect("/admin/inquiries?error=insufficient");
+    }
+    if (e instanceof Error && e.message === "ALREADY") {
+      redirect("/admin/inquiries?error=refund_invalid");
+    }
+    throw e;
+  }
+  revalidatePath("/admin/inquiries");
+  revalidatePath(`/admin/members/${inq.userId}`);
+  redirect("/admin/inquiries?ok=refund");
 }

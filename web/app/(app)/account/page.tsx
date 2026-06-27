@@ -71,17 +71,6 @@ export default async function AccountPage({
                 className="w-full rounded-xl border border-black/10 bg-white/60 px-3.5 py-3 outline-none focus:border-emerald-500"
               />
             </label>
-            <label className="block">
-              <span className="mb-1 block text-xs text-zinc-500">휴대폰 (선택)</span>
-              <input
-                name="phone"
-                defaultValue={user.phone}
-                placeholder="숫자만 입력"
-                inputMode="numeric"
-                aria-label="휴대폰"
-                className="w-full rounded-xl border border-black/10 bg-white/60 px-3.5 py-3 outline-none focus:border-emerald-500"
-              />
-            </label>
             <button className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-500">
               <i className="fa-solid fa-floppy-disk" aria-hidden /> 저장
             </button>

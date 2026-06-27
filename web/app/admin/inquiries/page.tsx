@@ -13,6 +13,12 @@ const TABS = [
   { key: "ALL", label: "전체" },
 ] as const;
 
+const CAT_LABEL: Record<string, string> = {
+  USAGE: "사용문의",
+  REFUND: "환불문의",
+  OTHER: "기타문의",
+};
+
 export default async function AdminInquiriesPage({
   searchParams,
 }: {
@@ -119,11 +125,15 @@ export default async function AdminInquiriesPage({
             <li key={q.id} className="glass rounded-2xl p-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="flex min-w-0 items-center gap-2 font-semibold">
-                  {q.category === "REFUND" && (
-                    <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
-                      환불
-                    </span>
-                  )}
+                  <span
+                    className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium ${
+                      q.category === "REFUND"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-zinc-100 text-zinc-600"
+                    }`}
+                  >
+                    {CAT_LABEL[q.category] ?? "문의"}
+                  </span>
                   <span className="truncate">{q.title}</span>
                 </p>
                 <div className="flex shrink-0 items-center gap-2">
@@ -157,7 +167,7 @@ export default async function AdminInquiriesPage({
                     <i className="fa-solid fa-rotate-left" aria-hidden /> 환불 신청
                   </p>
                   <p className="font-num mt-1">
-                    환불 포인트: <b>{pt(q.refundPoint ?? 0)}</b>
+                    환불 포인트(전액): <b>{pt(q.refundPoint ?? 0)}</b>
                   </p>
                   {q.refundInfo && (
                     <p className="mt-1 whitespace-pre-wrap text-zinc-600">

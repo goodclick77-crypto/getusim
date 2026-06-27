@@ -6,26 +6,33 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { notifyAdmin } from "@/lib/notify";
 
+const CAT_LABEL: Record<string, string> = {
+  USAGE: "사용문의",
+  REFUND: "환불문의",
+  OTHER: "기타문의",
+};
+
 export async function createInquiry(formData: FormData) {
   const user = await requireUser();
-  const category =
-    String(formData.get("category") || "USAGE") === "REFUND" ? "REFUND" : "USAGE";
-  const title = String(formData.get("title") || "").trim();
+  const raw = String(formData.get("category") || "USAGE");
+  const category = CAT_LABEL[raw] ? raw : "USAGE";
   const content = String(formData.get("content") || "").trim();
-  if (!title || !content) redirect("/inquiry?error=empty");
+  if (!content) redirect("/inquiry?error=empty");
 
   let refundPoint: number | null = null;
   let refundInfo: string | null = null;
   if (category === "REFUND") {
-    refundPoint = Math.floor(Number(formData.get("refundPoint")));
     refundInfo = String(formData.get("refundInfo") || "").trim();
-    if (!refundPoint || isNaN(refundPoint) || refundPoint <= 0 || !refundInfo) {
+    // 환불은 보유 포인트 "전액"만 — 금액은 서버에서 결정(클라이언트 값 신뢰 안 함)
+    refundPoint = user.point;
+    if (!refundInfo || refundPoint <= 0) {
       redirect("/inquiry?error=refund");
     }
-    if (refundPoint > user.point) {
-      redirect("/inquiry?error=refund_over");
-    }
   }
+
+  // 제목은 입력받지 않고 내용 첫 줄로 자동 생성(목록 표시용)
+  const title =
+    content.split("\n")[0].trim().slice(0, 40) || CAT_LABEL[category];
 
   await prisma.inquiry.create({
     data: {
@@ -42,7 +49,7 @@ export async function createInquiry(formData: FormData) {
     },
   });
 
-  const head = category === "REFUND" ? "환불 문의" : "1:1 문의";
+  const head = CAT_LABEL[category];
   await notifyAdmin(
     "inquiry",
     `새 ${head}: ${title}`,

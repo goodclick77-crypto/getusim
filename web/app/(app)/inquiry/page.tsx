@@ -5,9 +5,14 @@ import InquiryForm from "./InquiryForm";
 import Reveal from "@/components/Reveal";
 
 const ERRORS: Record<string, string> = {
-  empty: "제목과 내용을 입력하세요.",
-  refund: "환불 포인트(1 이상)와 환불 정보를 입력하세요.",
-  refund_over: "환불 포인트가 보유 포인트보다 큽니다.",
+  empty: "문의 내용을 입력하세요.",
+  refund: "환불 계좌 정보를 입력하세요. (환불 가능 포인트가 있어야 합니다)",
+};
+
+const CAT_LABEL: Record<string, string> = {
+  USAGE: "사용문의",
+  REFUND: "환불문의",
+  OTHER: "기타문의",
 };
 
 export const dynamic = "force-dynamic";
@@ -58,13 +63,17 @@ export default async function InquiryPage({
           inquiries.map((q) => (
             <article key={q.id} className="glass rounded-2xl p-4">
               <div className="flex items-center justify-between gap-2">
-                <p className="flex items-center gap-2 font-semibold">
-                  {q.category === "REFUND" && (
-                    <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
-                      환불
-                    </span>
-                  )}
-                  {q.title}
+                <p className="flex min-w-0 items-center gap-2 font-semibold">
+                  <span
+                    className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium ${
+                      q.category === "REFUND"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-zinc-100 text-zinc-600"
+                    }`}
+                  >
+                    {CAT_LABEL[q.category] ?? "문의"}
+                  </span>
+                  <span className="truncate">{q.title}</span>
                 </p>
                 <span
                   className={
@@ -79,7 +88,7 @@ export default async function InquiryPage({
               <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-600">{q.content}</p>
               {q.category === "REFUND" && (
                 <p className="mt-2 text-xs text-zinc-500">
-                  환불 신청 {pt(q.refundPoint ?? 0)}
+                  환불 신청 {pt(q.refundPoint ?? 0)} (전액)
                   {q.refundedAt ? (
                     <span className="ml-1 font-medium text-emerald-600">· 환불 완료(차감됨)</span>
                   ) : (

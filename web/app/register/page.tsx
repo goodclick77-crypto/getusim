@@ -10,7 +10,6 @@ export default async function RegisterPage({
     loginId?: string;
     name?: string;
     email?: string;
-    phone?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -20,8 +19,7 @@ export default async function RegisterPage({
     { name: "password", placeholder: "비밀번호 (6자 이상)", type: "password", icon: "fa-lock", def: "" },
     { name: "passwordConfirm", placeholder: "비밀번호 확인", type: "password", icon: "fa-lock", def: "" },
     { name: "name", placeholder: "이름", type: "text", icon: "fa-id-card", def: sp.name },
-    { name: "email", placeholder: "이메일", type: "email", icon: "fa-envelope", def: sp.email },
-    { name: "phone", placeholder: "휴대폰 번호", type: "text", icon: "fa-mobile-screen", def: sp.phone },
+    { name: "email", placeholder: "이메일 (아이디·비밀번호 찾기에 사용)", type: "email", icon: "fa-envelope", def: sp.email },
   ];
 
   return (

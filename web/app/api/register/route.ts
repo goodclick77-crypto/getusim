@@ -29,7 +29,6 @@ export async function POST(req: Request) {
     password: String(form.get("password") || ""),
     name: String(form.get("name") || ""),
     email: String(form.get("email") || ""),
-    phone: String(form.get("phone") || ""),
   };
   const passwordConfirm = String(form.get("passwordConfirm") || "");
   const agree = form.get("agree") === "on";
@@ -39,7 +38,6 @@ export async function POST(req: Request) {
     loginId: input.loginId,
     name: input.name,
     email: input.email,
-    phone: input.phone,
   }).toString();
   const back = (msg: string) =>
     redirectTo(`/register?error=${encodeURIComponent(msg)}&${keep}`);

@@ -34,7 +34,6 @@ export async function registerUser(input: {
   password: string;
   name: string;
   email: string;
-  phone: string;
 }) {
   const loginId = input.loginId.trim();
   if (!/^[a-zA-Z0-9_]{3,20}$/.test(loginId))
@@ -52,7 +51,6 @@ export async function registerUser(input: {
       name: input.name.trim(),
       nickname: input.name.trim(),
       email: input.email.trim(),
-      phone: input.phone.trim(),
       level: 2,
       role: "USER",
     },

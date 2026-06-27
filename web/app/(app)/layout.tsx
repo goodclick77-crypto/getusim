@@ -29,8 +29,8 @@ export default async function AppLayout({
   return (
     <div className="flex flex-1 flex-col">
       <header className="glass sticky top-0 z-40">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-5">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-4">
             <Link href="/" className="font-mont text-lg font-extrabold tracking-tight">
               GetUsim
             </Link>
@@ -49,12 +49,12 @@ export default async function AppLayout({
             {user.role === "ADMIN" && (
               <Link
                 href="/admin"
-                className="hidden items-center gap-1.5 rounded-xl bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 lg:inline-flex"
+                className="hidden items-center gap-1.5 rounded-xl bg-zinc-900 px-3 py-1.5 font-medium text-white hover:bg-zinc-700 xl:inline-flex"
               >
                 <i className="fa-solid fa-gauge-high" aria-hidden /> 관리자
               </Link>
             )}
-            <form action="/logout" method="POST" className="hidden lg:block">
+            <form action="/logout" method="POST" className="hidden xl:block">
               <button
                 type="submit"
                 className="flex items-center gap-1.5 rounded-xl border border-black/10 px-3 py-1.5 text-zinc-600 transition hover:bg-black/5 hover:text-zinc-900"
@@ -67,7 +67,7 @@ export default async function AppLayout({
         </div>
       </header>
 
-      <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+      <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         {children}
       </main>
       <Footer />

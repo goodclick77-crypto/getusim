@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 type Item = { href: string; label: string; icon: string };
 
@@ -14,9 +15,10 @@ export default function MobileNav({
   isAdmin: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
-    <div className="lg:hidden">
+    <div className="xl:hidden">
       <button
         type="button"
         aria-label="메뉴 열기"
@@ -55,22 +57,33 @@ export default function MobileNav({
                 </svg>
               </button>
             </div>
-            {items.map((n) => (
-              <Link
-                key={n.href}
-                href={n.href}
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-3 py-3 text-zinc-700 hover:bg-black/5"
-              >
-                <i className={`fa-solid ${n.icon} w-5 text-emerald-600`} aria-hidden />
-                {n.label}
-              </Link>
-            ))}
+            {items.map((n) => {
+              const active = pathname === n.href || pathname.startsWith(n.href + "/");
+              return (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  onClick={() => setOpen(false)}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] transition ${
+                    active
+                      ? "bg-emerald-600/10 font-semibold text-emerald-700"
+                      : "text-zinc-700 hover:bg-black/5"
+                  }`}
+                >
+                  <i
+                    className={`fa-solid ${n.icon} w-5 ${active ? "text-emerald-600" : "text-emerald-600/80"}`}
+                    aria-hidden
+                  />
+                  {n.label}
+                </Link>
+              );
+            })}
             {isAdmin && (
               <Link
                 href="/admin"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-3 py-3 text-zinc-700 hover:bg-black/5"
+                className="mt-1 flex items-center gap-3 rounded-xl border border-black/10 px-3 py-3 text-[15px] font-medium text-zinc-700 hover:bg-black/5"
               >
                 <i className="fa-solid fa-gauge-high w-5 text-zinc-500" aria-hidden />
                 관리자
@@ -79,7 +92,7 @@ export default function MobileNav({
             <form action="/logout" method="POST" className="mt-auto">
               <button
                 type="submit"
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-red-600 hover:bg-red-50"
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[15px] text-red-600 hover:bg-red-50"
               >
                 <i className="fa-solid fa-right-from-bracket w-5" aria-hidden />
                 로그아웃

@@ -95,7 +95,11 @@ export default async function AdminLoginsPage({
             <tbody>
               {users.map((u) => (
                 <tr key={u.id} className="border-b border-black/5 last:border-0 hover:bg-black/[0.02]">
-                  <td className="px-4 py-2.5 font-medium text-emerald-700">{u.loginId}</td>
+                  <td className="px-4 py-2.5">
+                    <Link href={`/admin/members/${u.id}`} className="font-medium text-emerald-700 hover:underline">
+                      {u.loginId}
+                    </Link>
+                  </td>
                   <td className="px-4 py-2.5">{u.name || "-"}</td>
                   <td className="font-num whitespace-nowrap px-4 py-2.5 text-zinc-600">
                     {u.lastLoginAt ? ymdhm(u.lastLoginAt) : "-"}

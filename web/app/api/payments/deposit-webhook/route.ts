@@ -48,7 +48,7 @@ export async function POST(req: Request) {
 
     const parsed = parseDeposit(text);
 
-    const log = await prisma.depositLog.create({
+    await prisma.depositLog.create({
       data: {
         rawText: text,
         txKey,
@@ -58,7 +58,9 @@ export async function POST(req: Request) {
       },
     });
 
-    // 자동 매칭: (금액 + 입금자명 일치) 미충전 PENDING 주문이 정확히 1건일 때만 지급
+    // 자동 매칭: (금액 + 입금자명 일치) 미충전 PENDING 주문 중 가장 오래된 1건(FIFO) 지급.
+    //   · 동일 금액·입금자명 주문이 여러 건이어도 입금 1건당 1건만 지급(중복 지급 없음 — txKey 멱등).
+    //   · 지급 성공 시 completeCharge 가 방금 만든 입금로그를 matched 로 연결한다.
     let matched = false;
     if (parsed && parsed.amount > 0 && parsed.name) {
       const norm = (s: string) => s.replace(/\s/g, "");
@@ -73,15 +75,8 @@ export async function POST(req: Request) {
         orderBy: { createdAt: "asc" },
       });
       const hits = candidates.filter((o) => norm(o.depositName) === norm(parsed.name));
-      if (hits.length === 1) {
-        const ok = await completeCharge(hits[0].id, parsed.amount);
-        if (ok) {
-          matched = true;
-          await prisma.depositLog.update({
-            where: { id: log.id },
-            data: { matched: true, matchedOrderId: hits[0].id },
-          });
-        }
+      if (hits.length >= 1) {
+        matched = await completeCharge(hits[0].id, parsed.amount);
       }
     }
 

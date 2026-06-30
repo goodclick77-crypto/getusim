@@ -1,6 +1,27 @@
 "use client";
 
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
+
+function SubmitButton({ amount, disabled }: { amount: number; disabled: boolean }) {
+  const { pending } = useFormStatus();
+  const isDisabled = disabled || pending;
+
+  return (
+    <button
+      type="submit"
+      disabled={isDisabled}
+      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+    >
+      <i className="fa-solid fa-paper-plane" aria-hidden />
+      {pending
+        ? "충전 신청 완료 처리 중..."
+        : amount > 0
+          ? `${amount.toLocaleString("ko-KR")}원 충전 신청`
+          : "금액을 선택하세요"}
+    </button>
+  );
+}
 
 export default function ChargeForm({
   action,
@@ -86,14 +107,7 @@ export default function ChargeForm({
         </div>
       </div>
 
-      <button
-        type="submit"
-        disabled={point <= 0}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
-      >
-        <i className="fa-solid fa-paper-plane" aria-hidden />
-        {point > 0 ? `${amount.toLocaleString("ko-KR")}원 충전 신청` : "금액을 선택하세요"}
-      </button>
+      <SubmitButton amount={amount} disabled={point <= 0} />
     </form>
   );
 }

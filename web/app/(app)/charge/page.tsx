@@ -77,9 +77,16 @@ export default async function ChargePage({
       </h1>
 
       {sp.ok && (
-        <p role="status" className="glass flex items-center gap-2 rounded-2xl px-4 py-3 text-sm text-emerald-700">
-          <i className="fa-solid fa-circle-check" aria-hidden /> 충전 신청이 접수되었습니다. 아래
-          계좌로 입금해 주시면 확인 후 포인트가 지급됩니다.
+        <p
+          role="alert"
+          aria-live="polite"
+          className="glass flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+        >
+          <i className="fa-solid fa-circle-check mt-0.5 text-emerald-600" aria-hidden />
+          <span>
+            <b>충전 신청이 완료되었습니다.</b> 같은 신청이 중복되지 않도록 버튼을 다시 누르지
+            마시고, 아래 계좌로 입금해 주시면 확인 후 포인트가 지급됩니다.
+          </span>
         </p>
       )}
 

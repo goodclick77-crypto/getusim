@@ -116,6 +116,7 @@ model ChargeOrder {
   paidPrice    Int          @default(0) @map("paid_price")  // ← bk_receipt_price
   paidAt       DateTime?    @map("paid_at")                 // ← bk_receipt_time
   charged      Boolean      @default(false)                 // ← bk_is_charge (포인트 지급 완료여부)
+  autoConfirmed Boolean     @default(false) @map("auto_confirmed") // 입금문자 자동매칭으로 지급=true / 관리자 수동지급=false
   pg           String       @default("") // ← bk_pg (레거시 PG사: kcp 등)
   pgTno        String       @default("") @map("pg_tno")     // ← bk_tno
   legacyData   Json?        @map("legacy_data")            // ← g5_wpot_order_data / sp_rtpay 원본 보존

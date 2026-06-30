@@ -7,10 +7,12 @@ const DEPOSIT_MATCH_WINDOW_DAYS = 14;
 /**
  * 충전 주문을 완료 처리하고 포인트를 지급한다. (관리자 수동/입금 자동확인 공용)
  * 멱등: 이미 지급(charged)됐거나 취소된 주문이면 아무것도 하지 않고 false 반환.
+ * @param auto 입금문자 자동매칭으로 지급되면 true(웹훅), 관리자 수동지급이면 false(기본).
  */
 export async function completeCharge(
   orderId: number,
   paidPrice?: number,
+  auto: boolean = false,
 ): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
     const order = await tx.chargeOrder.findUnique({ where: { id: orderId } });
@@ -21,6 +23,7 @@ export async function completeCharge(
       data: {
         status: "COMPLETED",
         charged: true,
+        autoConfirmed: auto,
         paidPrice: paidPrice ?? order.amount,
         paidAt: new Date(),
       },

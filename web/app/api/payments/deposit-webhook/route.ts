@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       });
       const hits = candidates.filter((o) => norm(o.depositName) === norm(parsed.name));
       if (hits.length >= 1) {
-        matched = await completeCharge(hits[0].id, parsed.amount);
+        matched = await completeCharge(hits[0].id, parsed.amount, true);
       }
     }
 

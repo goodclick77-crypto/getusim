@@ -248,6 +248,7 @@ function DateGroup({
     chargePoint: number;
     depositName: string;
     status: string;
+    autoConfirmed: boolean;
     createdAt: Date;
     user: { loginId: string; name: string };
   }[];
@@ -333,11 +334,22 @@ function DateGroup({
                     </form>
                   </div>
                 ) : (
-                  <span
-                    className={`rounded-md px-2 py-1 text-xs font-medium ${STATUS_BADGE[o.status]}`}
-                  >
-                    {STATUS_LABEL[o.status]}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span
+                      className={`rounded-md px-2 py-1 text-xs font-medium ${STATUS_BADGE[o.status]}`}
+                    >
+                      {STATUS_LABEL[o.status]}
+                    </span>
+                    {o.autoConfirmed ? (
+                      <span className="flex items-center gap-1 whitespace-nowrap rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-700">
+                        <i className="fa-solid fa-bolt" aria-hidden /> 자동
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 whitespace-nowrap rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-500">
+                        <i className="fa-solid fa-hand" aria-hidden /> 수동
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             </li>

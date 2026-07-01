@@ -26,6 +26,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const PER = 60;
+const DEPOSIT_MATCH_WINDOW_DAYS = 14;
 
 export default async function AdminChargesPage({
   searchParams,
@@ -59,7 +60,9 @@ export default async function AdminChargesPage({
       : {}),
   };
 
-  const [orders, count, deposits] = await Promise.all([
+  const since = new Date(Date.now() - DEPOSIT_MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+  const [orders, count, deposits, matchCandidates] = await Promise.all([
     prisma.chargeOrder.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -69,8 +72,39 @@ export default async function AdminChargesPage({
     }),
     prisma.chargeOrder.count({ where }),
     prisma.depositLog.findMany({ orderBy: { createdAt: "desc" }, take: 12 }),
+    prisma.chargeOrder.findMany({
+      where: { status: "PENDING", charged: false, createdAt: { gte: since } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        amount: true,
+        depositName: true,
+        createdAt: true,
+        user: { select: { loginId: true, name: true } },
+      },
+      take: 200,
+    }),
   ]);
+
   const lastPage = Math.max(1, Math.ceil(count / PER));
+  const norm = (s: string) => s.replace(/\s/g, "");
+
+  type DepositItem = (typeof deposits)[number];
+  const explainDeposit = (d: DepositItem) => {
+    if (d.matched) {
+      return d.matchedOrderId ? `연결 주문 #${d.matchedOrderId}` : "자동지급 완료";
+    }
+    if (!d.amount) return "금액 파싱 실패";
+    if (!d.depositorName.trim()) return "입금자명 파싱 실패";
+
+    const sameAmount = matchCandidates.filter((o) => o.amount === d.amount);
+    if (sameAmount.length === 0) return "같은 금액의 대기 주문 없음";
+
+    const sameName = sameAmount.some((o) => norm(o.depositName) === norm(d.depositorName));
+    return sameName
+      ? "같은 이름·금액 주문이 있었지만 아직 연결되지 않음"
+      : "금액은 맞지만 입금자명이 다른 주문만 있음";
+  };
 
   // 날짜별 그룹
   const groups = new Map<string, typeof orders>();
@@ -150,30 +184,66 @@ export default async function AdminChargesPage({
             )}
           </summary>
           <ul className="mt-3 space-y-1.5">
-            {deposits.map((d) => (
-              <li
-                key={d.id}
-                className="flex items-center justify-between gap-2 rounded-lg bg-black/[0.02] px-3 py-2 text-sm"
-              >
-                <span className="flex items-center gap-2">
-                  {d.matched ? (
-                    <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
-                      자동지급
-                    </span>
-                  ) : (
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
-                      미매칭
-                    </span>
-                  )}
-                  <span className="font-medium">{d.depositorName || "?"}</span>
-                  <span className="font-num text-zinc-500">{won(d.amount)}</span>
-                </span>
-                <span className="font-num text-xs text-zinc-400">{ymdhm(d.createdAt).slice(5)}</span>
-              </li>
-            ))}
+            {deposits.map((d) => {
+              const candidates = matchCandidates.filter((o) => o.amount === d.amount);
+              const sameNameCandidates = candidates.filter(
+                (o) => norm(o.depositName) === norm(d.depositorName),
+              );
+
+              return (
+                <li
+                  key={d.id}
+                  className="flex items-start justify-between gap-2 rounded-lg bg-black/[0.02] px-3 py-2 text-sm"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {d.matched ? (
+                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
+                          자동지급
+                        </span>
+                      ) : (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                          미매칭
+                        </span>
+                      )}
+                      <span className="font-medium">{d.depositorName || "?"}</span>
+                      <span className="font-num text-zinc-500">{won(d.amount)}</span>
+                    </div>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">
+                      {explainDeposit(d)}
+                    </p>
+                    {!d.matched && candidates.length > 0 && (
+                      <details className="mt-2 rounded-lg border border-dashed border-zinc-200 bg-white/60 px-2.5 py-2 text-[11px] text-zinc-500">
+                        <summary className="cursor-pointer select-none font-medium text-zinc-600">
+                          관련 주문 후보 {candidates.length}건 보기
+                        </summary>
+                        <ul className="mt-2 space-y-1">
+                          {candidates.slice(0, 5).map((o) => (
+                            <li key={o.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                              <span className="font-num font-medium text-zinc-700">#{o.id}</span>
+                              <span>{o.depositName || "(입금자명 없음)"}</span>
+                              <span className="text-zinc-400">
+                                · {o.user.name || o.user.loginId} · {ymdhm(o.createdAt).slice(5)}
+                              </span>
+                              {sameNameCandidates.some((s) => s.id === o.id) && (
+                                <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-medium text-emerald-700">
+                                  이름일치
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                  </div>
+                  <span className="font-num shrink-0 text-xs text-zinc-400">{ymdhm(d.createdAt).slice(5)}</span>
+                </li>
+              );
+            })}
           </ul>
+
           <p className="mt-2 text-xs text-zinc-400">
-            미매칭 건은 입금자명·금액이 주문과 다른 경우입니다. 아래 목록에서 직접 ‘지급’ 처리하세요.
+            미매칭 건은 입금자명·금액이 주문과 다르거나, 아직 연결되지 않은 경우입니다.
           </p>
         </details>
       )}

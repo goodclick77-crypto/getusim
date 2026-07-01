@@ -42,20 +42,30 @@ export async function completeCharge(
     // 입금 자동감지 로그 연결(수동·자동 지급 공통):
     // 같은 금액·입금자명의 미매칭 입금로그가 있으면 이 주문으로 매칭 표시한다.
     // → 수동 지급한 입금이 "미매칭"으로 영원히 남던 문제 방지.
-    if (order.depositName) {
-      const since = new Date(Date.now() - DEPOSIT_MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-      const norm = (s: string) => s.replace(/\s/g, "");
-      const logs = await tx.depositLog.findMany({
-        where: { matched: false, amount: order.amount, createdAt: { gte: since } },
-        orderBy: { createdAt: "desc" },
+    const since = new Date(Date.now() - DEPOSIT_MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const norm = (s: string) => s.replace(/\s/g, "");
+    const logs = await tx.depositLog.findMany({
+      where: { matched: false, amount: order.amount, createdAt: { gte: since } },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const exactHit = order.depositName
+      ? logs.find((l) => norm(l.depositorName) === norm(order.depositName))
+      : null;
+
+    // 관리자 수동지급은 입금자명이 비어 있거나 표기가 살짝 달라도,
+    // 같은 금액의 가장 최근 미매칭 입금로그를 1건 연결해서 배지가 남지 않게 한다.
+    const fallbackHit = !auto ? logs[0] ?? null : null;
+    const hit = exactHit ?? fallbackHit;
+
+    if (hit) {
+      await tx.depositLog.update({
+        where: { id: hit.id },
+        data: { matched: true, matchedOrderId: order.id },
       });
-      const hit = logs.find((l) => norm(l.depositorName) === norm(order.depositName));
-      if (hit) {
-        await tx.depositLog.update({
-          where: { id: hit.id },
-          data: { matched: true, matchedOrderId: order.id },
-        });
-      }
+      console.info(
+        `[charge] linked deposit_log #${hit.id} -> charge_order #${order.id} (${hit.depositorName || "?"}, ${hit.amount}원)`,
+      );
     }
 
     return true;

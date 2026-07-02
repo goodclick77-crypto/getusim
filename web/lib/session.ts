@@ -70,6 +70,21 @@ export async function destroySession() {
   store.delete(COOKIE);
 }
 
+// 로그인 폼 제출(/api/login) 외에도, 세션만으로 활동(번호 발급 등)하는 사용자가
+// 로그인 현황(lastLoginAt 기준)에 잡히도록 "마지막 접속시각"을 갱신한다.
+// 매 요청마다 쓰면 부담이라, 마지막 기록이 THROTTLE 이상 지난 경우에만 1회 UPDATE.
+const LAST_SEEN_THROTTLE_MS = 10 * 60 * 1000; // 10분
+export async function touchLastSeen(userId: number, ip?: string) {
+  const cutoff = new Date(Date.now() - LAST_SEEN_THROTTLE_MS);
+  await prisma.user
+    .updateMany({
+      // null(가입 후 미로그인 등)이거나 마지막 접속이 THROTTLE 이전인 경우만 갱신
+      where: { id: userId, OR: [{ lastLoginAt: null }, { lastLoginAt: { lt: cutoff } }] },
+      data: { lastLoginAt: new Date(), ...(ip ? { lastLoginIp: ip } : {}) },
+    })
+    .catch(() => {});
+}
+
 async function readPayload(): Promise<SessionPayload | null> {
   const store = await cookies();
   const token = store.get(COOKIE)?.value;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { registerUser, RegisterError } from "@/lib/auth-service";
-import { signSession, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
+import { signSession, touchLastSeen, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 function redirectTo(path: string) {
@@ -55,6 +55,11 @@ export async function POST(req: Request) {
     if (e instanceof RegisterError) return back(e.message);
     throw e;
   }
+
+  // 가입=첫 접속. 로그인 폼을 거치지 않으므로 여기서 마지막 접속시각을 기록
+  // (안 하면 가입 직후 바로 발급한 회원이 로그인 현황에 안 잡힘)
+  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+  await touchLastSeen(userId, ip);
 
   const token = await signSession(userId, role);
   return setCookieAndGo(token, "/dashboard");

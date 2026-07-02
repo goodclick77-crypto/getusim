@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/session";
+import { getCurrentUser, touchLastSeen } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { fivesim, FiveSimError } from "@/lib/fivesim";
 import { getUsdKrw } from "@/lib/fx";
@@ -18,6 +18,10 @@ import {
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
+
+  // 세션만으로 발급하는 활동 사용자도 로그인 현황에 잡히도록 접속시각 갱신(스로틀됨)
+  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+  await touchLastSeen(user.id, ip);
 
   const { country, service } = await req.json().catch(() => ({}));
   if (

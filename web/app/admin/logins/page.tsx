@@ -86,7 +86,7 @@ export default async function AdminLoginsPage({
               <tr className="border-b border-black/5 text-xs text-zinc-500">
                 <th className="px-4 py-2.5 text-left font-semibold">아이디</th>
                 <th className="px-4 py-2.5 text-left font-semibold">이름</th>
-                <th className="px-4 py-2.5 text-left font-semibold">마지막 로그인</th>
+                <th className="px-4 py-2.5 text-left font-semibold">마지막 접속</th>
                 <th className="px-4 py-2.5 text-left font-semibold">IP</th>
                 <th className="px-4 py-2.5 text-left font-semibold">가입일</th>
                 <th className="px-4 py-2.5 text-center font-semibold">상태</th>

@@ -54,6 +54,23 @@ export async function matchDeposit(formData: FormData) {
   revalidatePath("/admin/inquiries");
 }
 
+/**
+ * 미매칭 입금을 주문 연결 없이 "수동 확인"으로 표시(미매칭 해제).
+ * 같은 금액의 주문이 아예 없는(금액 파싱 오류·환불 등) 입금을 목록에서 정리할 때 사용.
+ * 포인트 지급은 하지 않는다 — 표시만 matched=true 로 바꾼다(matchedOrderId 는 null 유지).
+ */
+export async function dismissDeposit(formData: FormData) {
+  await requireAdmin();
+  const depositId = Number(formData.get("depositId"));
+  if (!depositId) return;
+  await prisma.depositLog.updateMany({
+    where: { id: depositId, matched: false },
+    data: { matched: true },
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/charges");
+}
+
 export async function cancelCharge(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id"));

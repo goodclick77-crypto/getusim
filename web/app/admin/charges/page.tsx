@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymd, ymdhm, dateRange } from "@/lib/format";
-import { confirmCharge, cancelCharge, restoreCharge, matchDeposit } from "../actions";
+import { confirmCharge, cancelCharge, restoreCharge, matchDeposit, dismissDeposit } from "../actions";
 import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -72,18 +72,21 @@ export default async function AdminChargesPage({
     }),
     prisma.chargeOrder.count({ where }),
     prisma.depositLog.findMany({ orderBy: { createdAt: "desc" }, take: 12 }),
-    // 미매칭 입금을 수동 연결할 후보(입금대기·미지급 주문)
+    // 미매칭 입금을 수동 연결할 후보. 입금대기(아직 지급 전)뿐 아니라
+    // 이미 완료된 주문도 포함 — 예전에 수동 지급해 완료된 건은 완료 주문에
+    // 사후 연결(재지급 없이 매칭 표시만)해야 미매칭이 풀리기 때문.
     prisma.chargeOrder.findMany({
-      where: { status: "PENDING", charged: false, createdAt: { gte: since } },
+      where: { status: { in: ["PENDING", "COMPLETED"] }, createdAt: { gte: since } },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
         amount: true,
         depositName: true,
+        status: true,
         createdAt: true,
         user: { select: { loginId: true, name: true } },
       },
-      take: 200,
+      take: 300,
     }),
   ]);
 
@@ -93,17 +96,18 @@ export default async function AdminChargesPage({
   type DepositItem = (typeof deposits)[number];
   const explainDeposit = (d: DepositItem) => {
     if (d.matched) {
-      return d.matchedOrderId ? `연결 주문 #${d.matchedOrderId}` : "자동지급 완료";
+      if (d.matchedOrderId) return `연결 주문 #${d.matchedOrderId}`;
+      return "수동 확인 처리됨";
     }
     if (!d.amount) return "금액 파싱 실패";
     if (!d.depositorName.trim()) return "입금자명 파싱 실패";
 
     const sameAmount = matchCandidates.filter((o) => o.amount === d.amount);
-    if (sameAmount.length === 0) return "같은 금액의 대기 주문 없음";
+    if (sameAmount.length === 0) return "같은 금액의 주문 없음";
 
     const sameName = sameAmount.some((o) => norm(o.depositName) === norm(d.depositorName));
     return sameName
-      ? "같은 이름·금액 주문이 있었지만 아직 연결되지 않음"
+      ? "같은 이름·금액 주문이 있음 (아직 연결 안 됨)"
       : "금액은 맞지만 입금자명이 다른 주문만 있음";
   };
 
@@ -220,28 +224,38 @@ export default async function AdminChargesPage({
                           <input type="hidden" name="depositId" value={d.id} />
                           <select
                             name="orderId"
-                            aria-label="연결할 입금대기 주문"
+                            aria-label="연결할 주문"
                             className="glass min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-xs outline-none"
                           >
                             {candidates.map((o) => (
                               <option key={o.id} value={o.id}>
-                                #{o.id} · {o.depositName || "(입금자명 없음)"} ·{" "}
+                                [{o.status === "COMPLETED" ? "완료" : "대기"}] #{o.id} ·{" "}
+                                {o.depositName || "(입금자명 없음)"} ·{" "}
                                 {o.user.name || o.user.loginId} · {ymd(o.createdAt).slice(5)}
                                 {sameNameCandidates.some((s) => s.id === o.id) ? " · 이름일치" : ""}
                               </option>
                             ))}
                           </select>
                           <ConfirmButton
-                            message={`이 입금(${d.depositorName || "?"} · ${won(d.amount)})을 선택한 주문에 연결하고 충전완료 처리할까요?`}
+                            message={`이 입금(${d.depositorName || "?"} · ${won(d.amount)})을 선택한 주문에 연결할까요? (아직 미지급 주문이면 충전완료도 함께 처리됩니다)`}
                             className="shrink-0 whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
                           >
-                            지급 연결
+                            연결
                           </ConfirmButton>
                         </form>
                       ) : (
-                        <p className="mt-1.5 text-xs text-zinc-400">
-                          같은 금액({won(d.amount)})의 입금대기 주문이 없습니다.
-                        </p>
+                        <form action={dismissDeposit} className="mt-1.5 flex items-center gap-2">
+                          <input type="hidden" name="depositId" value={d.id} />
+                          <span className="text-xs text-zinc-400">
+                            같은 금액({won(d.amount)})의 주문이 없습니다.
+                          </span>
+                          <ConfirmButton
+                            message={`이 입금(${d.depositorName || "?"} · ${won(d.amount)})을 미매칭 해제(수동 확인)할까요? 포인트 지급 없이 표시만 정리됩니다.`}
+                            className="shrink-0 whitespace-nowrap rounded-lg border border-black/10 px-2.5 py-1 text-xs text-zinc-600 hover:bg-black/5"
+                          >
+                            미매칭 해제
+                          </ConfirmButton>
+                        </form>
                       ))}
                   </div>
                   <span className="font-num shrink-0 text-xs text-zinc-400">{ymdhm(d.createdAt).slice(5)}</span>

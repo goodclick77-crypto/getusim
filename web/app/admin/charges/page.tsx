@@ -62,7 +62,8 @@ export default async function AdminChargesPage({
 
   const since = new Date(Date.now() - DEPOSIT_MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-  const [orders, count, deposits, matchCandidates] = await Promise.all([
+  const [orders, count, unmatchedDeposits, recentMatched, unmatchedCount, matchCandidates] =
+    await Promise.all([
     prisma.chargeOrder.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -71,7 +72,20 @@ export default async function AdminChargesPage({
       take: PER,
     }),
     prisma.chargeOrder.count({ where }),
-    prisma.depositLog.findMany({ orderBy: { createdAt: "desc" }, take: 12 }),
+    // 미매칭 입금은 오래된 것도 반드시 다 보이도록 전부 로드(최근순, 안전상한 100)
+    prisma.depositLog.findMany({
+      where: { matched: false },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    // 최근 처리(매칭)된 입금도 참고용으로 일부 표시
+    prisma.depositLog.findMany({
+      where: { matched: true },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+    }),
+    // 실제 미매칭(금액 있는 실입금) 총 건수 — 배지 표시용(목록 상한과 무관)
+    prisma.depositLog.count({ where: { matched: false, amount: { gt: 0 } } }),
     // 미매칭 입금을 수동 연결할 후보. 입금대기(아직 지급 전)뿐 아니라
     // 이미 완료된 주문도 포함 — 예전에 수동 지급해 완료된 건은 완료 주문에
     // 사후 연결(재지급 없이 매칭 표시만)해야 미매칭이 풀리기 때문.
@@ -89,6 +103,9 @@ export default async function AdminChargesPage({
       take: 300,
     }),
   ]);
+
+  // 미매칭(처리 필요)을 위, 최근 처리건을 아래로
+  const deposits = [...unmatchedDeposits, ...recentMatched];
 
   const lastPage = Math.max(1, Math.ceil(count / PER));
   const norm = (s: string) => s.replace(/\s/g, "");
@@ -181,10 +198,12 @@ export default async function AdminChargesPage({
         <details className="glass rounded-2xl p-4">
           <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
             <i className="fa-solid fa-bell text-emerald-600" aria-hidden /> 자동 입금 감지
-            <span className="font-num text-xs font-normal text-zinc-400">최근 {deposits.length}건</span>
-            {deposits.some((d) => !d.matched && d.amount > 0) && (
+            <span className="font-num text-xs font-normal text-zinc-400">
+              최근 처리 {recentMatched.length}건
+            </span>
+            {unmatchedCount > 0 && (
               <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                미매칭 {deposits.filter((d) => !d.matched && d.amount > 0).length}
+                미매칭 {unmatchedCount}
               </span>
             )}
           </summary>
@@ -264,8 +283,13 @@ export default async function AdminChargesPage({
             })}
           </ul>
 
+          {unmatchedDeposits.length >= 100 && (
+            <p className="mt-2 text-xs text-amber-600">
+              미매칭이 100건을 초과합니다. 최근 100건만 표시됩니다.
+            </p>
+          )}
           <p className="mt-2 text-xs text-zinc-400">
-            미매칭 건은 입금자명·금액이 주문과 다르거나, 아직 연결되지 않은 경우입니다.
+            미매칭 건은 입금자명·금액이 주문과 다르거나, 아직 연결되지 않은 경우입니다. (위: 미매칭, 아래: 최근 처리)
           </p>
         </details>
       )}

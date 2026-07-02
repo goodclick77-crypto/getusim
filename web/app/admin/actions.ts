@@ -19,6 +19,41 @@ export async function confirmCharge(formData: FormData) {
   revalidatePath("/admin/inquiries");
 }
 
+/**
+ * 미매칭 입금을 관리자가 특정 충전 주문에 직접 연결하고 지급 처리.
+ * 자동매칭은 입금자명이 정확히 일치해야 걸리므로, 이름이 다른 입금은
+ * completeCharge 의 소급연결로도 해소되지 않는다 → 여기서 명시적으로 연결한다.
+ * 멱등: 이미 매칭된 입금이거나 취소된 주문이면 아무 변화 없음.
+ */
+export async function matchDeposit(formData: FormData) {
+  await requireAdmin();
+  const depositId = Number(formData.get("depositId"));
+  const orderId = Number(formData.get("orderId"));
+  if (!depositId || !orderId) return;
+
+  const [deposit, order] = await Promise.all([
+    prisma.depositLog.findUnique({ where: { id: depositId } }),
+    prisma.chargeOrder.findUnique({ where: { id: orderId } }),
+  ]);
+  if (!deposit || deposit.matched || !order || order.status === "CANCELED") {
+    revalidatePath("/admin/charges");
+    return;
+  }
+
+  // 주문이 아직 대기면 지급(멱등). 이미 지급된 주문에 사후 연결만 하는 것도 허용.
+  if (!order.charged) await completeCharge(orderId, deposit.amount);
+
+  // 이 입금로그를 선택한 주문에 매칭 표시(경합 대비 matched:false 가드)
+  await prisma.depositLog.updateMany({
+    where: { id: depositId, matched: false },
+    data: { matched: true, matchedOrderId: orderId },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/charges");
+  revalidatePath("/admin/inquiries");
+}
+
 export async function cancelCharge(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id"));

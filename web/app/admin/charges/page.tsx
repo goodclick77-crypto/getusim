@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymd, ymdhm, dateRange } from "@/lib/format";
-import { confirmCharge, cancelCharge, restoreCharge } from "../actions";
+import { confirmCharge, cancelCharge, restoreCharge, matchDeposit } from "../actions";
 import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +72,7 @@ export default async function AdminChargesPage({
     }),
     prisma.chargeOrder.count({ where }),
     prisma.depositLog.findMany({ orderBy: { createdAt: "desc" }, take: 12 }),
+    // 미매칭 입금을 수동 연결할 후보(입금대기·미지급 주문)
     prisma.chargeOrder.findMany({
       where: { status: "PENDING", charged: false, createdAt: { gte: since } },
       orderBy: { createdAt: "desc" },
@@ -189,6 +190,7 @@ export default async function AdminChargesPage({
               const sameNameCandidates = candidates.filter(
                 (o) => norm(o.depositName) === norm(d.depositorName),
               );
+              const unmatched = !d.matched && d.amount > 0;
 
               return (
                 <li
@@ -199,7 +201,7 @@ export default async function AdminChargesPage({
                     <div className="flex items-center gap-2">
                       {d.matched ? (
                         <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700">
-                          자동지급
+                          지급완료
                         </span>
                       ) : (
                         <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
@@ -212,29 +214,35 @@ export default async function AdminChargesPage({
                     <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">
                       {explainDeposit(d)}
                     </p>
-                    {!d.matched && candidates.length > 0 && (
-                      <details className="mt-2 rounded-lg border border-dashed border-zinc-200 bg-white/60 px-2.5 py-2 text-[11px] text-zinc-500">
-                        <summary className="cursor-pointer select-none font-medium text-zinc-600">
-                          관련 주문 후보 {candidates.length}건 보기
-                        </summary>
-                        <ul className="mt-2 space-y-1">
-                          {candidates.slice(0, 5).map((o) => (
-                            <li key={o.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                              <span className="font-num font-medium text-zinc-700">#{o.id}</span>
-                              <span>{o.depositName || "(입금자명 없음)"}</span>
-                              <span className="text-zinc-400">
-                                · {o.user.name || o.user.loginId} · {ymdhm(o.createdAt).slice(5)}
-                              </span>
-                              {sameNameCandidates.some((s) => s.id === o.id) && (
-                                <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-medium text-emerald-700">
-                                  이름일치
-                                </span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
+                    {unmatched &&
+                      (candidates.length > 0 ? (
+                        <form action={matchDeposit} className="mt-2 flex items-center gap-2">
+                          <input type="hidden" name="depositId" value={d.id} />
+                          <select
+                            name="orderId"
+                            aria-label="연결할 입금대기 주문"
+                            className="glass min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-xs outline-none"
+                          >
+                            {candidates.map((o) => (
+                              <option key={o.id} value={o.id}>
+                                #{o.id} · {o.depositName || "(입금자명 없음)"} ·{" "}
+                                {o.user.name || o.user.loginId} · {ymd(o.createdAt).slice(5)}
+                                {sameNameCandidates.some((s) => s.id === o.id) ? " · 이름일치" : ""}
+                              </option>
+                            ))}
+                          </select>
+                          <ConfirmButton
+                            message={`이 입금(${d.depositorName || "?"} · ${won(d.amount)})을 선택한 주문에 연결하고 충전완료 처리할까요?`}
+                            className="shrink-0 whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
+                          >
+                            지급 연결
+                          </ConfirmButton>
+                        </form>
+                      ) : (
+                        <p className="mt-1.5 text-xs text-zinc-400">
+                          같은 금액({won(d.amount)})의 입금대기 주문이 없습니다.
+                        </p>
+                      ))}
                   </div>
                   <span className="font-num shrink-0 text-xs text-zinc-400">{ymdhm(d.createdAt).slice(5)}</span>
                 </li>

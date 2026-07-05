@@ -103,18 +103,21 @@ export default async function AccountPage({
             </p>
 
             {user.point > 0 && (
-              <div className="mb-3 rounded-xl border border-amber-200/70 bg-amber-50 p-3">
-                <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-700">
-                  <i className="fa-solid fa-triangle-exclamation" aria-hidden /> 보유 포인트 {pt(user.point)}가 소멸됩니다.
-                </p>
-                <p className="mt-1 text-xs text-amber-700/90">
-                  환불을 원하시면 탈퇴 전에{" "}
-                  <Link href="/inquiry" className="font-semibold underline">
-                    1:1 문의 → 환불문의
-                  </Link>
-                  로 먼저 환불을 신청하세요. 탈퇴 후에는 환불받을 수 없습니다.
-                </p>
-              </div>
+              <details className="mb-3 rounded-xl border border-black/10 bg-black/[0.015] px-3 py-2">
+                <summary className="cursor-pointer select-none text-xs text-zinc-500">
+                  탈퇴 시 잔여 포인트 처리 안내
+                </summary>
+                <div className="mt-2 space-y-1 text-xs text-zinc-500">
+                  <p>보유 포인트 {pt(user.point)}는 탈퇴 시 소멸되며 복구되지 않습니다.</p>
+                  <p>
+                    환불을 원하시면 탈퇴 전{" "}
+                    <Link href="/inquiry" className="font-medium text-emerald-700 underline">
+                      1:1 문의(환불문의)
+                    </Link>
+                    로 신청하세요.
+                  </p>
+                </div>
+              </details>
             )}
 
             <form action={withdrawAccount} className="space-y-3">

@@ -71,6 +71,21 @@ export async function dismissDeposit(formData: FormData) {
   revalidatePath("/admin/charges");
 }
 
+/**
+ * 입금로그 삭제(관리자). 잘못 들어온/불필요한 미매칭 입금 정리용.
+ * 실제 주문에 연결(matchedOrderId)된 건은 지급 이력이라 실수 방지로 삭제하지 않는다.
+ */
+export async function deleteDeposit(formData: FormData) {
+  await requireAdmin();
+  const depositId = Number(formData.get("depositId"));
+  if (!depositId) return;
+  await prisma.depositLog.deleteMany({
+    where: { id: depositId, matchedOrderId: null },
+  });
+  revalidatePath("/admin");
+  revalidatePath("/admin/charges");
+}
+
 export async function cancelCharge(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id"));

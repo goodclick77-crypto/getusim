@@ -2,7 +2,14 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymd, ymdhm, dateRange } from "@/lib/format";
-import { confirmCharge, cancelCharge, restoreCharge, matchDeposit, dismissDeposit } from "../actions";
+import {
+  confirmCharge,
+  cancelCharge,
+  restoreCharge,
+  matchDeposit,
+  dismissDeposit,
+  deleteDeposit,
+} from "../actions";
 import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -277,7 +284,22 @@ export default async function AdminChargesPage({
                         </form>
                       ))}
                   </div>
-                  <span className="font-num shrink-0 text-xs text-zinc-400">{ymdhm(d.createdAt).slice(5)}</span>
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <span className="font-num text-xs text-zinc-400">{ymdhm(d.createdAt).slice(5)}</span>
+                    {/* 주문에 연결된 지급 기록이 아니면 삭제 허용 */}
+                    {!d.matchedOrderId && (
+                      <form action={deleteDeposit}>
+                        <input type="hidden" name="depositId" value={d.id} />
+                        <ConfirmButton
+                          message={`이 입금로그(${d.depositorName || "?"} · ${won(d.amount)})를 삭제할까요? 되돌릴 수 없습니다.`}
+                          title="입금로그 삭제"
+                          className="whitespace-nowrap rounded-md px-2 py-0.5 text-xs text-red-500 hover:bg-red-50"
+                        >
+                          <i className="fa-solid fa-trash" aria-hidden /> 삭제
+                        </ConfirmButton>
+                      </form>
+                    )}
+                  </div>
                 </li>
               );
             })}

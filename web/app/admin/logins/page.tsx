@@ -1,18 +1,23 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { ymdhm } from "@/lib/format";
+import { ymdhm, dateRange } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLoginsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; from?: string; to?: string }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
   const q = (sp.q || "").trim();
+  const from = (sp.from || "").trim();
+  const to = (sp.to || "").trim();
+  const range = dateRange(from, to);
+  // 마지막 접속일 기준 기간 필터(있으면). not:null 은 항상 유지.
+  const lastLoginAt = { not: null, ...(range ?? {}) };
 
   const where = q
     ? {
@@ -23,9 +28,9 @@ export default async function AdminLoginsPage({
           { email: { contains: q, mode: "insensitive" as const } },
           { lastLoginIp: { contains: q } },
         ],
-        lastLoginAt: { not: null },
+        lastLoginAt,
       }
-    : { lastLoginAt: { not: null } };
+    : { lastLoginAt };
 
   const [users, total, recent24h, recent7d] = await Promise.all([
     prisma.user.findMany({
@@ -63,20 +68,48 @@ export default async function AdminLoginsPage({
         />
       </section>
 
-      <form action="/admin/logins" method="GET" className="flex gap-2">
-        <div className="glass flex flex-1 items-center gap-3 rounded-xl px-3.5 py-2.5">
-          <i className="fa-solid fa-magnifying-glass text-zinc-400" aria-hidden />
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="아이디 · 이름 · 휴대폰 · 이메일 · IP 검색"
-            aria-label="로그인 사용자 검색"
-            className="w-full bg-transparent outline-none"
-          />
+      <form action="/admin/logins" method="GET" className="space-y-2">
+        <div className="flex gap-2">
+          <div className="glass flex flex-1 items-center gap-3 rounded-xl px-3.5 py-2.5">
+            <i className="fa-solid fa-magnifying-glass text-zinc-400" aria-hidden />
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder="아이디 · 이름 · 휴대폰 · 이메일 · IP 검색"
+              aria-label="로그인 사용자 검색"
+              className="w-full bg-transparent outline-none"
+            />
+          </div>
+          <button className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-700">
+            검색
+          </button>
         </div>
-        <button className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-700">
-          검색
-        </button>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-zinc-500">접속기간</span>
+          <input
+            type="date"
+            name="from"
+            defaultValue={from}
+            aria-label="시작일"
+            className="glass font-num rounded-lg px-3 py-1.5 outline-none"
+          />
+          <span className="text-zinc-400">~</span>
+          <input
+            type="date"
+            name="to"
+            defaultValue={to}
+            aria-label="종료일"
+            className="glass font-num rounded-lg px-3 py-1.5 outline-none"
+          />
+          {(from || to) && (
+            <Link
+              href={`/admin/logins${q ? `?q=${encodeURIComponent(q)}` : ""}`}
+              className="text-xs text-zinc-400 hover:text-zinc-600"
+            >
+              기간 해제
+            </Link>
+          )}
+        </div>
       </form>
 
       <div className="glass overflow-hidden rounded-2xl">

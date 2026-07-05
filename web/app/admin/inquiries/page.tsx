@@ -52,7 +52,10 @@ export default async function AdminInquiriesPage({
   const inquiries = await prisma.inquiry.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: { replies: { orderBy: { createdAt: "asc" } } },
+    include: {
+      replies: { orderBy: { createdAt: "asc" } },
+      user: { select: { loginId: true } },
+    },
     take: 100,
   });
 
@@ -192,7 +195,20 @@ export default async function AdminInquiriesPage({
               </div>
               <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-600">{q.content}</p>
               <p className="font-num mt-1 text-xs text-zinc-400">
-                {q.name} · {ymdhm(q.createdAt)}
+                {q.userId && q.user?.loginId ? (
+                  <>
+                    <Link
+                      href={`/admin/members/${q.userId}`}
+                      className="font-medium text-emerald-700 hover:underline"
+                    >
+                      {q.user.loginId}
+                    </Link>
+                    {q.name ? ` · ${q.name}` : ""}
+                  </>
+                ) : (
+                  q.name || "비회원"
+                )}{" "}
+                · {ymdhm(q.createdAt)}
               </p>
 
               {q.category === "REFUND" && (

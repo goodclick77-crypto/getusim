@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { won, pt } from "@/lib/format";
+import { won, pt, dateRange } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -28,37 +28,43 @@ function sinceOf(period: string): Date {
 export default async function AdminSalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
   const period = ["today", "7d", "30d", "all"].includes(sp.period || "")
     ? (sp.period as string)
     : "30d";
+  const from = (sp.from || "").trim();
+  const to = (sp.to || "").trim();
+  // 직접 지정 기간(from/to)이 있으면 우선 적용, 없으면 기간 탭(period) 사용
+  const range = dateRange(from, to);
+  const usingRange = !!range;
   const since = sinceOf(period);
+  const dateFilter = range ?? { gte: since };
 
   const [chargeAgg, rentalAgg, byUser, attemptCount, failCount] = await Promise.all([
     prisma.chargeOrder.aggregate({
       _sum: { amount: true },
       _count: true,
-      where: { status: "COMPLETED", createdAt: { gte: since } },
+      where: { status: "COMPLETED", createdAt: dateFilter },
     }),
     prisma.numberRental.aggregate({
       _sum: { pricePoint: true, costKrw: true },
       _count: true,
-      where: { status: "RECEIVED", createdAt: { gte: since } },
+      where: { status: "RECEIVED", createdAt: dateFilter },
     }),
     prisma.numberRental.groupBy({
       by: ["userId"],
-      where: { status: "RECEIVED", createdAt: { gte: since } },
+      where: { status: "RECEIVED", createdAt: dateFilter },
       _sum: { pricePoint: true, costKrw: true },
       _count: true,
       orderBy: { _sum: { pricePoint: "desc" } },
       take: 30,
     }),
     // 발급 시도(전체) / 실패(취소·밴) 건수
-    prisma.numberRental.count({ where: { createdAt: { gte: since } } }),
-    prisma.numberRental.count({ where: { status: "CANCELED", createdAt: { gte: since } } }),
+    prisma.numberRental.count({ where: { createdAt: dateFilter } }),
+    prisma.numberRental.count({ where: { status: "CANCELED", createdAt: dateFilter } }),
   ]);
 
   const userIds = byUser.map((b) => b.userId);
@@ -69,12 +75,12 @@ export default async function AdminSalesPage({
     }),
     prisma.chargeOrder.groupBy({
       by: ["userId"],
-      where: { status: "COMPLETED", userId: { in: userIds }, createdAt: { gte: since } },
+      where: { status: "COMPLETED", userId: { in: userIds }, createdAt: dateFilter },
       _sum: { amount: true },
     }),
     prisma.numberRental.groupBy({
       by: ["userId"],
-      where: { status: "CANCELED", userId: { in: userIds }, createdAt: { gte: since } },
+      where: { status: "CANCELED", userId: { in: userIds }, createdAt: dateFilter },
       _count: true,
     }),
   ]);
@@ -100,19 +106,53 @@ export default async function AdminSalesPage({
         </Link>
       </div>
 
-      <nav aria-label="기간" className="flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={`/admin/sales?period=${t.key}`}
-            className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
-              period === t.key ? "bg-zinc-900 text-white" : "glass text-zinc-600 hover:bg-white/70"
-            }`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
+      <div className="space-y-2">
+        <nav aria-label="기간" className="flex flex-wrap gap-2">
+          {TABS.map((t) => (
+            <Link
+              key={t.key}
+              href={`/admin/sales?period=${t.key}`}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+                !usingRange && period === t.key
+                  ? "bg-zinc-900 text-white"
+                  : "glass text-zinc-600 hover:bg-white/70"
+              }`}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </nav>
+
+        <form action="/admin/sales" method="GET" className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-zinc-500">직접 지정</span>
+          <input
+            type="date"
+            name="from"
+            defaultValue={from}
+            aria-label="시작일"
+            className="glass font-num rounded-lg px-3 py-1.5 outline-none"
+          />
+          <span className="text-zinc-400">~</span>
+          <input
+            type="date"
+            name="to"
+            defaultValue={to}
+            aria-label="종료일"
+            className="glass font-num rounded-lg px-3 py-1.5 outline-none"
+          />
+          <button className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-700">
+            조회
+          </button>
+          {usingRange && (
+            <Link
+              href={`/admin/sales?period=${period}`}
+              className="text-xs text-zinc-400 hover:text-zinc-600"
+            >
+              기간 해제
+            </Link>
+          )}
+        </form>
+      </div>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card icon="fa-credit-card" label="충전 매출" value={won(chargeRevenue)} sub={`${chargeAgg._count}건`} />

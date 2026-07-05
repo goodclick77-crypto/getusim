@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { pt, ymd } from "@/lib/format";
+import { pt, ymd, dateRange } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -14,23 +14,29 @@ const SORTS = [
 export default async function AdminMembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; sort?: string }>;
+  searchParams: Promise<{ q?: string; sort?: string; from?: string; to?: string }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
   const q = (sp.q || "").trim();
+  const from = (sp.from || "").trim();
+  const to = (sp.to || "").trim();
   const sort = SORTS.some((s) => s.key === sp.sort) ? sp.sort! : "recent";
+  const createdAt = dateRange(from, to); // 가입일 기준 기간
 
-  const where = q
-    ? {
-        OR: [
-          { loginId: { contains: q, mode: "insensitive" as const } },
-          { name: { contains: q, mode: "insensitive" as const } },
-          { phone: { contains: q } },
-          { email: { contains: q, mode: "insensitive" as const } },
-        ],
-      }
-    : {};
+  const where = {
+    ...(q
+      ? {
+          OR: [
+            { loginId: { contains: q, mode: "insensitive" as const } },
+            { name: { contains: q, mode: "insensitive" as const } },
+            { phone: { contains: q } },
+            { email: { contains: q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+    ...(createdAt ? { createdAt } : {}),
+  };
 
   const orderBy =
     sort === "point"
@@ -60,21 +66,49 @@ export default async function AdminMembersPage({
         </Link>
       </div>
 
-      <form action="/admin/members" method="GET" className="flex gap-2">
-        <div className="glass flex flex-1 items-center gap-3 rounded-xl px-3.5 py-2.5">
-          <i className="fa-solid fa-magnifying-glass text-zinc-400" aria-hidden />
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="아이디 · 이름 · 휴대폰 · 이메일 검색"
-            aria-label="회원 검색"
-            className="w-full bg-transparent outline-none"
-          />
+      <form action="/admin/members" method="GET" className="space-y-2">
+        <div className="flex gap-2">
+          <div className="glass flex flex-1 items-center gap-3 rounded-xl px-3.5 py-2.5">
+            <i className="fa-solid fa-magnifying-glass text-zinc-400" aria-hidden />
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder="아이디 · 이름 · 휴대폰 · 이메일 검색"
+              aria-label="회원 검색"
+              className="w-full bg-transparent outline-none"
+            />
+          </div>
+          <input type="hidden" name="sort" value={sort} />
+          <button className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-700">
+            검색
+          </button>
         </div>
-        <input type="hidden" name="sort" value={sort} />
-        <button className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-700">
-          검색
-        </button>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-zinc-500">가입기간</span>
+          <input
+            type="date"
+            name="from"
+            defaultValue={from}
+            aria-label="시작일"
+            className="glass font-num rounded-lg px-3 py-1.5 outline-none"
+          />
+          <span className="text-zinc-400">~</span>
+          <input
+            type="date"
+            name="to"
+            defaultValue={to}
+            aria-label="종료일"
+            className="glass font-num rounded-lg px-3 py-1.5 outline-none"
+          />
+          {(from || to) && (
+            <Link
+              href={`/admin/members?sort=${sort}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+              className="text-xs text-zinc-400 hover:text-zinc-600"
+            >
+              기간 해제
+            </Link>
+          )}
+        </div>
       </form>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -82,7 +116,7 @@ export default async function AdminMembersPage({
           {SORTS.map((s) => (
             <Link
               key={s.key}
-              href={`/admin/members?sort=${s.key}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+              href={`/admin/members?sort=${s.key}${q ? `&q=${encodeURIComponent(q)}` : ""}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`}
               className={`rounded-xl px-3.5 py-1.5 text-sm font-medium transition ${
                 sort === s.key ? "bg-zinc-900 text-white" : "glass text-zinc-600 hover:bg-white/70"
               }`}

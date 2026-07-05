@@ -388,6 +388,7 @@ function DateGroup({
     status: string;
     autoConfirmed: boolean;
     createdAt: Date;
+    userId: number;
     user: { loginId: string; name: string };
   }[];
 }) {
@@ -424,7 +425,13 @@ function DateGroup({
                   )}
                 </div>
                 <p className="font-num mt-0.5 truncate text-xs text-zinc-400">
-                  {o.user.name || o.user.loginId} · {ymdhm(o.createdAt).slice(11)}
+                  <Link
+                    href={`/admin/members/${o.userId}`}
+                    className="text-emerald-700 hover:underline"
+                  >
+                    {o.user.name || o.user.loginId}
+                  </Link>{" "}
+                  · {ymdhm(o.createdAt).slice(11)}
                 </p>
               </div>
 

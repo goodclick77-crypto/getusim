@@ -36,7 +36,7 @@ export default function CopyButton({
       type="button"
       onClick={copy}
       aria-label="복사"
-      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition ${
+      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-medium transition ${
         done ? "text-emerald-600" : "text-zinc-500 hover:bg-black/5"
       } ${className}`}
     >

@@ -124,29 +124,31 @@ export default async function AdminSalesPage({
         </nav>
 
         <form action="/admin/sales" method="GET" className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-zinc-500">직접 지정</span>
-          <input
-            type="date"
-            name="from"
-            defaultValue={from}
-            aria-label="시작일"
-            className="glass font-num rounded-lg px-3 py-1.5 outline-none"
-          />
-          <span className="text-zinc-400">~</span>
-          <input
-            type="date"
-            name="to"
-            defaultValue={to}
-            aria-label="종료일"
-            className="glass font-num rounded-lg px-3 py-1.5 outline-none"
-          />
-          <button className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-700">
+          <span className="shrink-0 text-zinc-500">직접 지정</span>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <input
+              type="date"
+              name="from"
+              defaultValue={from}
+              aria-label="시작일"
+              className="glass font-num min-w-0 flex-1 rounded-lg px-2 py-1.5 outline-none"
+            />
+            <span className="shrink-0 text-zinc-400">~</span>
+            <input
+              type="date"
+              name="to"
+              defaultValue={to}
+              aria-label="종료일"
+              className="glass font-num min-w-0 flex-1 rounded-lg px-2 py-1.5 outline-none"
+            />
+          </div>
+          <button className="shrink-0 rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-700">
             조회
           </button>
           {usingRange && (
             <Link
               href={`/admin/sales?period=${period}`}
-              className="text-xs text-zinc-400 hover:text-zinc-600"
+              className="shrink-0 text-xs text-zinc-400 hover:text-zinc-600"
             >
               기간 해제
             </Link>

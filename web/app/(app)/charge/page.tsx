@@ -101,9 +101,11 @@ export default async function ChargePage({
               <dd className="font-medium">{BANK_INFO.bank}</dd>
             </div>
             <div className="flex items-center justify-between gap-3 border-b border-black/5 bg-emerald-50/40 px-4 py-3">
-              <dt className="text-sm text-zinc-500">계좌번호</dt>
-              <dd className="flex items-center gap-2">
-                <b className="font-num text-base tracking-tight sm:text-lg">{BANK_INFO.account}</b>
+              <dt className="shrink-0 text-sm text-zinc-500">계좌번호</dt>
+              <dd className="flex min-w-0 items-center justify-end gap-2">
+                <b className="font-num whitespace-nowrap text-base tracking-tight sm:text-lg">
+                  {BANK_INFO.account}
+                </b>
                 <CopyButton
                   text={BANK_INFO.account.replace(/[^\d]/g, "")}
                   label="복사"

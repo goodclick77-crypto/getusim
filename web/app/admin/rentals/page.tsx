@@ -111,12 +111,14 @@ export default async function AdminRentalsPage({
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-zinc-500">기간</span>
-          <input type="date" name="from" defaultValue={from} aria-label="시작일" className="glass font-num rounded-lg px-3 py-1.5 outline-none" />
-          <span className="text-zinc-400">~</span>
-          <input type="date" name="to" defaultValue={to} aria-label="종료일" className="glass font-num rounded-lg px-3 py-1.5 outline-none" />
+          <span className="shrink-0 text-zinc-500">기간</span>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <input type="date" name="from" defaultValue={from} aria-label="시작일" className="glass font-num min-w-0 flex-1 rounded-lg px-2 py-1.5 outline-none" />
+            <span className="shrink-0 text-zinc-400">~</span>
+            <input type="date" name="to" defaultValue={to} aria-label="종료일" className="glass font-num min-w-0 flex-1 rounded-lg px-2 py-1.5 outline-none" />
+          </div>
           {(from || to) && (
-            <Link href={`/admin/rentals?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}`} className="text-xs text-zinc-400 hover:text-zinc-600">
+            <Link href={`/admin/rentals?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}`} className="shrink-0 text-xs text-zinc-400 hover:text-zinc-600">
               기간 해제
             </Link>
           )}

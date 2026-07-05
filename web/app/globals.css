@@ -20,6 +20,10 @@ body {
   font-family: var(--font-sans);
   color: #18181b;
   background-color: var(--bg);
+  /* 한글은 어절(공백) 단위로만 줄바꿈 — "계좌번호"가 "계좌번/호"로 깨지는 문제 방지.
+     너무 긴 문자열(URL·계좌번호 등)은 넘치지 않게 마지막 수단으로 줄바꿈 허용. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
   background-image:
     radial-gradient(60rem 60rem at 110% -10%, rgba(16, 185, 129, 0.16), transparent 60%),
     radial-gradient(50rem 50rem at -10% 10%, rgba(59, 130, 246, 0.14), transparent 55%),

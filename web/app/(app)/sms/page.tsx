@@ -35,7 +35,7 @@ export default async function SmsPage() {
         <i className="fa-solid fa-comment-sms text-emerald-600" aria-hidden /> 해외 SMS 인증
       </h1>
 
-      <NumberAuth initialPoint={user.point} isAdmin={user.role === "ADMIN"} />
+      <NumberAuth initialPoint={user.point} />
 
       <section>
         <h2 className="mb-3 flex items-center gap-2 font-bold">

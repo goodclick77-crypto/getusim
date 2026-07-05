@@ -7,7 +7,7 @@ import { phoneFmt } from "@/lib/format";
 import ImageSelect from "@/components/ImageSelect";
 import CopyButton from "@/components/CopyButton";
 
-type Props = { initialPoint: number; isAdmin: boolean };
+type Props = { initialPoint: number };
 type Svc = {
   value: string;
   label: string;
@@ -136,7 +136,7 @@ function CompareTable({
   );
 }
 
-export default function NumberAuth({ initialPoint, isAdmin }: Props) {
+export default function NumberAuth({ initialPoint }: Props) {
   const [point, setPoint] = useState(initialPoint);
   const [country, setCountry] = useState("");
   const [service, setService] = useState("");
@@ -147,7 +147,6 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
   const [status, setStatus] = useState("");
   const [remain, setRemain] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
-  const [balance, setBalance] = useState("");
   const [needCharge, setNeedCharge] = useState(false);
   const [mode, setMode] = useState<"country" | "service">("country");
   const [services, setServices] = useState<Svc[]>([]);
@@ -404,17 +403,6 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
     setRemain(null);
   }
 
-  async function checkBalance() {
-    setBalance("조회 중…");
-    try {
-      const res = await fetch("/api/sms/balance");
-      const j = await res.json();
-      setBalance(j.error ? j.error : `5sim 잔액: ${j.balance}`);
-    } catch {
-      setBalance("조회 실패");
-    }
-  }
-
   return (
     <div className="space-y-5">
       <div className="glass-dark rounded-2xl p-5 text-white">
@@ -644,17 +632,6 @@ export default function NumberAuth({ initialPoint, isAdmin }: Props) {
         환불이 불가능합니다. 현지 법률·규정을 준수하여 합법적인 용도로만 사용하세요.
       </p>
 
-      {isAdmin && (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={checkBalance}
-            className="rounded-lg border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-100"
-          >
-            5sim 잔액체크
-          </button>
-          {balance && <span className="text-sm text-zinc-600">{balance}</span>}
-        </div>
-      )}
     </div>
   );
 }

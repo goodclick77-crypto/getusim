@@ -2,13 +2,17 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt } from "@/lib/format";
+import { fivesim } from "@/lib/fivesim";
 import Tilt from "@/components/Tilt";
 
 export const dynamic = "force-dynamic";
 
+// 5sim 잔액이 이 값 미만이면 경고(번호 발급이 곧 중단될 수 있음)
+const FIVESIM_LOW_BALANCE = 10;
+
 export default async function AdminPage() {
   await requireAdmin();
-  const [userCount, pointSum, pendingCharges, openInquiries, todayCharge] =
+  const [userCount, pointSum, pendingCharges, openInquiries, todayCharge, fivesimBalance] =
     await Promise.all([
       prisma.user.count(),
       prisma.user.aggregate({ _sum: { point: true } }),
@@ -18,7 +22,10 @@ export default async function AdminPage() {
         _sum: { amount: true },
         where: { status: "COMPLETED" },
       }),
+      // 5sim 잔액 조회(실패해도 홈은 정상 표시)
+      fivesim.profile().then((p) => p.balance).catch(() => null),
     ]);
+  const lowBalance = fivesimBalance !== null && fivesimBalance < FIVESIM_LOW_BALANCE;
 
   const MENU = [
     {
@@ -88,6 +95,28 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-8">
+      {/* 5sim 잔액 상태 — 낮으면 경고 */}
+      {fivesimBalance === null ? (
+        <div className="glass flex items-center gap-2 rounded-2xl px-4 py-3 text-sm text-zinc-500">
+          <i className="fa-solid fa-globe text-zinc-400" aria-hidden />
+          5sim 잔액을 확인하지 못했습니다.
+        </div>
+      ) : lowBalance ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <i className="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden />
+          <span>
+            <b>5sim 잔액 부족 — 현재 {fivesimBalance.toLocaleString("ko-KR")}</b>
+            <br />
+            잔액이 {FIVESIM_LOW_BALANCE} 미만입니다. 충전하지 않으면 번호 발급이 중단될 수 있습니다.
+          </span>
+        </div>
+      ) : (
+        <div className="glass flex items-center gap-2 rounded-2xl px-4 py-3 text-sm text-zinc-600">
+          <i className="fa-solid fa-globe text-emerald-600" aria-hidden />
+          5sim 잔액 <b className="font-num">{fivesimBalance.toLocaleString("ko-KR")}</b>
+        </div>
+      )}
+
       <section aria-label="통계" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat icon="fa-users" label="총 회원" value={userCount.toLocaleString("ko-KR")} />
         <Stat icon="fa-coins" label="발행 포인트" value={pt(pointSum._sum.point ?? 0)} />

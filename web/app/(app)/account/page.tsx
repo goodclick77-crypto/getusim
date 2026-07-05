@@ -1,7 +1,15 @@
+import Link from "next/link";
 import { requireUser } from "@/lib/session";
-import { ymd } from "@/lib/format";
-import { updateProfile } from "./actions";
+import { ymd, pt } from "@/lib/format";
+import { updateProfile, withdrawAccount } from "./actions";
+import ConfirmButton from "@/components/ConfirmButton";
 import Reveal from "@/components/Reveal";
+
+const WITHDRAW_ERRORS: Record<string, string> = {
+  pw: "비밀번호가 일치하지 않습니다.",
+  agree: "잔여 포인트 소멸에 동의해야 탈퇴할 수 있습니다.",
+  active: "진행 중인 번호가 있어 탈퇴할 수 없습니다. 번호 만료·완료 후 다시 시도해주세요.",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +35,11 @@ export default async function AccountPage({
       {sp.error === "email" && (
         <p role="alert" className="glass flex items-center gap-2 rounded-2xl px-4 py-3 text-sm text-red-600">
           <i className="fa-solid fa-circle-exclamation" aria-hidden /> 올바른 이메일 형식을 입력하세요.
+        </p>
+      )}
+      {sp.error && WITHDRAW_ERRORS[sp.error] && (
+        <p role="alert" className="glass flex items-center gap-2 rounded-2xl px-4 py-3 text-sm text-red-600">
+          <i className="fa-solid fa-circle-exclamation" aria-hidden /> {WITHDRAW_ERRORS[sp.error]}
         </p>
       )}
 
@@ -77,6 +90,63 @@ export default async function AccountPage({
           </form>
         </section>
       </Reveal>
+
+      {/* 회원 탈퇴 (관리자 제외) */}
+      {user.role !== "ADMIN" && (
+        <Reveal delay={160}>
+          <section className="glass rounded-2xl border border-red-200/70 p-5">
+            <h2 className="mb-1 flex items-center gap-2 font-bold text-red-600">
+              <i className="fa-solid fa-user-slash" aria-hidden /> 회원 탈퇴
+            </h2>
+            <p className="mb-3 text-xs text-zinc-500">
+              탈퇴하면 계정이 즉시 비활성화되어 같은 아이디로 다시 로그인할 수 없습니다.
+            </p>
+
+            {user.point > 0 && (
+              <div className="mb-3 rounded-xl border border-amber-200/70 bg-amber-50 p-3">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-700">
+                  <i className="fa-solid fa-triangle-exclamation" aria-hidden /> 보유 포인트 {pt(user.point)}가 소멸됩니다.
+                </p>
+                <p className="mt-1 text-xs text-amber-700/90">
+                  환불을 원하시면 탈퇴 전에{" "}
+                  <Link href="/inquiry" className="font-semibold underline">
+                    1:1 문의 → 환불문의
+                  </Link>
+                  로 먼저 환불을 신청하세요. 탈퇴 후에는 환불받을 수 없습니다.
+                </p>
+              </div>
+            )}
+
+            <form action={withdrawAccount} className="space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-xs text-zinc-500">비밀번호 확인</span>
+                <input
+                  name="password"
+                  type="password"
+                  required
+                  placeholder="현재 비밀번호"
+                  aria-label="현재 비밀번호"
+                  className="w-full rounded-xl border border-black/10 bg-white/60 px-3.5 py-3 outline-none focus:border-red-400"
+                />
+              </label>
+
+              {user.point > 0 && (
+                <label className="flex items-start gap-2 text-xs text-zinc-600">
+                  <input type="checkbox" name="agreePointLoss" required className="mt-0.5" />
+                  <span>보유 포인트 {pt(user.point)}가 소멸되는 것에 동의합니다.</span>
+                </label>
+              )}
+
+              <ConfirmButton
+                message={`정말 탈퇴하시겠어요?${user.point > 0 ? ` 보유 포인트 ${pt(user.point)}가 소멸되며,` : ""} 같은 아이디로 다시 로그인할 수 없습니다.`}
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3 font-semibold text-white transition hover:bg-red-500"
+              >
+                <i className="fa-solid fa-user-slash" aria-hidden /> 회원 탈퇴
+              </ConfirmButton>
+            </form>
+          </section>
+        </Reveal>
+      )}
     </div>
   );
 }

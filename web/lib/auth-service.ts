@@ -41,6 +41,11 @@ export async function registerUser(input: {
   if (input.password.length < 6)
     throw new RegisterError("비밀번호는 6자 이상이어야 합니다.");
 
+  // 이메일 필수 — 아이디/비밀번호 찾기(계정 복구)의 유일한 수단
+  const email = input.email.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    throw new RegisterError("이메일을 정확히 입력해주세요. (계정 복구에 사용됩니다)");
+
   const exists = await prisma.user.findUnique({ where: { loginId } });
   if (exists) throw new RegisterError("이미 사용 중인 아이디입니다.");
 
@@ -50,7 +55,7 @@ export async function registerUser(input: {
       passwordHash: await hashPassword(input.password),
       name: input.name.trim(),
       nickname: input.name.trim(),
-      email: input.email.trim(),
+      email,
       level: 2,
       role: "USER",
     },

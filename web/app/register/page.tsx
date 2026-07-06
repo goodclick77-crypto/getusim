@@ -15,11 +15,11 @@ export default async function RegisterPage({
   const sp = await searchParams;
 
   const FIELDS = [
-    { name: "loginId", placeholder: "아이디 (영문/숫자 3~20자)", type: "text", icon: "fa-user", def: sp.loginId },
-    { name: "password", placeholder: "비밀번호 (6자 이상)", type: "password", icon: "fa-lock", def: "" },
-    { name: "passwordConfirm", placeholder: "비밀번호 확인", type: "password", icon: "fa-lock", def: "" },
-    { name: "name", placeholder: "이름", type: "text", icon: "fa-id-card", def: sp.name },
-    { name: "email", placeholder: "이메일 (아이디·비밀번호 찾기에 사용)", type: "email", icon: "fa-envelope", def: sp.email },
+    { name: "loginId", placeholder: "아이디 (영문/숫자 3~20자)", type: "text", icon: "fa-user", def: sp.loginId, required: true },
+    { name: "password", placeholder: "비밀번호 (6자 이상)", type: "password", icon: "fa-lock", def: "", required: true },
+    { name: "passwordConfirm", placeholder: "비밀번호 확인", type: "password", icon: "fa-lock", def: "", required: true },
+    { name: "name", placeholder: "이름", type: "text", icon: "fa-id-card", def: sp.name, required: true },
+    { name: "email", placeholder: "이메일 (아이디·비밀번호 찾기에 사용)", type: "email", icon: "fa-envelope", def: sp.email, required: true },
   ];
 
   return (
@@ -53,10 +53,16 @@ export default async function RegisterPage({
                 placeholder={f.placeholder}
                 aria-label={f.placeholder}
                 defaultValue={f.def}
+                required={f.required}
                 className="w-full bg-transparent outline-none"
               />
             </label>
           ))}
+
+          <p className="flex items-start gap-1.5 px-1 text-xs text-zinc-500">
+            <i className="fa-solid fa-circle-info mt-0.5 text-zinc-400" aria-hidden />
+            이메일은 아이디·비밀번호 찾기에 사용됩니다. <b className="font-semibold">입력하지 않으면 계정 복구가 불가능</b>하니 정확히 입력해주세요.
+          </p>
 
           <label className="flex items-start gap-2 px-1 text-sm text-zinc-600">
             <input type="checkbox" name="agree" className="mt-0.5" />

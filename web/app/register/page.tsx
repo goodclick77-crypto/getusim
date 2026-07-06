@@ -60,8 +60,12 @@ export default async function RegisterPage({
           ))}
 
           <p className="flex items-start gap-1.5 px-1 text-xs text-zinc-500">
-            <i className="fa-solid fa-circle-info mt-0.5 text-zinc-400" aria-hidden />
-            이메일은 아이디·비밀번호 찾기에 사용됩니다. <b className="font-semibold">입력하지 않으면 계정 복구가 불가능</b>하니 정확히 입력해주세요.
+            <i className="fa-solid fa-circle-info mt-0.5 shrink-0 text-zinc-400" aria-hidden />
+            <span>
+              이메일은 아이디·비밀번호 찾기에 사용됩니다.{" "}
+              <b className="font-semibold">입력하지 않으면 계정 복구가 불가능</b>하니 정확히
+              입력해주세요.
+            </span>
           </p>
 
           <label className="flex items-start gap-2 px-1 text-sm text-zinc-600">

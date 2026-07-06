@@ -185,6 +185,25 @@ export async function updateReply(formData: FormData) {
   revalidatePath("/admin/inquiries");
 }
 
+/** 답변 템플릿(자주 쓰는 답변) 등록 */
+export async function createReplyTemplate(formData: FormData) {
+  await requireAdmin();
+  const title = String(formData.get("title") || "").trim();
+  const content = String(formData.get("content") || "").trim();
+  if (!title || !content) return;
+  await prisma.replyTemplate.create({ data: { title, content } });
+  revalidatePath("/admin/inquiries");
+}
+
+/** 답변 템플릿 삭제 */
+export async function deleteReplyTemplate(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  if (!id) return;
+  await prisma.replyTemplate.delete({ where: { id } }).catch(() => {});
+  revalidatePath("/admin/inquiries");
+}
+
 /** 환불 승인 → 신청 포인트 자동 차감 (멱등: 이미 처리됐거나 잔액부족이면 변동 없음) */
 export async function approveRefund(formData: FormData) {
   await requireAdmin();

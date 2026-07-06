@@ -4,14 +4,16 @@ import { prisma } from "@/lib/prisma";
 import { ymdhm, pt, won, dateRange } from "@/lib/format";
 import { chargeAmount } from "@/lib/config";
 import {
-  answerInquiry,
   deleteInquiry,
   updateReply,
   approveRefund,
   hideInquiry,
   unhideInquiry,
+  createReplyTemplate,
+  deleteReplyTemplate,
 } from "../actions";
 import ConfirmButton from "@/components/ConfirmButton";
+import AnswerForm from "./AnswerForm";
 
 export const dynamic = "force-dynamic";
 
@@ -49,15 +51,21 @@ export default async function AdminInquiriesPage({
     ...(createdAt ? { createdAt } : {}),
   };
 
-  const inquiries = await prisma.inquiry.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: {
-      replies: { orderBy: { createdAt: "asc" } },
-      user: { select: { loginId: true } },
-    },
-    take: 100,
-  });
+  const [inquiries, replyTemplates] = await Promise.all([
+    prisma.inquiry.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        replies: { orderBy: { createdAt: "asc" } },
+        user: { select: { loginId: true } },
+      },
+      take: 100,
+    }),
+    prisma.replyTemplate.findMany({
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      select: { id: true, title: true, content: true },
+    }),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -85,6 +93,64 @@ export default async function AdminInquiriesPage({
           이미 처리되었거나 환불 정보가 올바르지 않은 신청입니다.
         </p>
       )}
+
+      <details className="glass rounded-2xl p-4">
+        <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
+          <i className="fa-solid fa-comment-dots text-emerald-600" aria-hidden /> 자주 쓰는 답변 관리
+          <span className="font-num text-xs font-normal text-zinc-400">{replyTemplates.length}개</span>
+        </summary>
+        <div className="mt-3 space-y-3">
+          {replyTemplates.length > 0 && (
+            <ul className="space-y-2">
+              {replyTemplates.map((t) => (
+                <li
+                  key={t.id}
+                  className="flex items-start justify-between gap-2 rounded-lg bg-black/[0.02] px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{t.title}</p>
+                    <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-zinc-500">
+                      {t.content}
+                    </p>
+                  </div>
+                  <form action={deleteReplyTemplate}>
+                    <input type="hidden" name="id" value={t.id} />
+                    <ConfirmButton
+                      message={`템플릿 "${t.title}"을(를) 삭제할까요?`}
+                      className="shrink-0 whitespace-nowrap rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                    >
+                      삭제
+                    </ConfirmButton>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+          <form
+            action={createReplyTemplate}
+            className="space-y-2 rounded-lg border border-dashed border-black/10 p-3"
+          >
+            <input
+              name="title"
+              required
+              placeholder="템플릿 제목 (예: 환불 처리 안내)"
+              aria-label="템플릿 제목"
+              className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+            />
+            <textarea
+              name="content"
+              required
+              rows={3}
+              placeholder="답변 내용을 입력하세요"
+              aria-label="템플릿 내용"
+              className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+            />
+            <button className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-700">
+              템플릿 추가
+            </button>
+          </form>
+        </div>
+      </details>
 
       <nav aria-label="상태 필터" className="flex flex-wrap gap-2">
         {TABS.map((t) => (
@@ -278,25 +344,11 @@ export default async function AdminInquiriesPage({
                 </div>
               ))}
 
-              <form action={answerInquiry} className="mt-3 space-y-2">
-                <input type="hidden" name="parentId" value={q.id} />
-                <textarea
-                  name="content"
-                  rows={3}
-                  placeholder={
-                    q.status === "ANSWERED"
-                      ? "추가 답변 입력 (엔터로 줄바꿈)"
-                      : "답변 입력 (엔터로 줄바꿈)"
-                  }
-                  aria-label="답변"
-                  className="w-full rounded-xl border border-black/10 bg-white/60 px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
-                />
-                <div className="flex justify-end">
-                  <button className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-sm text-white transition hover:bg-zinc-700">
-                    <i className="fa-solid fa-paper-plane" aria-hidden /> 답변 등록
-                  </button>
-                </div>
-              </form>
+              <AnswerForm
+                parentId={q.id}
+                answered={q.status === "ANSWERED"}
+                templates={replyTemplates}
+              />
             </li>
           ))}
         </ul>

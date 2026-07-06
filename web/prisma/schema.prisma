@@ -245,6 +245,18 @@ model Faq {
   @@map("faq")
 }
 
+// 관리자 1:1 문의 답변 템플릿(자주 쓰는 답변) — 반복 답변을 빠르게 삽입
+model ReplyTemplate {
+  id        Int      @id @default(autoincrement())
+  title     String                                    // 목록/선택용 짧은 제목
+  content   String   @db.Text                          // 실제 답변 문구
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([order])
+  @@map("reply_template")
+}
+
 enum RentalStatus {
   PENDING  // 번호 발급, SMS 대기
   RECEIVED // SMS 수신 완료

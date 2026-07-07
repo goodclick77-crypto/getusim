@@ -344,7 +344,7 @@ export default function NumberAuth({ initialPoint }: Props) {
       if (data.error === "need") setNeedCharge(true);
       setStatus(
         data.error === "00"
-          ? "현재 이용 가능한 번호가 없습니다. 다시 시도해주세요."
+          ? "현재 이용 가능한 번호가 없습니다. 다른 국가를 이용해 주세요."
           : data.error === "need"
             ? data.message || "포인트가 부족합니다"
             : data.message || data.error || "번호 발급 실패",

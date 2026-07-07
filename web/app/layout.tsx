@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import NaverAnalytics from "./NaverAnalytics";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://getusim.com"),
@@ -40,6 +41,7 @@ export default function RootLayout({
           본문 바로가기
         </a>
         {children}
+        <NaverAnalytics />
       </body>
     </html>
   );

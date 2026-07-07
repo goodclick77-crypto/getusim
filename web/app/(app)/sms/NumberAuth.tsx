@@ -324,7 +324,7 @@ export default function NumberAuth({ initialPoint }: Props) {
       });
       data = await res.json();
     } catch {
-      setStatus("오류가 발생했습니다");
+      setStatus("일시적인 문제로 발급이 불가능합니다. 다른 국가·서비스를 이용해주세요.");
       setRunning(false);
       return;
     }
@@ -572,7 +572,7 @@ export default function NumberAuth({ initialPoint }: Props) {
             className={`mt-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium ${
               code
                 ? "bg-emerald-50 text-emerald-700"
-                : /부족|없|오류|실패/.test(status)
+                : /부족|없|오류|실패|불가/.test(status)
                   ? "bg-red-50 text-red-600"
                   : "bg-amber-50 text-amber-700"
             }`}

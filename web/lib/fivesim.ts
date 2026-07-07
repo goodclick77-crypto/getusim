@@ -59,7 +59,15 @@ async function call<T>(
     throw new FiveSimError(body || res.statusText, res.status);
   }
   // 일부 응답이 빈 문자열일 수 있음
-  return (body ? JSON.parse(body) : null) as T;
+  if (!body) return null as T;
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    // 5sim이 성공(200) 상태로 비-JSON 텍스트(예: "no free phones")를 주는 경우가 있음.
+    // 그대로 두면 JSON.parse가 SyntaxError를 던져 상위 라우트에서 500(흰 화면)이 됨.
+    // → FiveSimError로 승격해 상위에서 안전하게 처리/로깅되도록 함.
+    throw new FiveSimError(body, res.status);
+  }
 }
 
 export const fivesim = {

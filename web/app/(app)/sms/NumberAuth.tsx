@@ -62,7 +62,7 @@ function CompareTable({
     <div>
       <p className="mb-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-zinc-700">
         <i className="fa-solid fa-list-check text-emerald-600" aria-hidden /> {colLabel} 선택
-        <span className="text-xs font-normal text-zinc-400">· 실시간 · 수신률 높은 순</span>
+        <span className="text-xs font-normal text-zinc-400">· 참고용 추정치 · 수신률 높은 순</span>
       </p>
       {loading ? (
         <div className="space-y-2">
@@ -121,9 +121,9 @@ function CompareTable({
                     {/* 2줄: 수신률 + 재고 */}
                     <div className="mt-1 flex items-center gap-2 text-xs">
                       <span className={`rounded px-1.5 py-0.5 font-semibold ${rateColor(r.rate)}`}>
-                        수신률 {r.rate}%
+                        예상 수신률 {r.rate}%
                       </span>
-                      <span className="text-zinc-400">재고 {r.stock.toLocaleString("ko-KR")}</span>
+                      <span className="text-zinc-400">재고 약 {r.stock.toLocaleString("ko-KR")}</span>
                     </div>
                   </button>
                 </li>
@@ -131,6 +131,12 @@ function CompareTable({
             })}
           </ul>
         </div>
+      )}
+      {!loading && rows.length > 0 && (
+        <p className="mt-1.5 text-xs text-zinc-400">
+          <i className="fa-solid fa-circle-info mr-1" aria-hidden />
+          표시된 수신률·재고는 실시간 추정치로 참고용이며, 실제 발급 결과와 다를 수 있어요.
+        </p>
       )}
     </div>
   );

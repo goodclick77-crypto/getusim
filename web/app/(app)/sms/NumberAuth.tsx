@@ -25,6 +25,10 @@ type Cnt = {
   stock?: number;
 };
 
+// 인증문자는 보통 1~2분 내 도착 → 그 안에 안 오면 사실상 안 옴.
+// 최대 3분만 기다리다 자동 포기하고 5sim 번호를 취소(잔액 즉시 반환)한다.
+const SMS_WAIT_MS = 3 * 60 * 1000;
+
 function rateColor(rate: number) {
   return rate >= 50
     ? "bg-emerald-100 text-emerald-700"
@@ -213,12 +217,13 @@ export default function NumberAuth({ initialPoint }: Props) {
         setService(r.service);
         setRentalId(r.id);
         setPhone(r.phoneNumber || "");
-        const deadline = r.expiresAt ? new Date(r.expiresAt).getTime() : null;
+        const raw = r.expiresAt ? new Date(r.expiresAt).getTime() : Infinity;
+        const deadline = Math.min(raw, Date.now() + SMS_WAIT_MS);
         setExpiresAt(deadline);
         if (r.smsCode) {
           setCode(r.smsCode);
           setStatus("인증코드 수신 완료");
-        } else if (deadline == null || deadline - Date.now() > 0) {
+        } else if (deadline - Date.now() > 0) {
           // 폴링 재개 (남은 시간 있으면)
           pollCode(r.id, r.pricePoint ?? SMS_BASE_POINT, deadline);
         }
@@ -349,7 +354,9 @@ export default function NumberAuth({ initialPoint }: Props) {
     }
 
     const charged = data.pricePoint ?? SMS_BASE_POINT;
-    const deadline = data.expires ? new Date(data.expires).getTime() : Date.now() + 15 * 60 * 1000;
+    // 5sim 만료와 3분 중 먼저 오는 쪽까지만 대기(카운트다운도 이 값 기준).
+    const raw = data.expires ? new Date(data.expires).getTime() : Date.now() + 15 * 60 * 1000;
+    const deadline = Math.min(raw, Date.now() + SMS_WAIT_MS);
 
     setRentalId(data.rentalId);
     setPhone(data.phone || "");
@@ -363,14 +370,24 @@ export default function NumberAuth({ initialPoint }: Props) {
     const myGen = ++pollGenRef.current;
     setRunning(true);
     setStatus("SMS 코드 수신 대기 중…");
-    // 절대 상한(만료 정보 없거나 잘못돼도 무한루프 방지)
-    const hardStop = Math.min(deadline ?? Infinity, Date.now() + 20 * 60 * 1000);
+    // 3분(또는 5sim 만료) 상한. 만료 정보 없거나 잘못돼도 무한루프 방지.
+    const hardStop = Math.min(deadline ?? Infinity, Date.now() + SMS_WAIT_MS);
     while (pollGenRef.current === myGen) {
       await new Promise((r) => setTimeout(r, 2500));
       if (pollGenRef.current !== myGen) return; // 다른 폴링/취소로 무효화됨
       if (Date.now() >= hardStop) {
-        setStatus("번호가 만료되었습니다. 다시 받아주세요.");
+        // 문자 미수신 → 폴링 종료 + 5sim 번호 즉시 취소(잔액 반환).
+        pollGenRef.current++;
+        fetch("/api/sms/ban", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rentalId: id }),
+        }).catch(() => {});
+        setStatus("문자가 오지 않아 번호를 자동 취소했어요. 다른 국가·서비스로 다시 받아주세요.");
         setRunning(false);
+        setPhone("");
+        setExpiresAt(null);
+        setRemain(null);
         return;
       }
       try {

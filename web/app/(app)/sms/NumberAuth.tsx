@@ -127,6 +127,23 @@ function CompareTable({
   const sorted = [...rows].sort(
     (a, b) => (favValues.has(b.value) ? 1 : 0) - (favValues.has(a.value) ? 1 : 0),
   );
+
+  const listRef = useRef<HTMLUListElement>(null);
+  const selectedRef = useRef<HTMLLIElement>(null);
+
+  // 추천 칩으로 선택하면 목록에서는 화면 밖에 있을 수 있다 → 목록을 그 항목까지 스크롤.
+  // scrollIntoView는 조상까지 스크롤해 페이지가 튀므로, 목록 컨테이너만 직접 움직인다.
+  useEffect(() => {
+    const list = listRef.current;
+    const item = selectedRef.current;
+    if (!list || !item) return;
+    const lr = list.getBoundingClientRect();
+    const ir = item.getBoundingClientRect();
+    if (ir.top < lr.top || ir.bottom > lr.bottom) {
+      list.scrollTo({ top: list.scrollTop + (ir.top - lr.top), behavior: "smooth" });
+    }
+  }, [selected, rows]);
+
   return (
     <div>
       <p className="mb-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-zinc-700">
@@ -145,12 +162,16 @@ function CompareTable({
         </p>
       ) : (
         <div className="overflow-hidden rounded-xl border border-black/10">
-          <ul className="max-h-80 divide-y divide-black/5 overflow-auto">
+          <ul ref={listRef} className="max-h-80 divide-y divide-black/5 overflow-auto">
             {sorted.map((r) => {
               const sel = selected === r.value;
               const fav = favValues.has(r.value);
               return (
-                <li key={r.value} className={`flex items-stretch ${sel ? "bg-emerald-50" : ""}`}>
+                <li
+                  key={r.value}
+                  ref={sel ? selectedRef : undefined}
+                  className={`flex items-stretch ${sel ? "bg-emerald-50" : ""}`}
+                >
                   <button
                     type="button"
                     onClick={() => onToggleFav(r.value)}

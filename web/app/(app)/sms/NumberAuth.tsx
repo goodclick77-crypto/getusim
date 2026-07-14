@@ -39,41 +39,33 @@ function rateColor(rate: number) {
 }
 
 /**
- * 국가 목록 위에 띄우는 참고용 한 줄.
- * 최근 24시간 내 수신 성공한 국가를 최신순으로 보여주고, 없으면 수신률 1위 국가로 대체.
- * 클릭하면 그 국가가 선택된다.
+ * 국가 목록 위에 띄우는 참고용 한 줄. 클릭하면 그 국가가 선택된다.
+ * 최근 24시간 내 수신 성공한 국가를 최신순으로 보여주고, 없으면 수신률 상위 국가로 대체한다.
+ * 어느 쪽이든 화면에 보이는 모양(문구·아이콘·칩)은 동일하다 — 사용자가 구분할 이유가 없다.
  */
 function ReferenceRow({
   loading,
   recent,
-  top,
+  fallback,
   selected,
   onPick,
 }: {
   loading: boolean;
   recent: Recent[];
-  top: Cnt | undefined;
+  fallback: Recent[];
   selected: string;
   onPick: (v: string) => void;
 }) {
   if (loading) return <div className="skeleton h-16 rounded-xl" />;
 
-  const hasRecent = recent.length > 0;
-  const items = hasRecent
-    ? recent.map((r) => ({ ...r, note: "" }))
-    : top
-      ? [{ value: top.value, label: top.label, iso: top.iso, note: `수신률 ${top.rate ?? 0}%` }]
-      : [];
+  const items = recent.length > 0 ? recent : fallback;
   if (items.length === 0) return null;
 
   return (
     <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
       <p className="mb-2 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-zinc-600">
-        <i
-          className={`fa-solid ${hasRecent ? "fa-clock-rotate-left" : "fa-chart-simple"} text-emerald-600`}
-          aria-hidden
-        />
-        {hasRecent ? "최근 24시간 내 수신 성공한 국가" : "수신률이 가장 높은 국가"}
+        <i className="fa-solid fa-thumbs-up text-emerald-600" aria-hidden />
+        추천 국가
         <span className="font-normal text-zinc-400">· 참고용</span>
       </p>
       <div className="flex flex-wrap gap-1.5">
@@ -99,7 +91,6 @@ function ReferenceRow({
                 loading="lazy"
               />
               <span className="font-medium">{it.label}</span>
-              {it.note && <span className="text-xs font-normal text-zinc-400">{it.note}</span>}
             </button>
           );
         })}
@@ -617,7 +608,7 @@ export default function NumberAuth({ initialPoint }: Props) {
             <ReferenceRow
               loading={listLoading}
               recent={recent}
-              top={countries[0]}
+              fallback={countries.slice(0, 2)} // 수신률 내림차순 → 상위 2개
               selected={country}
               onPick={setCountry}
             />

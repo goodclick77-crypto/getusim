@@ -24,7 +24,7 @@ type Cnt = {
   rate?: number;
   stock?: number;
 };
-type Recent = { value: string; label: string; iso: string; at: string };
+type Recent = { value: string; label: string; iso: string };
 
 // 인증문자는 보통 1~2분 내 도착 → 그 안에 안 오면 사실상 안 옴.
 // 최대 3분만 기다리다 자동 포기하고 5sim 번호를 취소(잔액 즉시 반환)한다.
@@ -38,18 +38,9 @@ function rateColor(rate: number) {
       : "bg-red-100 text-red-600";
 }
 
-function timeAgo(iso: string) {
-  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (min < 1) return "방금";
-  if (min < 60) return `${min}분 전`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}시간 전`;
-  return `${Math.floor(hr / 24)}일 전`;
-}
-
 /**
  * 국가 목록 위에 띄우는 참고용 한 줄.
- * 최근 수신 성공한 국가를 우선 보여주고, 성공 이력이 없으면 수신률 1위 국가로 대체.
+ * 최근 24시간 내 수신 성공한 국가를 최신순으로 보여주고, 없으면 수신률 1위 국가로 대체.
  * 클릭하면 그 국가가 선택된다.
  */
 function ReferenceRow({
@@ -69,7 +60,7 @@ function ReferenceRow({
 
   const hasRecent = recent.length > 0;
   const items = hasRecent
-    ? recent.map((r) => ({ ...r, note: timeAgo(r.at) }))
+    ? recent.map((r) => ({ ...r, note: "" }))
     : top
       ? [{ value: top.value, label: top.label, iso: top.iso, note: `수신률 ${top.rate ?? 0}%` }]
       : [];
@@ -82,10 +73,8 @@ function ReferenceRow({
           className={`fa-solid ${hasRecent ? "fa-clock-rotate-left" : "fa-chart-simple"} text-emerald-600`}
           aria-hidden
         />
-        {hasRecent ? "최근 수신 성공한 국가" : "수신률이 가장 높은 국가"}
-        <span className="font-normal text-zinc-400">
-          · 참고용{hasRecent ? "" : " (최근 성공 내역 없음)"}
-        </span>
+        {hasRecent ? "최근 24시간 내 수신 성공한 국가" : "수신률이 가장 높은 국가"}
+        <span className="font-normal text-zinc-400">· 참고용</span>
       </p>
       <div className="flex flex-wrap gap-1.5">
         {items.map((it) => {
@@ -110,7 +99,7 @@ function ReferenceRow({
                 loading="lazy"
               />
               <span className="font-medium">{it.label}</span>
-              <span className="text-xs font-normal text-zinc-400">{it.note}</span>
+              {it.note && <span className="text-xs font-normal text-zinc-400">{it.note}</span>}
             </button>
           );
         })}

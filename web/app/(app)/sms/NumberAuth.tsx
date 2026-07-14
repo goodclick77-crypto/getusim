@@ -126,9 +126,12 @@ function CompareTable({
   );
   return (
     <div>
-      <p className="mb-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-zinc-700">
+      <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-zinc-700">
         <i className="fa-solid fa-list-check text-emerald-600" aria-hidden /> {colLabel} 선택
         <span className="text-xs font-normal text-zinc-400">· 참고용 추정치 · 수신률 높은 순</span>
+      </p>
+      <p className="mb-1.5 text-xs text-zinc-400">
+        수신률은 네트워크 환경에 따라 달라질 수 있습니다.
       </p>
       {loading ? (
         <div className="space-y-2">

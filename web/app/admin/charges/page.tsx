@@ -33,7 +33,10 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const PER = 60;
-const DEPOSIT_MATCH_WINDOW_DAYS = 14;
+/** 미매칭 입금에 수동 연결할 주문 후보를 찾는 기간(일).
+ * 금액만으로 후보를 잡으므로 기간이 길수록 남의 주문이 대거 섞여 오선택 위험이 커진다.
+ * 입금은 보통 신청 당일~며칠 내에 들어오므로 짧게 잡는다. */
+const DEPOSIT_MATCH_WINDOW_DAYS = 7;
 
 export default async function AdminChargesPage({
   searchParams,
@@ -93,11 +96,12 @@ export default async function AdminChargesPage({
     }),
     // 실제 미매칭(금액 있는 실입금) 총 건수 — 배지 표시용(목록 상한과 무관)
     prisma.depositLog.count({ where: { matched: false, amount: { gt: 0 } } }),
-    // 미매칭 입금을 수동 연결할 후보. 입금대기(아직 지급 전)뿐 아니라
-    // 이미 완료된 주문도 포함 — 예전에 수동 지급해 완료된 건은 완료 주문에
-    // 사후 연결(재지급 없이 매칭 표시만)해야 미매칭이 풀리기 때문.
+    // 미매칭 입금을 수동 연결할 후보 = 아직 지급 안 된 입금대기 주문만.
+    // 완료 주문은 넣지 않는다: 수동 지급 시 completeCharge 가 미매칭 입금로그를
+    // 이미 자동 연결하므로(lib/charge.ts) 중복이고, 이미 지급된 주문에 관리자가
+    // 실수로 또 연결하는 통로만 열어준다. 남는 로그는 "미매칭 해제"로 정리한다.
     prisma.chargeOrder.findMany({
-      where: { status: { in: ["PENDING", "COMPLETED"] }, createdAt: { gte: since } },
+      where: { status: "PENDING", charged: false, createdAt: { gte: since } },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -127,12 +131,12 @@ export default async function AdminChargesPage({
     if (!d.depositorName.trim()) return "입금자명 파싱 실패";
 
     const sameAmount = matchCandidates.filter((o) => o.amount === d.amount);
-    if (sameAmount.length === 0) return "같은 금액의 주문 없음";
+    if (sameAmount.length === 0) return "같은 금액의 입금대기 주문 없음 (이미 지급했다면 해제)";
 
     const sameName = sameAmount.some((o) => norm(o.depositName) === norm(d.depositorName));
     return sameName
-      ? "같은 이름·금액 주문이 있음 (아직 연결 안 됨)"
-      : "금액은 맞지만 입금자명이 다른 주문만 있음";
+      ? "같은 이름·금액의 입금대기 주문이 있음 (아직 연결 안 됨)"
+      : "금액은 맞지만 입금자명이 다른 입금대기 주문만 있음";
   };
 
   // 날짜별 그룹
@@ -218,10 +222,16 @@ export default async function AdminChargesPage({
           </summary>
           <ul className="mt-3 space-y-1.5">
             {deposits.map((d) => {
-              const candidates = matchCandidates.filter((o) => o.amount === d.amount);
-              const sameNameCandidates = candidates.filter(
-                (o) => norm(o.depositName) === norm(d.depositorName),
-              );
+              const sameAmount = matchCandidates.filter((o) => o.amount === d.amount);
+              const isSameName = (o: (typeof matchCandidates)[number]) =>
+                norm(o.depositName) === norm(d.depositorName);
+              const sameNameCandidates = sameAmount.filter(isSameName);
+              // 입금자명이 같은 주문을 맨 위로 — 미매칭은 이름이 안 맞는 건이라 이름으로
+              // 거를 수는 없지만, 맞는 게 있으면 그게 정답일 확률이 가장 높다.
+              const candidates = [
+                ...sameNameCandidates,
+                ...sameAmount.filter((o) => !isSameName(o)),
+              ];
               const unmatched = !d.matched && d.amount > 0;
 
               return (
@@ -252,15 +262,21 @@ export default async function AdminChargesPage({
                           <input type="hidden" name="depositId" value={d.id} />
                           <select
                             name="orderId"
+                            required
+                            defaultValue=""
                             aria-label="연결할 주문"
                             className="glass min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-xs outline-none"
                           >
+                            {/* 기본 선택을 비워둔다 — 첫 항목이 자동 선택돼 있으면
+                                관리자가 무심코 눌러 엉뚱한 회원에게 지급될 수 있다. */}
+                            <option value="" disabled>
+                              — 연결할 주문 선택 —
+                            </option>
                             {candidates.map((o) => (
                               <option key={o.id} value={o.id}>
-                                [{o.status === "COMPLETED" ? "완료" : "대기"}] #{o.id} ·{" "}
-                                {o.depositName || "(입금자명 없음)"} ·{" "}
+                                #{o.id} · {o.depositName || "(입금자명 없음)"} ·{" "}
                                 {o.user.name || o.user.loginId} · {ymd(o.createdAt).slice(5)}
-                                {sameNameCandidates.some((s) => s.id === o.id) ? " · 이름일치" : ""}
+                                {isSameName(o) ? " · 이름일치" : ""}
                               </option>
                             ))}
                           </select>
@@ -275,7 +291,8 @@ export default async function AdminChargesPage({
                         <form action={dismissDeposit} className="mt-1.5 flex items-center gap-2">
                           <input type="hidden" name="depositId" value={d.id} />
                           <span className="text-xs text-zinc-400">
-                            같은 금액({won(d.amount)})의 주문이 없습니다.
+                            같은 금액({won(d.amount)})의 입금대기 주문이 없습니다. 이미 수동
+                            지급했다면 해제하세요.
                           </span>
                           <ConfirmButton
                             message={`이 입금(${d.depositorName || "?"} · ${won(d.amount)})을 미매칭 해제(수동 확인)할까요? 포인트 지급 없이 표시만 정리됩니다.`}

@@ -24,6 +24,7 @@ type Cnt = {
   rate?: number;
   stock?: number;
 };
+type Recent = { value: string; label: string; iso: string; at: string };
 
 // 인증문자는 보통 1~2분 내 도착 → 그 안에 안 오면 사실상 안 옴.
 // 최대 3분만 기다리다 자동 포기하고 5sim 번호를 취소(잔액 즉시 반환)한다.
@@ -35,6 +36,87 @@ function rateColor(rate: number) {
     : rate >= 20
       ? "bg-amber-100 text-amber-700"
       : "bg-red-100 text-red-600";
+}
+
+function timeAgo(iso: string) {
+  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return "방금";
+  if (min < 60) return `${min}분 전`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}시간 전`;
+  return `${Math.floor(hr / 24)}일 전`;
+}
+
+/**
+ * 국가 목록 위에 띄우는 참고용 한 줄.
+ * 최근 수신 성공한 국가를 우선 보여주고, 성공 이력이 없으면 수신률 1위 국가로 대체.
+ * 클릭하면 그 국가가 선택된다.
+ */
+function ReferenceRow({
+  loading,
+  recent,
+  top,
+  selected,
+  onPick,
+}: {
+  loading: boolean;
+  recent: Recent[];
+  top: Cnt | undefined;
+  selected: string;
+  onPick: (v: string) => void;
+}) {
+  if (loading) return <div className="skeleton h-16 rounded-xl" />;
+
+  const hasRecent = recent.length > 0;
+  const items = hasRecent
+    ? recent.map((r) => ({ ...r, note: timeAgo(r.at) }))
+    : top
+      ? [{ value: top.value, label: top.label, iso: top.iso, note: `수신률 ${top.rate ?? 0}%` }]
+      : [];
+  if (items.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+      <p className="mb-2 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-zinc-600">
+        <i
+          className={`fa-solid ${hasRecent ? "fa-clock-rotate-left" : "fa-chart-simple"} text-emerald-600`}
+          aria-hidden
+        />
+        {hasRecent ? "최근 수신 성공한 국가" : "수신률이 가장 높은 국가"}
+        <span className="font-normal text-zinc-400">
+          · 참고용{hasRecent ? "" : " (최근 성공 내역 없음)"}
+        </span>
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((it) => {
+          const sel = selected === it.value;
+          return (
+            <button
+              key={it.value}
+              type="button"
+              onClick={() => onPick(it.value)}
+              aria-pressed={sel}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm transition ${
+                sel
+                  ? "border-emerald-500 bg-white font-bold"
+                  : "border-black/10 bg-white/80 hover:border-emerald-300"
+              }`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`https://flagcdn.com/w40/${it.iso}.png`}
+                alt=""
+                className="h-3.5 w-5 shrink-0 rounded-[2px] object-cover shadow-sm"
+                loading="lazy"
+              />
+              <span className="font-medium">{it.label}</span>
+              <span className="text-xs font-normal text-zinc-400">{it.note}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 type Row = { value: string; label: string; img: string; rate: number; stock: number; price: number };
@@ -161,6 +243,7 @@ export default function NumberAuth({ initialPoint }: Props) {
   const [mode, setMode] = useState<"country" | "service">("country");
   const [services, setServices] = useState<Svc[]>([]);
   const [countries, setCountries] = useState<Cnt[]>([]);
+  const [recent, setRecent] = useState<Recent[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [favs, setFavs] = useState<Set<string>>(new Set()); // `${kind}:${value}`
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
@@ -254,15 +337,21 @@ export default function NumberAuth({ initialPoint }: Props) {
     };
   }, [mode, country]);
 
-  // 서비스 모드: 서비스 선택 → 잘 받아지는 국가 목록
+  // 서비스 모드: 서비스 선택 → 잘 받아지는 국가 목록 + 최근 성공 국가(참고용)
   useEffect(() => {
     if (mode !== "service" || !service) {
       setCountries([]);
+      setRecent([]);
       return;
     }
     let alive = true;
     setListLoading(true);
     setCountries([]);
+    setRecent([]);
+    fetch(`/api/sms/recent?service=${service}`)
+      .then((r) => r.json())
+      .then((j) => alive && setRecent(j.countries || []))
+      .catch(() => {}); // 참고 정보 — 실패해도 국가 목록은 그대로 뜬다
     fetch(`/api/sms/countries?service=${service}`)
       .then((r) => r.json())
       .then((j) => alive && setCountries(j.countries || []))
@@ -531,6 +620,17 @@ export default function NumberAuth({ initialPoint }: Props) {
                 stock: s.stock ?? 0,
                 price: s.price ?? 0,
               }))}
+            />
+          )}
+
+          {/* 서비스모드: 최근 성공 국가(참고용) */}
+          {mode === "service" && service && (
+            <ReferenceRow
+              loading={listLoading}
+              recent={recent}
+              top={countries[0]}
+              selected={country}
+              onPick={setCountry}
             />
           )}
 

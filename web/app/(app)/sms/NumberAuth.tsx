@@ -610,7 +610,9 @@ export default function NumberAuth({ initialPoint }: Props) {
           {mode === "service" && service && (
             <ReferenceRow
               loading={listLoading}
-              recent={recent}
+              // 추천은 과거 수신 성공 이력이라 현재 재고를 모른다. 지금 발급 가능한 국가(countries)에
+              // 없는 건 빼야 한다 — 안 그러면 추천엔 있는데 아래 목록엔 없는 국가를 눌러 헛걸음한다.
+              recent={recent.filter((r) => countries.some((c) => c.value === r.value))}
               fallback={countries.slice(0, 2)} // 수신률 내림차순 → 상위 2개
               selected={country}
               onPick={setCountry}

@@ -4,10 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { parseDeposit } from "@/lib/bank";
 import { completeCharge } from "@/lib/charge";
 import { notifyAdmin } from "@/lib/notify";
+import { DEPOSIT_MATCH_WINDOW_DAYS, normDepositName } from "@/lib/config";
 
 // 은행 입금 알림(폰 SMS 포워딩) 수신 → 충전 주문 자동 매칭/지급.
 // 보안: 환경변수 DEPOSIT_WEBHOOK_TOKEN 과 일치하는 X-Webhook-Token 헤더 필요.
-const MATCH_WINDOW_DAYS = 14;
 
 // 타이밍 공격 방지용 상수시간 비교(길이 동일화를 위해 해시 후 비교)
 function tokenEquals(a: string, b: string): boolean {
@@ -63,8 +63,7 @@ export async function POST(req: Request) {
     //   · 지급 성공 시 completeCharge 가 방금 만든 입금로그를 matched 로 연결한다.
     let matched = false;
     if (parsed && parsed.amount > 0 && parsed.name) {
-      const norm = (s: string) => s.replace(/\s/g, "");
-      const since = new Date(Date.now() - MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+      const since = new Date(Date.now() - DEPOSIT_MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000);
       const candidates = await prisma.chargeOrder.findMany({
         where: {
           status: "PENDING",
@@ -74,7 +73,9 @@ export async function POST(req: Request) {
         },
         orderBy: { createdAt: "asc" },
       });
-      const hits = candidates.filter((o) => norm(o.depositName) === norm(parsed.name));
+      const hits = candidates.filter(
+        (o) => normDepositName(o.depositName) === normDepositName(parsed.name),
+      );
       if (hits.length >= 1) {
         matched = await completeCharge(hits[0].id, parsed.amount, true);
       }

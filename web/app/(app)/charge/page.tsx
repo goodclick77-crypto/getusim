@@ -2,10 +2,11 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymdhm } from "@/lib/format";
 import { BANK_INFO, CHARGE_POINT_UNITS, CHARGE_FEE_RATE } from "@/lib/config";
-import { createChargeRequest } from "./actions";
+import { createChargeRequest, cancelChargeRequest } from "./actions";
 import ChargeForm from "./ChargeForm";
 import Reveal from "@/components/Reveal";
 import CopyButton from "@/components/CopyButton";
+import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +21,16 @@ const STATUS_STYLE: Record<string, string> = {
   CANCELED: "bg-zinc-200 text-zinc-500",
 };
 
+const ERROR_MSG: Record<string, string> = {
+  dup: "같은 금액·입금자명의 충전 신청이 이미 입금대기 중입니다. 해당 신청 건으로 입금하시거나, 아래 내역에서 기존 신청을 취소한 뒤 다시 신청해 주세요.",
+  amount: "충전 금액이 올바르지 않습니다. 다시 선택해 주세요.",
+  deposit: "입금자명을 입력해 주세요.",
+};
+
 export default async function ChargePage({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; error?: string }>;
+  searchParams: Promise<{ ok?: string; error?: string; canceled?: string }>;
 }) {
   const user = await requireUser();
   const sp = await searchParams;
@@ -87,6 +94,28 @@ export default async function ChargePage({
             <b>충전 신청이 완료되었습니다.</b> 같은 신청이 중복되지 않도록 버튼을 다시 누르지
             마시고, 아래 계좌로 입금해 주시면 확인 후 포인트가 지급됩니다.
           </span>
+        </p>
+      )}
+
+      {sp.canceled && (
+        <p
+          role="alert"
+          aria-live="polite"
+          className="glass flex items-start gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700"
+        >
+          <i className="fa-solid fa-circle-check mt-0.5 text-zinc-400" aria-hidden />
+          <span>충전 신청을 취소했습니다. 새로 신청하실 수 있습니다.</span>
+        </p>
+      )}
+
+      {sp.error && ERROR_MSG[sp.error] && (
+        <p
+          role="alert"
+          aria-live="polite"
+          className="glass flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        >
+          <i className="fa-solid fa-triangle-exclamation mt-0.5 text-amber-600" aria-hidden />
+          <span>{ERROR_MSG[sp.error]}</span>
         </p>
       )}
 
@@ -160,6 +189,17 @@ export default async function ChargePage({
                     >
                       {STATUS_LABEL[it.status]}
                     </span>
+                    {it.status === "PENDING" && (
+                      <form action={cancelChargeRequest} className="shrink-0">
+                        <input type="hidden" name="id" value={it.id} />
+                        <ConfirmButton
+                          message="이 충전 신청을 취소할까요? 아직 입금하지 않으셨다면 취소해도 됩니다."
+                          className="rounded-md border border-black/10 px-2.5 py-1 text-xs font-medium text-zinc-500 transition hover:bg-black/[0.03] hover:text-zinc-700"
+                        >
+                          취소
+                        </ConfirmButton>
+                      </form>
+                    )}
                   </li>
                 );
               }

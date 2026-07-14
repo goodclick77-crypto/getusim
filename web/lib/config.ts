@@ -19,6 +19,19 @@ export function chargeAmount(point: number): number {
   return Math.round(point * CHARGE_FEE_RATE);
 }
 
+/**
+ * 입금 자동매칭 유효기간(일).
+ * 이 기간이 지난 입금대기 주문은 ① 웹훅 매칭 대상에서 빠지고 ② 자동 취소되며
+ * ③ 중복신청 차단 대상에서도 빠진다 — 셋이 어긋나면 죽은 주문이 새 신청을 막거나,
+ * 자동취소된 주문에 뒤늦은 입금이 매칭되지 못하는 구멍이 생긴다.
+ */
+export const DEPOSIT_MATCH_WINDOW_DAYS = 14;
+
+/** 입금자명 비교용 정규화 — "김 철수"와 "김철수"를 같은 이름으로 본다. */
+export function normDepositName(s: string): string {
+  return s.replace(/\s/g, "");
+}
+
 // ---------------- SMS 인증(5sim) ----------------
 
 /** 기본/최소 차감 포인트 (싼 서비스) */

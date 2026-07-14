@@ -51,8 +51,11 @@ export function smsPointPrice(usd: number, rate: number = SMS_USD_TO_KRW): numbe
  * 마진을 더 타이트하게 하려면 FIVESIM_MAX_PRICE 환경변수로 낮추세요. */
 export const FIVESIM_MAX_PRICE = Number(process.env.FIVESIM_MAX_PRICE || 10);
 
-/** 통신사 자동선택 시 최소 재고 (원본: 10개 초과) */
-export const FIVESIM_MIN_STOCK = Number(process.env.FIVESIM_MIN_STOCK || 10);
+/** 노출·구매 최소 재고. 이 값 "이하"면 제외하므로 0이면 재고 1개부터 허용.
+ * 재고 수는 살 수 있느냐일 뿐 잘 받아지느냐가 아니다(그건 rate가 판단).
+ * 재고로 거르면 수신률 높은데 물량만 적은 국가까지 숨겨져 선택지가 줄어든다.
+ * 재고가 없으면 5sim이 실패를 돌려주고 발급은 무료라 헛구매 손실도 없다. */
+export const FIVESIM_MIN_STOCK = Number(process.env.FIVESIM_MIN_STOCK || 0);
 
 /** 목록 노출 최소 수신률(%). 이 값 이하(예: 10% 이하)는 숨김 */
 export const FIVESIM_MIN_RATE = Number(process.env.FIVESIM_MIN_RATE || 10);

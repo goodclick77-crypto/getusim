@@ -4,8 +4,30 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { completeCharge } from "@/lib/charge";
+import { completeCharge, expireStaleChargeOrders } from "@/lib/charge";
+import { expireStaleRentals } from "@/lib/rentals";
 import { adjustPoint, InsufficientPointError } from "@/lib/points";
+
+/**
+ * 방치된 건 정리를 관리자가 수동 실행. (/api/cron/sweep 과 같은 작업 — 크론 미설정 시 대체)
+ *  · 만료된 SMS 발급건: 코드 도착했으면 정산, 아니면 5sim 취소(원가 환불)
+ *  · 자동매칭 기간이 지난 미입금 충전 주문: 취소
+ */
+export async function runSweep() {
+  await requireAdmin();
+
+  // 한쪽이 실패해도 다른 쪽은 진행
+  const [, charges] = await Promise.allSettled([
+    expireStaleRentals(),
+    expireStaleChargeOrders(),
+  ]);
+  const canceled = charges.status === "fulfilled" ? charges.value : 0;
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/rentals");
+  revalidatePath("/admin/charges");
+  redirect(`/admin?swept=${canceled}`);
+}
 
 /** 입금확인 → 포인트 지급 (멱등) */
 export async function confirmCharge(formData: FormData) {

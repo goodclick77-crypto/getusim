@@ -3,12 +3,12 @@ import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { COUNTRIES, SERVICES } from "@/lib/config";
 
-/** 최근 성공 이력 조회 기간. 오래된 성공은 참고 가치가 없으므로 짧게 끊는다. */
-const WINDOW_MS = 24 * 60 * 60 * 1000;
+/** 최근 성공 이력 조회 기간. 너무 짧으면 성공 이력이 있어도 못 잡아 수신률 폴백으로 빠진다. */
+const WINDOW_MS = 72 * 60 * 60 * 1000;
 /** 참고용으로 보여줄 국가 수 */
 const MAX_COUNTRIES = 2;
 
-// 서비스 선택 시 "최근 수신 성공한 국가" (참고용). 회원 전체 기준 최근 24시간.
+// 서비스 선택 시 "최근 수신 성공한 국가" (참고용). 회원 전체 기준 최근 72시간.
 export async function GET(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ countries: [] }, { status: 401 });

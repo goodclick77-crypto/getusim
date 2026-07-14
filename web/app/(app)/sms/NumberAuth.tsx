@@ -638,17 +638,6 @@ export default function NumberAuth({ initialPoint }: Props) {
             />
           )}
 
-          {/* 낮은 수신률 경고 */}
-          {selected && (selected.rate ?? 0) < 20 && (
-            <div className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
-              <i className="fa-solid fa-triangle-exclamation mt-0.5" aria-hidden />
-              <span>
-                이 조합은 수신률이 낮습니다({selected.rate}%). 수신률이 더 높은 다른
-                국가/서비스를 추천합니다.
-              </span>
-            </div>
-          )}
-
           {/* 액션 */}
           <div className="flex gap-2">
             <button

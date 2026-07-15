@@ -768,9 +768,10 @@ export default function NumberAuth({ initialPoint }: Props) {
         )}
       </div>
 
-      <p className="rounded-lg bg-amber-50 px-4 py-3 text-xs text-amber-700">
-        수신번호가 오지 않거나 응답 실패 시 “밴넘버”를 눌러주세요. 인증번호 수신 후에는
-        환불이 불가능합니다. 현지 법률·규정을 준수하여 합법적인 용도로만 사용하세요.
+      <p className="rounded-lg bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-700">
+        번호를 받은 뒤 문자가 오지 않으면 꼭 “밴넘버”를 눌러주세요. 밴넘버를 누르지 않고 그냥
+        창을 닫으면, 이후 인증문자가 도착했을 때 포인트가 차감될 수 있습니다. 인증번호 수신
+        후에는 환불이 불가능하며, 합법적인 용도로만 사용하셔야 합니다.
       </p>
 
     </div>

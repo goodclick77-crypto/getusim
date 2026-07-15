@@ -40,6 +40,14 @@ export const SMS_BASE_POINT = Number(process.env.SMS_BASE_POINT || 1000);
 /** 번호 발급 시도를 위한 최소 보유 포인트 */
 export const SMS_MIN_POINT = SMS_BASE_POINT;
 
+/**
+ * 코드 수신을 기다리는 시간(ms). 이 시간이 지난 미수신 건은 자동으로 밴(취소)한다.
+ * 클라이언트 카운트다운(NumberAuth의 SMS_WAIT_MS)과 동일해야 한다 — 사용자가
+ * "밴넘버"를 안 누르고 브라우저를 닫아도, 서버 스케줄러가 이 시간 기준으로 대신 밴을
+ * 눌러줘서 5sim 번호가 방치된 채 뒤늦게 과금되는 손실을 막는다.
+ */
+export const SMS_WAIT_MS = Number(process.env.SMS_WAIT_MS || 3 * 60 * 1000);
+
 /** 정액(1000P) 적용 상한 원가(USD). 이하면 1000P 정액 */
 export const SMS_FREE_THRESHOLD_USD = Number(process.env.SMS_FREE_THRESHOLD_USD || 0.3);
 /** USD→원 환산 (마진 계산용) */

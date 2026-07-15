@@ -5,6 +5,7 @@ import { won, pt } from "@/lib/format";
 import { fivesim } from "@/lib/fivesim";
 import Tilt from "@/components/Tilt";
 import ConfirmButton from "@/components/ConfirmButton";
+import { lastSweptAt } from "@/lib/sweep-status";
 import { runSweep } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,11 @@ export default async function AdminPage({
 }) {
   await requireAdmin();
   const sp = await searchParams;
+
+  // 앱 내장 스케줄러 생존 확인용 하트비트. 30초 주기라 90초 넘게 소식 없으면 멈춘 것.
+  const sweptAt = lastSweptAt();
+  const sweptAgoSec = sweptAt !== null ? Math.max(0, Math.round((Date.now() - sweptAt) / 1000)) : null;
+  const schedulerAlive = sweptAgoSec !== null && sweptAgoSec < 90;
   const [userCount, pointSum, pendingCharges, openInquiries, todayCharge, fivesimBalance] =
     await Promise.all([
       prisma.user.count(),
@@ -116,15 +122,33 @@ export default async function AdminPage({
         </p>
       )}
 
-      {/* 방치된 건 정리 — 크론 미설정 시 여기서 수동 실행 */}
+      {/* 방치된 건 정리 — 평소엔 스케줄러가 자동, 즉시 정리가 필요할 때만 수동 */}
       <form action={runSweep} className="glass flex items-center gap-3 rounded-2xl px-4 py-3">
         <i className="fa-solid fa-broom text-emerald-600" aria-hidden />
         <span className="min-w-0 flex-1 text-sm text-zinc-600">
           <b className="text-zinc-800">방치된 건 정리</b>
+          {/* 자동 스케줄러 생존 표시 — 초록이면 정상, 빨강이면 스케줄러 멈춤(재배포 필요) */}
+          <span
+            className={`ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+              schedulerAlive
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-red-100 text-red-600"
+            }`}
+          >
+            <i
+              className={`fa-solid ${schedulerAlive ? "fa-circle-play" : "fa-circle-exclamation"}`}
+              aria-hidden
+            />
+            {sweptAgoSec === null
+              ? "자동 정리 대기 중"
+              : schedulerAlive
+                ? `자동 정리 작동 중 · ${sweptAgoSec}초 전`
+                : `자동 정리 멈춤 · ${sweptAgoSec}초째 소식 없음`}
+          </span>
           <br />
           <span className="text-xs text-zinc-500">
             대기 중 창을 닫아 버려진 발급번호를 5sim에서 취소(원가 환불)하고, 14일 지난 미입금
-            충전신청을 정리합니다.
+            충전신청을 정리합니다. 평소엔 30초마다 자동 실행되며, 아래 버튼은 즉시 실행용입니다.
           </span>
         </span>
         <ConfirmButton

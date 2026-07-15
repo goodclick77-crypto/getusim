@@ -469,13 +469,27 @@ export default function NumberAuth({ initialPoint }: Props) {
       await new Promise((r) => setTimeout(r, 2500));
       if (pollGenRef.current !== myGen) return; // 다른 폴링/취소로 무효화됨
       if (Date.now() >= hardStop) {
-        // 문자 미수신 → 폴링 종료 + 5sim 번호 즉시 취소(잔액 반환).
+        // 3분 경과 → 폴링 종료 + 5sim 번호 자동 밴(잔액 반환).
+        // 단, 밴 직전 코드가 도착했을 수 있어 서버가 정산 후 received로 알려주면 코드를 보여준다.
         pollGenRef.current++;
-        fetch("/api/sms/ban", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rentalId: id }),
-        }).catch(() => {});
+        try {
+          const res = await fetch("/api/sms/ban", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rentalId: id }),
+          });
+          const j = await res.json();
+          if (j.received && j.code) {
+            setCode(j.code);
+            setStatus("인증코드 수신 완료");
+            if (typeof j.balanceAfter === "number") setPoint(Math.max(0, j.balanceAfter));
+            else setPoint((p) => Math.max(0, p - charged));
+            setRunning(false);
+            return;
+          }
+        } catch {
+          /* 밴 요청 실패는 무시 — 서버 스케줄러가 정리한다 */
+        }
         setStatus("문자가 오지 않아 번호를 자동 취소했어요. 다른 국가·서비스로 다시 받아주세요.");
         setRunning(false);
         setPhone("");
@@ -507,12 +521,21 @@ export default function NumberAuth({ initialPoint }: Props) {
     pollGenRef.current++; // 폴링 중단
     setRunning(false);
     setExpiresAt(null);
+    // 밴 직전 코드가 도착했으면 서버가 정산 후 received로 알려준다 → 코드 표시(차감 반영).
     try {
-      await fetch("/api/sms/ban", {
+      const res = await fetch("/api/sms/ban", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rentalId }),
       });
+      const j = await res.json();
+      if (j.received && j.code) {
+        setCode(j.code);
+        setStatus("인증코드 수신 완료");
+        if (typeof j.balanceAfter === "number") setPoint(Math.max(0, j.balanceAfter));
+        setRemain(null);
+        return;
+      }
     } catch {}
     setStatus("번호를 밴 처리했습니다. 다시 번호를 받아주세요.");
     setPhone("");

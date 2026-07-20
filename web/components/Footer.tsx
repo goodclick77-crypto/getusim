@@ -21,7 +21,7 @@ export default function Footer() {
               <p>사업자등록번호 : 843-08-01310</p>
               <p>주소 : 경기도 양주시 고읍남로39번길 48</p>
               <p>
-                TEL : 1899-6046 | E-mail :{" "}
+                E-mail :{" "}
                 <a href="mailto:ejh0938@naver.com" className="hover:text-zinc-700">
                   ejh0938@naver.com
                 </a>

@@ -22,8 +22,8 @@ export default function Footer() {
               <p>주소 : 경기도 양주시 고읍남로39번길 48</p>
               <p>
                 E-mail :{" "}
-                <a href="mailto:ejh0938@naver.com" className="hover:text-zinc-700">
-                  ejh0938@naver.com
+                <a href="mailto:admin@getusim.com" className="hover:text-zinc-700">
+                  admin@getusim.com
                 </a>
               </p>
             </address>

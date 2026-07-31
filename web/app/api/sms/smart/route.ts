@@ -10,6 +10,7 @@ import {
   deliveryRate,
   smsPointPrice,
 } from "@/lib/config";
+import { isUnavailable } from "@/lib/unavailable";
 
 // 스마트 발급 — 서비스만 받아서 "지금 가장 잘 받아지는" 국가·통신사 하나를 골라준다.
 // 회원이 국가 목록에서 직접 고를 때 놓치기 쉬운 최적 조합을 대신 집어주는 역할.
@@ -44,6 +45,8 @@ export async function GET(req: Request) {
   } | null = null;
 
   for (const c of COUNTRIES) {
+    // 5sim 재고 표시를 못 믿는다 — 실제로 사봤다가 "번호 없음"이 확인된 조합은 건너뛴다.
+    if (isUnavailable(c.value, service)) continue;
     for (const [operator, info] of Object.entries(byCountry[c.value] ?? {})) {
       const cost = Number(info?.cost);
       const count = Number(info?.count);

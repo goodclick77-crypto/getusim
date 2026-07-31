@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { fivesim, FiveSimError } from "@/lib/fivesim";
 import { getUsdKrw } from "@/lib/fx";
 import { notifyAdmin } from "@/lib/notify";
+import { markUnavailable, meansNoPhones } from "@/lib/unavailable";
 import { countryLabel, serviceLabel } from "@/lib/config";
 import {
   COUNTRIES,
@@ -99,6 +100,9 @@ export async function POST(req: Request) {
       // 실제 응답 내용은 원인 파악용으로 서버 로그에만 남긴다.
       if (e instanceof FiveSimError) {
         console.error("[sms/number] 구매 실패:", country, service, e.status, e.message);
+        // "번호 없음"이면 이 조합을 잠시 목록·추천에서 뺀다(5sim 재고 표시를 못 믿는다).
+        // 잔액·rating 같은 계정 전체 문제까지 제외해버리면 전 국가가 사라지므로 메시지를 가려서 본다.
+        if (meansNoPhones(e.message)) markUnavailable(country, service);
         return NextResponse.json({ error: "00" });
       }
       throw e; // 네트워크 등 예상 밖 → 아래 상위 catch에서 중립 메시지 + 로깅
@@ -112,6 +116,7 @@ export async function POST(req: Request) {
         service,
         `phone=${order?.phone ?? "none"} price=${order?.price ?? "none"}`,
       );
+      markUnavailable(country, service); // 번호를 못 받은 건 마찬가지 → 잠시 제외
       if (order?.id) {
         try {
           await fivesim.cancel(order.id);

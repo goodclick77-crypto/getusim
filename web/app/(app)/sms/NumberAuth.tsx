@@ -314,7 +314,9 @@ export default function NumberAuth({ initialPoint }: Props) {
   const [remain, setRemain] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
   const [needCharge, setNeedCharge] = useState(false);
-  const [mode, setMode] = useState<"smart" | "country" | "service">("smart");
+  // 기본은 국가 탭. 스마트는 5sim 재고 표시가 실제와 맞지 않아 첫 후보가 실패하는 경우가 있어
+  // (서버 제외목록이 쌓이면서 정확해진다) 아직 기본 화면으로 두지 않는다.
+  const [mode, setMode] = useState<"smart" | "country" | "service">("country");
   const [services, setServices] = useState<Svc[]>([]);
   const [countries, setCountries] = useState<Cnt[]>([]);
   const [smartPick, setSmartPick] = useState<SmartPickT | null>(null);
@@ -548,6 +550,7 @@ export default function NumberAuth({ initialPoint }: Props) {
 
     if (data.error || !data.rentalId) {
       if (data.error === "need") setNeedCharge(true);
+      const failedLabel = smartPick?.label || "";
       setStatus(
         data.error === "00"
           ? "현재 이용 가능한 번호가 없습니다. 다른 국가를 이용해 주세요."
@@ -556,6 +559,27 @@ export default function NumberAuth({ initialPoint }: Props) {
             : data.message || data.error || "번호 발급 실패",
       );
       setRunning(false);
+
+      // 스마트 모드에서 "번호 없음"이면 방금 실패한 조합은 서버 제외목록에 올라갔다.
+      // 다시 조회하면 다음 후보가 내려온다. 국가가 바뀌면 가격도 바뀌므로 자동으로 사지 않고,
+      // 새 후보를 보여준 뒤 회원이 직접 다시 누르게 한다.
+      if (mode === "smart" && data.error === "00" && service) {
+        setListLoading(true);
+        try {
+          const r = await fetch(`/api/sms/smart?service=${service}`);
+          const j = await r.json();
+          setSmartPick(j.pick || null);
+          setCountry(j.pick?.country || "");
+          setStatus(
+            j.pick
+              ? `${failedLabel || "해당 국가"}는 지금 번호가 없어요. 다음 후보를 찾았으니 가격 확인 후 다시 눌러주세요.`
+              : `${failedLabel || "해당 국가"}는 지금 번호가 없어요. 국가로 찾기 탭에서 직접 골라주세요.`,
+          );
+        } catch {
+          /* 재조회 실패는 위에서 세운 안내 문구를 그대로 둔다 */
+        }
+        setListLoading(false);
+      }
       return;
     }
 

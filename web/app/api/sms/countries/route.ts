@@ -10,6 +10,7 @@ import {
   deliveryRate,
   smsPointPrice,
 } from "@/lib/config";
+import { isUnavailable } from "@/lib/unavailable";
 
 // 서비스 선택 시 잘 받아지는 국가 비교 (가격은 공개 정보 → 비회원도 조회 가능)
 export async function GET(req: Request) {
@@ -28,6 +29,8 @@ export async function GET(req: Request) {
   const fx = await getUsdKrw();
   // product 쿼리 응답은 { product: { country: {...} } } 구조
   const countries = COUNTRIES.flatMap((c) => {
+    // 사봤다가 "번호 없음"이 확인된 조합은 숨긴다 — 5sim 재고 표시가 실제와 맞지 않는다.
+    if (isUnavailable(c.value, service)) return [];
     const ops = data?.[service]?.[c.value] ?? {};
     let best: { cost: number; rate: number; count: number } | null = null;
     for (const info of Object.values(ops)) {

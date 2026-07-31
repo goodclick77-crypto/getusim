@@ -10,6 +10,7 @@ import {
   deliveryRate,
   smsPointPrice,
 } from "@/lib/config";
+import { isUnavailable } from "@/lib/unavailable";
 
 // 국가 선택 시 전체 서비스의 수신률·재고·가격 비교표 (가격은 공개 정보 → 비회원도 조회 가능)
 export async function GET(req: Request) {
@@ -27,6 +28,8 @@ export async function GET(req: Request) {
 
   const fx = await getUsdKrw();
   const services = SERVICES.flatMap((s) => {
+    // 사봤다가 "번호 없음"이 확인된 조합은 숨긴다 — 5sim 재고 표시가 실제와 맞지 않는다.
+    if (isUnavailable(country, s.value)) return [];
     const ops = data?.[country]?.[s.value] ?? {};
     let best: { cost: number; rate: number; count: number } | null = null;
     for (const info of Object.values(ops)) {

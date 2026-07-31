@@ -27,34 +27,38 @@ export async function GET(req: Request) {
   }
 
   const fx = await getUsdKrw();
-  const services = SERVICES.flatMap((s) => {
-    // 사봤다가 "번호 없음"이 확인된 조합은 숨긴다 — 5sim 재고 표시가 실제와 맞지 않는다.
-    if (isUnavailable(country, s.value)) return [];
-    const ops = data?.[country]?.[s.value] ?? {};
-    let best: { cost: number; rate: number; count: number } | null = null;
-    for (const info of Object.values(ops)) {
-      const cost = Number(info?.cost);
-      const count = Number(info?.count);
-      const rate = deliveryRate(info);
-      if (count <= FIVESIM_MIN_STOCK || cost > FIVESIM_MAX_PRICE) continue;
-      if (!best || rate > best.rate || (rate === best.rate && cost < best.cost)) {
-        best = { cost, rate, count };
+  const build = (allowShortWindow: boolean) =>
+    SERVICES.flatMap((s) => {
+      // 사봤다가 "번호 없음"이 확인된 조합은 숨긴다 — 5sim 재고 표시가 실제와 맞지 않는다.
+      if (isUnavailable(country, s.value)) return [];
+      const ops = data?.[country]?.[s.value] ?? {};
+      let best: { cost: number; rate: number; count: number } | null = null;
+      for (const info of Object.values(ops)) {
+        const cost = Number(info?.cost);
+        const count = Number(info?.count);
+        const rate = deliveryRate(info, allowShortWindow);
+        if (count <= FIVESIM_MIN_STOCK || cost > FIVESIM_MAX_PRICE) continue;
+        if (!best || rate > best.rate || (rate === best.rate && cost < best.cost)) {
+          best = { cost, rate, count };
+        }
       }
-    }
-    // 번호 없음 / 수신률 낮은 조합(기본 10% 이하) 제외
-    if (!best || best.rate <= FIVESIM_MIN_RATE) return [];
-    return [
-      {
-        value: s.value,
-        label: s.label,
-        slug: s.slug,
-        available: true,
-        price: smsPointPrice(best.cost, fx),
-        rate: Math.round(best.rate),
-        stock: best.count,
-      },
-    ];
-  });
+      // 번호 없음 / 수신률 낮은 조합(기본 10% 이하) 제외
+      if (!best || best.rate <= FIVESIM_MIN_RATE) return [];
+      return [
+        {
+          value: s.value,
+          label: s.label,
+          slug: s.slug,
+          available: true,
+          price: smsPointPrice(best.cost, fx),
+          rate: Math.round(best.rate),
+        },
+      ];
+    });
+
+  // 24시간 통계 기준 우선, 하나도 없으면 1시간 기준으로 되돌린다(목록이 통째로 비는 것 방지).
+  const strict = build(false);
+  const services = strict.length > 0 ? strict : build(true);
 
   services.sort((a, b) => b.rate - a.rate);
   return NextResponse.json({ services });

@@ -110,17 +110,22 @@ export const fivesim = {
       { auth: false },
     );
     const ops = data?.[country]?.[product] ?? {};
-    let best: { operator: string; cost: number; rate: number } | null = null;
-    for (const [op, info] of Object.entries(ops)) {
-      const cost = Number(info?.cost);
-      const count = Number(info?.count);
-      const rate = deliveryRate(info);
-      if (count <= minStock || cost > maxPrice) continue;
-      if (!best || rate > best.rate || (rate === best.rate && cost < best.cost)) {
-        best = { operator: op, cost, rate };
+    const pick = (allowShortWindow: boolean) => {
+      let best: { operator: string; cost: number; rate: number } | null = null;
+      for (const [op, info] of Object.entries(ops)) {
+        const cost = Number(info?.cost);
+        const count = Number(info?.count);
+        const rate = deliveryRate(info, allowShortWindow);
+        if (count <= minStock || cost > maxPrice) continue;
+        if (!best || rate > best.rate || (rate === best.rate && cost < best.cost)) {
+          best = { operator: op, cost, rate };
+        }
       }
-    }
-    return best;
+      return best;
+    };
+    // 24시간 통계가 있는 통신사를 우선 고르고, 없으면 1시간 기준으로 되돌린다.
+    // (여기서 null 이면 호출부가 operator="any" 로 5sim에 맡기므로 발급 자체는 막히지 않는다.)
+    return pick(false) ?? pick(true);
   },
 
   /**

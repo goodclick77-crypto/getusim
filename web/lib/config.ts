@@ -82,18 +82,27 @@ export const FIVESIM_MIN_STOCK = Number(process.env.FIVESIM_MIN_STOCK || 0);
 export const FIVESIM_MIN_RATE = Number(process.env.FIVESIM_MIN_RATE || 10);
 
 /**
- * 5sim 가격표 항목에서 판단 기준으로 쓸 수신률(%)을 뽑는다.
+ * 5sim 가격표 항목에서 판단 기준으로 쓸 수신률(%)을 뽑는다. **24시간(rate24)만 신뢰한다.**
  *
- * 5sim의 `rate`는 최근 1시간 통계다(응답에서 rate === rate1). 1시간은 표본이 적어
- * 같은 국가가 몇 분 사이 6.67% → 12.5% 로 뛴다. 그대로 쓰면 노출 임계값(10%) 근처
- * 국가가 보였다 안 보였다 하고, 스마트 발급이 새로고침마다 다른 국가를 고른다.
- * → 24시간 통계(rate24)가 있으면 그걸 쓴다.
+ * 5sim 문서상 `rate`는 "주문이 너무 적으면 생략"되는 값이고, 실제로는 최근 1시간 통계다
+ * (응답에서 rate === rate1). 1시간은 표본이 적어 몇 건으로 허수가 만들어진다 —
+ * 리투아니아가 58%로 1등이었지만 사보면 계속 "no free phones" 였다.
  *
- * ★ 폴백(?? rate)은 필수다. 실측상 재고 있는 항목의 절반 이상에 rate24 필드가 아예 없고,
- *   하필 수신률 최상위 국가가 거기 포함된다(예: 리투아니아 58%). rate24만 쓰면 최적 후보가 사라진다.
+ * rate24 가 없다는 건 24시간 동안 표본이 부족했다는 뜻이다. 재고가 수만~수백만 개라면서
+ * 하루 종일 주문이 거의 없었다면 실제로는 못 사는 번호다. 실구매 검증 결과도 같았다:
+ *   · rate24 없음 → 6건 중 5건 구매 실패
+ *   · rate24 있음 → 4건 중 3건 구매 성공
+ *
+ * ★ rate24·rate168 등 기간별 필드는 5sim 문서에 없는 비공식 필드다. 언제든 안 내려올 수 있어
+ *   목록이 통째로 비는 사고를 막아야 한다 → 호출부에서 결과가 0건이면 allowShortWindow 로
+ *   다시 계산해 `rate` 기준으로 되돌린다.
  */
-export function deliveryRate(info: { rate?: number; rate24?: number } | null | undefined): number {
-  return Number(info?.rate24 ?? info?.rate) || 0;
+export function deliveryRate(
+  info: { rate?: number; rate24?: number } | null | undefined,
+  allowShortWindow = false,
+): number {
+  if (info?.rate24 != null) return Number(info.rate24) || 0;
+  return allowShortWindow ? Number(info?.rate) || 0 : 0;
 }
 
 /** 국가 목록 (value=5sim 코드, iso=국기코드, label=한글) — 레거시 드롭다운 동일 */

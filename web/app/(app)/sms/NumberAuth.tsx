@@ -38,25 +38,30 @@ function rateColor(rate: number) {
 
 /**
  * 국가 목록 위에 띄우는 참고용 한 줄. 클릭하면 그 국가가 선택된다.
- * 최근 72시간 내 수신 성공한 국가를 최신순으로 보여주고, 없으면 수신률 상위 국가로 대체한다.
- * 어느 쪽이든 화면에 보이는 모양(문구·아이콘·칩)은 동일하다 — 사용자가 구분할 이유가 없다.
+ * 최근 72시간 내 **실제로 코드를 받은** 국가만 최신순으로 보여준다(우리 DB의 RECEIVED 기록).
+ *
+ * ★ 예전에는 성공 이력이 없으면 수신률 상위 국가로 대체했는데(폴백) 그건 없앴다.
+ *   목록이 이미 수신률 내림차순이라 바로 아래 1·2등을 그대로 복사하는 중복이었고,
+ *   5sim 수신률은 못 사는 국가가 1등으로 올라오는 일이 있어(리투아니아 58%, 구매 불가)
+ *   근거 없는 항목에 "추천" 이름표를 달아 회원이 더 확신을 갖고 누르게 만들었다.
+ *   이제 이 줄이 뜬다는 건 실제 성공 실적이 있다는 뜻이다.
  */
 function ReferenceRow({
   loading,
   recent,
-  fallback,
   selected,
   onPick,
 }: {
   loading: boolean;
   recent: Recent[];
-  fallback: Recent[];
   selected: string;
   onPick: (v: string) => void;
 }) {
-  if (loading) return <div className="skeleton h-16 rounded-xl" />;
+  // 실적이 없으면 아무것도 안 뜨는 게 정상이라, 로딩 중에도 자리를 잡지 않는다
+  // (스켈레톤을 띄웠다가 사라지면 대부분의 경우 화면이 튄다).
+  if (loading) return null;
 
-  const items = recent.length > 0 ? recent : fallback;
+  const items = recent;
   if (items.length === 0) return null;
 
   return (
@@ -94,7 +99,7 @@ function ReferenceRow({
         })}
       </div>
       <p className="mt-2 text-xs text-zinc-400">
-        수신률은 네트워크 환경에 따라 달라질 수 있습니다.
+        최근 실제로 인증코드가 도착한 국가예요. 결과는 그때그때 달라질 수 있습니다.
       </p>
     </div>
   );
@@ -683,7 +688,6 @@ export default function NumberAuth({ initialPoint }: Props) {
               // 추천은 과거 수신 성공 이력이라 현재 재고를 모른다. 지금 발급 가능한 국가(countries)에
               // 없는 건 빼야 한다 — 안 그러면 추천엔 있는데 아래 목록엔 없는 국가를 눌러 헛걸음한다.
               recent={recent.filter((r) => countries.some((c) => c.value === r.value))}
-              fallback={countries.slice(0, 2)} // 수신률 내림차순 → 상위 2개
               selected={country}
               onPick={setCountry}
             />

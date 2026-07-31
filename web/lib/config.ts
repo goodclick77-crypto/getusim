@@ -81,6 +81,21 @@ export const FIVESIM_MIN_STOCK = Number(process.env.FIVESIM_MIN_STOCK || 0);
 /** 목록 노출 최소 수신률(%). 이 값 이하(예: 10% 이하)는 숨김 */
 export const FIVESIM_MIN_RATE = Number(process.env.FIVESIM_MIN_RATE || 10);
 
+/**
+ * 5sim 가격표 항목에서 판단 기준으로 쓸 수신률(%)을 뽑는다.
+ *
+ * 5sim의 `rate`는 최근 1시간 통계다(응답에서 rate === rate1). 1시간은 표본이 적어
+ * 같은 국가가 몇 분 사이 6.67% → 12.5% 로 뛴다. 그대로 쓰면 노출 임계값(10%) 근처
+ * 국가가 보였다 안 보였다 하고, 스마트 발급이 새로고침마다 다른 국가를 고른다.
+ * → 24시간 통계(rate24)가 있으면 그걸 쓴다.
+ *
+ * ★ 폴백(?? rate)은 필수다. 실측상 재고 있는 항목의 절반 이상에 rate24 필드가 아예 없고,
+ *   하필 수신률 최상위 국가가 거기 포함된다(예: 리투아니아 58%). rate24만 쓰면 최적 후보가 사라진다.
+ */
+export function deliveryRate(info: { rate?: number; rate24?: number } | null | undefined): number {
+  return Number(info?.rate24 ?? info?.rate) || 0;
+}
+
 /** 국가 목록 (value=5sim 코드, iso=국기코드, label=한글) — 레거시 드롭다운 동일 */
 export const COUNTRIES: { value: string; iso: string; label: string }[] = [
   { value: "ghana", iso: "gh", label: "가나" },

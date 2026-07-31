@@ -1,6 +1,8 @@
 // 5sim.net API 클라이언트 — https://5sim.net/docs
 // 가상번호 구매 → SMS 수신 확인 → 완료/취소.
 
+import { deliveryRate } from "./config";
+
 const BASE = process.env.FIVESIM_BASE_URL || "https://5sim.net/v1";
 const KEY = process.env.FIVESIM_API_KEY || "";
 
@@ -25,11 +27,19 @@ export type FiveSimOrder = {
   country: string;
 };
 
+/**
+ * /guest/prices 한 칸의 값.
+ * rate 는 최근 1시간, rate24 는 24시간 성공률(%). rate24 는 없는 항목이 많다 → deliveryRate() 로 읽을 것.
+ */
+export type PriceInfo = {
+  cost: number;
+  count: number;
+  rate?: number;
+  rate24?: number;
+};
+
 // /guest/prices 응답: { country: { product: { operator: { cost, count, rate } } } }
-export type PricesResponse = Record<
-  string,
-  Record<string, Record<string, { cost: number; count: number; rate?: number }>>
->;
+export type PricesResponse = Record<string, Record<string, Record<string, PriceInfo>>>;
 
 class FiveSimError extends Error {
   status: number;
@@ -104,7 +114,7 @@ export const fivesim = {
     for (const [op, info] of Object.entries(ops)) {
       const cost = Number(info?.cost);
       const count = Number(info?.count);
-      const rate = Number(info?.rate) || 0;
+      const rate = deliveryRate(info);
       if (count <= minStock || cost > maxPrice) continue;
       if (!best || rate > best.rate || (rate === best.rate && cost < best.cost)) {
         best = { operator: op, cost, rate };
@@ -113,13 +123,23 @@ export const fivesim = {
     return best;
   },
 
-  /** 번호 구매 (활성화) */
-  buyActivation: (country: string, operator: string, product: string) =>
-    call<FiveSimOrder>(
+  /**
+   * 번호 구매 (활성화).
+   * maxPrice(USD)를 주면 5sim이 그보다 비싼 번호를 아예 팔지 않는다 → 사고 나서 취소하는 왕복이 없어진다.
+   */
+  buyActivation: (
+    country: string,
+    operator: string,
+    product: string,
+    maxPrice?: number,
+  ) => {
+    const qs = maxPrice && maxPrice > 0 ? `?maxPrice=${maxPrice.toFixed(4)}` : "";
+    return call<FiveSimOrder>(
       `/user/buy/activation/${encodeURIComponent(country)}/${encodeURIComponent(
         operator,
-      )}/${encodeURIComponent(product)}`,
-    ),
+      )}/${encodeURIComponent(product)}${qs}`,
+    );
+  },
 
   /** 주문 상태/수신 SMS 확인 */
   check: (id: number | string) => call<FiveSimOrder>(`/user/check/${id}`),

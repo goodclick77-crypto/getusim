@@ -9,6 +9,8 @@ import {
   COUNTRIES,
   SERVICES,
   SMS_MIN_POINT,
+  SMS_MARKUP,
+  SMS_FREE_THRESHOLD_USD,
   FIVESIM_MAX_PRICE,
   FIVESIM_MIN_STOCK,
   smsPointPrice,
@@ -28,7 +30,8 @@ export async function POST(req: Request) {
     const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
     await touchLastSeen(user.id, ip);
 
-    const { country, service } = await req.json().catch(() => ({}));
+    // maxPoint = 회원 화면에 표시됐던 차감 예정 포인트. 있으면 그 금액을 상한으로 쓴다.
+    const { country, service, maxPoint } = await req.json().catch(() => ({}));
     if (
       !COUNTRIES.some((c) => c.value === country) ||
       !SERVICES.some((s) => s.value === service)
@@ -78,20 +81,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "need", needPoint: needAmount, message: msg });
     }
 
-    // 번호 구매
+    // 회원이 화면에서 본 금액(maxPoint)을 구매 상한으로 환산한다.
+    // smsPointPrice()의 역함수: point = usd × fx × SMS_MARKUP → usd = point / (fx × SMS_MARKUP).
+    // 정액구간(≤$0.3 는 무조건 1,000P) 때문에 하한을 SMS_FREE_THRESHOLD_USD 로 잡아야
+    // 1,000P 짜리 번호가 상한에 걸려 안 팔리는 일이 없다.
+    const cap = Number(maxPoint) > 0 ? Number(maxPoint) : 0;
+    const maxUsd = cap
+      ? Math.min(FIVESIM_MAX_PRICE, Math.max(SMS_FREE_THRESHOLD_USD, cap / (fx * SMS_MARKUP)))
+      : FIVESIM_MAX_PRICE;
+
+    // 번호 구매 — maxPrice 를 넘겨 5sim 쪽에서 비싼 번호를 아예 팔지 않게 한다(사고-취소 왕복 제거).
     let order;
     try {
-      order = await fivesim.buyActivation(country, operator, service);
+      order = await fivesim.buyActivation(country, operator, service, maxUsd);
     } catch (e) {
       // 번호 없음 / 공급사 비-JSON 응답 등 → 사용자에겐 "번호 없음"으로만 안내(공급사 비노출).
       // 실제 응답 내용은 원인 파악용으로 서버 로그에만 남긴다.
       if (e instanceof FiveSimError) {
-        console.error("[sms/number] 구매 실패:", e.status, e.message);
+        console.error("[sms/number] 구매 실패:", country, service, e.status, e.message);
         return NextResponse.json({ error: "00" });
       }
       throw e; // 네트워크 등 예상 밖 → 아래 상위 catch에서 중립 메시지 + 로깅
     }
     if (!order?.phone || (order.price != null && order.price > FIVESIM_MAX_PRICE)) {
+      // 여기도 사용자에겐 "번호 없음"이지만 원인이 전혀 달라(응답에 번호가 없음 / 단가 초과)
+      // 로그가 없으면 구매 실패와 구분이 안 된다.
+      console.error(
+        "[sms/number] 구매 응답 부적합:",
+        country,
+        service,
+        `phone=${order?.phone ?? "none"} price=${order?.price ?? "none"}`,
+      );
       if (order?.id) {
         try {
           await fivesim.cancel(order.id);
@@ -102,6 +122,18 @@ export async function POST(req: Request) {
 
     // 실제 차감 포인트
     const pricePoint = smsPointPrice(order.price, fx);
+
+    // 조회~발급 사이 5sim 가격이 올라 회원이 본 금액을 넘긴 경우 — 사지 않고 되돌린다.
+    // (maxPrice 로 대부분 걸러지지만 정액구간 하한 때문에 통과할 수 있어 여기서 한 번 더 막는다.)
+    if (cap && pricePoint > cap) {
+      try {
+        await fivesim.cancel(order.id);
+      } catch {}
+      console.error("[sms/number] 표시가격 초과:", country, service, `${pricePoint}P > ${cap}P`);
+      return NextResponse.json({
+        message: `가격이 변동되었습니다 (${pricePoint.toLocaleString("ko-KR")}P). 다시 시도해 주세요.`,
+      });
+    }
 
     // 안전망: 조회 후 가격이 급변해 사용가능 포인트보다 커진 드문 경우만 취소
     if (available < pricePoint) {

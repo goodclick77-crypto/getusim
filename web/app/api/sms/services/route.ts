@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fivesim } from "@/lib/fivesim";
+import { fivesim, type PricesResponse } from "@/lib/fivesim";
 import { getUsdKrw } from "@/lib/fx";
 import {
   COUNTRIES,
@@ -7,6 +7,7 @@ import {
   FIVESIM_MAX_PRICE,
   FIVESIM_MIN_STOCK,
   FIVESIM_MIN_RATE,
+  deliveryRate,
   smsPointPrice,
 } from "@/lib/config";
 
@@ -17,9 +18,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ services: [] });
   }
 
-  let data: Record<string, Record<string, Record<string, { cost: number; count: number; rate?: number }>>> = {};
+  let data: PricesResponse = {};
   try {
-    data = (await fivesim.prices({ country })) as typeof data;
+    data = await fivesim.prices({ country });
   } catch {
     return NextResponse.json({ services: SERVICES.map((s) => ({ ...s, available: false })) });
   }
@@ -31,7 +32,7 @@ export async function GET(req: Request) {
     for (const info of Object.values(ops)) {
       const cost = Number(info?.cost);
       const count = Number(info?.count);
-      const rate = Number(info?.rate) || 0;
+      const rate = deliveryRate(info);
       if (count <= FIVESIM_MIN_STOCK || cost > FIVESIM_MAX_PRICE) continue;
       if (!best || rate > best.rate || (rate === best.rate && cost < best.cost)) {
         best = { cost, rate, count };

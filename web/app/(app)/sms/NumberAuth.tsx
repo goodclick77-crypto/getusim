@@ -25,6 +25,16 @@ type Cnt = {
   stock?: number;
 };
 type Recent = { value: string; label: string; iso: string };
+// 스마트 모드에서 서버가 자동으로 골라준 국가·통신사 한 건
+type SmartPickT = {
+  country: string;
+  label: string;
+  iso: string;
+  operator: string;
+  price: number;
+  rate: number;
+  stock: number;
+};
 
 // 인증문자는 보통 1~2분 내 도착 → 그 안에 안 오면 사실상 안 옴.
 // 최대 3분만 기다리다 자동 포기하고 5sim 번호를 취소(잔액 즉시 반환)한다.
@@ -232,6 +242,66 @@ function CompareTable({
   );
 }
 
+/**
+ * 스마트 모드 결과 카드.
+ * 서비스만 고르면 서버가 지금 가장 잘 받아지는 국가·통신사를 대신 골라준다.
+ * 회원이 누를 게 없으므로 선택지가 아니라 "이걸로 발급된다"는 확인용 표시다 —
+ * 가격을 보고 발급할지 말지만 판단하면 된다.
+ */
+function SmartPick({ loading, pick }: { loading: boolean; pick: SmartPickT | null }) {
+  if (loading) return <div className="skeleton h-[92px] rounded-xl" />;
+
+  if (!pick) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-sm text-amber-700">
+        <i className="fa-solid fa-triangle-exclamation mr-1.5" aria-hidden />
+        지금은 이 서비스에 추천할 만한 국가가 없어요. <b>국가로 찾기</b> 탭에서 직접 골라보세요.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+      <div className="flex items-center gap-2.5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`https://flagcdn.com/w40/${pick.iso}.png`}
+          alt=""
+          className="h-[18px] w-6 rounded-sm object-cover shadow-sm"
+        />
+        <span className="font-semibold text-zinc-800">{pick.label}</span>
+        <span className="rounded-md bg-emerald-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+          <i className="fa-solid fa-wand-magic-sparkles mr-1" aria-hidden />
+          자동선택
+        </span>
+      </div>
+
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+        <span className="flex items-center gap-1.5 text-zinc-500">
+          수신률
+          <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${rateColor(pick.rate)}`}>
+            {pick.rate}%
+          </span>
+        </span>
+        <span className="text-zinc-500">
+          재고 <span className="font-num text-zinc-700">{pick.stock.toLocaleString("ko-KR")}</span>
+        </span>
+        <span className="ms-auto text-zinc-500">
+          차감예정{" "}
+          <span className="font-num text-base font-bold text-zinc-900">
+            {pick.price.toLocaleString("ko-KR")}P
+          </span>
+        </span>
+      </div>
+
+      <p className="mt-2 text-xs text-zinc-400">
+        <i className="fa-solid fa-circle-info mr-1" aria-hidden />
+        수신률·재고는 실시간 추정치예요. 발급 직전 가격이 오르면 자동으로 취소돼요.
+      </p>
+    </div>
+  );
+}
+
 export default function NumberAuth({ initialPoint }: Props) {
   const [point, setPoint] = useState(initialPoint);
   const [country, setCountry] = useState("");
@@ -244,9 +314,10 @@ export default function NumberAuth({ initialPoint }: Props) {
   const [remain, setRemain] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
   const [needCharge, setNeedCharge] = useState(false);
-  const [mode, setMode] = useState<"country" | "service">("country");
+  const [mode, setMode] = useState<"smart" | "country" | "service">("smart");
   const [services, setServices] = useState<Svc[]>([]);
   const [countries, setCountries] = useState<Cnt[]>([]);
+  const [smartPick, setSmartPick] = useState<SmartPickT | null>(null);
   const [recent, setRecent] = useState<Recent[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [favs, setFavs] = useState<Set<string>>(new Set()); // `${kind}:${value}`
@@ -300,6 +371,9 @@ export default function NumberAuth({ initialPoint }: Props) {
       .then((j) => {
         if (!alive || !j.rental) return;
         const r = j.rental;
+        // 이어받은 발급건은 국가가 이미 확정돼 있다 → 스마트(자동선택) 화면이면 표시가 어긋나므로
+        // 국가 모드로 돌려 실제 발급된 국가·서비스가 그대로 보이게 한다.
+        setMode("country");
         setCountry(r.country);
         setService(r.service);
         setRentalId(r.id);
@@ -321,6 +395,33 @@ export default function NumberAuth({ initialPoint }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 스마트 모드: 서비스 선택 → 서버가 "지금 가장 잘 받아지는" 국가·통신사 1건을 골라준다.
+  // 고른 국가를 country 에 그대로 넣어두면 이후 발급 흐름(getNumber)이 손댈 것 없이 그대로 돈다.
+  useEffect(() => {
+    if (mode !== "smart") return;
+    if (!service) {
+      setSmartPick(null);
+      setCountry("");
+      return;
+    }
+    let alive = true;
+    setListLoading(true);
+    setSmartPick(null);
+    setCountry("");
+    fetch(`/api/sms/smart?service=${service}`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (!alive) return;
+        setSmartPick(j.pick || null);
+        if (j.pick) setCountry(j.pick.country);
+      })
+      .catch(() => alive && setSmartPick(null))
+      .finally(() => alive && setListLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [mode, service]);
 
   // 국가 모드: 국가 선택 → 서비스 목록
   useEffect(() => {
@@ -366,10 +467,14 @@ export default function NumberAuth({ initialPoint }: Props) {
     };
   }, [mode, service]);
 
-  const selected =
-    mode === "country"
-      ? services.find((s) => s.value === service)
-      : countries.find((c) => c.value === country);
+  // 화면에 표시 중인 가격의 출처. 발급 요청 때 상한(maxPoint)으로 함께 보내
+  // 회원이 본 금액보다 비싸게 사지 않도록 한다.
+  const selected: { price?: number } | undefined =
+    mode === "smart"
+      ? (smartPick ?? undefined)
+      : mode === "country"
+        ? services.find((s) => s.value === service)
+        : countries.find((c) => c.value === country);
 
   // 카운트다운 (표시 전용 — 중단은 pollCode가 처리)
   useEffect(() => {
@@ -396,7 +501,13 @@ export default function NumberAuth({ initialPoint }: Props) {
     setStatus("");
     setNeedCharge(false);
     if (!country || !service) {
-      setStatus("국가와 서비스를 선택하세요");
+      setStatus(
+        mode !== "smart"
+          ? "국가와 서비스를 선택하세요"
+          : service
+            ? "지금은 추천할 국가가 없어요. 국가로 찾기 탭을 이용해 주세요"
+            : "서비스를 선택하세요",
+      );
       return;
     }
     // 선택한 서비스 가격을 미리 알고 있으면, 발급 요청 전에 부족 안내
@@ -424,7 +535,9 @@ export default function NumberAuth({ initialPoint }: Props) {
       const res = await fetch("/api/sms/number", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ country, service }),
+        // maxPoint = 지금 화면에 떠 있는 차감예정 금액. 조회~발급 사이 5sim 가격이 올라도
+        // 이 금액을 넘으면 서버가 사지 않고 취소한다(스마트·수동 모드 공통).
+        body: JSON.stringify({ country, service, maxPoint: selected?.price }),
       });
       data = await res.json();
     } catch {
@@ -563,6 +676,17 @@ export default function NumberAuth({ initialPoint }: Props) {
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={() => setMode("smart")}
+              className={`flex-1 rounded-xl px-3 py-2 text-sm font-medium transition ${
+                mode === "smart"
+                  ? "bg-zinc-900 text-white"
+                  : "bg-black/5 text-zinc-600 hover:bg-black/10"
+              }`}
+            >
+              <i className="fa-solid fa-wand-magic-sparkles mr-1.5" aria-hidden /> 스마트
+            </button>
+            <button
+              type="button"
               onClick={() => setMode("country")}
               className={`flex-1 rounded-xl px-3 py-2 text-sm font-medium transition ${
                 mode === "country"
@@ -570,7 +694,7 @@ export default function NumberAuth({ initialPoint }: Props) {
                   : "bg-black/5 text-zinc-600 hover:bg-black/10"
               }`}
             >
-              <i className="fa-solid fa-flag mr-1.5" aria-hidden /> 국가로 찾기
+              <i className="fa-solid fa-flag mr-1.5" aria-hidden /> 국가로
             </button>
             <button
               type="button"
@@ -581,9 +705,33 @@ export default function NumberAuth({ initialPoint }: Props) {
                   : "bg-black/5 text-zinc-600 hover:bg-black/10"
               }`}
             >
-              <i className="fa-solid fa-grip mr-1.5" aria-hidden /> 서비스로 찾기
+              <i className="fa-solid fa-grip mr-1.5" aria-hidden /> 서비스로
             </button>
           </div>
+
+          {/* 스마트: 서비스만 고르면 국가는 서버가 자동 선택 */}
+          {mode === "smart" && (
+            <div>
+              <p className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-zinc-700">
+                <i className="fa-solid fa-wand-magic-sparkles text-emerald-600" aria-hidden />
+                서비스
+                <span className="font-normal text-zinc-400">· 국가는 자동으로 골라드려요</span>
+              </p>
+              <ImageSelect
+                placeholder="서비스 선택"
+                value={service}
+                onChange={setService}
+                imgClass="h-5 w-5 object-contain"
+                options={SERVICES.map((s) => ({
+                  value: s.value,
+                  label: s.label,
+                  img: `https://cdn.simpleicons.org/${s.slug}`,
+                }))}
+              />
+            </div>
+          )}
+
+          {mode === "smart" && service && <SmartPick loading={listLoading} pick={smartPick} />}
 
           {mode === "country" && (
             <div>

@@ -217,6 +217,17 @@ export async function createReplyTemplate(formData: FormData) {
   revalidatePath("/admin/inquiries");
 }
 
+/** 답변 템플릿 수정 — 삭제 후 재등록하면 순서(order)가 맨 뒤로 밀리므로 제자리에서 고친다 */
+export async function updateReplyTemplate(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const title = String(formData.get("title") || "").trim();
+  const content = String(formData.get("content") || "").trim();
+  if (!id || !title || !content) return;
+  await prisma.replyTemplate.update({ where: { id }, data: { title, content } }).catch(() => {});
+  revalidatePath("/admin/inquiries");
+}
+
 /** 답변 템플릿 삭제 */
 export async function deleteReplyTemplate(formData: FormData) {
   await requireAdmin();

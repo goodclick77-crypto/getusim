@@ -10,6 +10,7 @@ import {
   hideInquiry,
   unhideInquiry,
   createReplyTemplate,
+  updateReplyTemplate,
   deleteReplyTemplate,
 } from "../actions";
 import ConfirmButton from "@/components/ConfirmButton";
@@ -103,25 +104,58 @@ export default async function AdminInquiriesPage({
           {replyTemplates.length > 0 && (
             <ul className="space-y-2">
               {replyTemplates.map((t) => (
-                <li
-                  key={t.id}
-                  className="flex items-start justify-between gap-2 rounded-lg bg-black/[0.02] px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{t.title}</p>
-                    <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-zinc-500">
-                      {t.content}
-                    </p>
-                  </div>
-                  <form action={deleteReplyTemplate}>
-                    <input type="hidden" name="id" value={t.id} />
-                    <ConfirmButton
-                      message={`템플릿 "${t.title}"을(를) 삭제할까요?`}
-                      className="shrink-0 whitespace-nowrap rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                <li key={t.id} className="rounded-lg bg-black/[0.02] px-3 py-2">
+                  {/* 제목 줄을 누르면 수정 폼이 열린다. 삭제도 그 안에 둬서 실수로 지우는 걸 막는다.
+                      (form 은 중첩할 수 없으므로 수정/삭제를 형제 form 두 개로 둔다) */}
+                  <details>
+                    <summary className="flex cursor-pointer items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{t.title}</p>
+                        <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-zinc-500">
+                          {t.content}
+                        </p>
+                      </div>
+                      <span className="shrink-0 whitespace-nowrap rounded-md border border-black/10 bg-white px-2 py-1 text-xs text-zinc-600">
+                        <i className="fa-solid fa-pen mr-1" aria-hidden />
+                        수정
+                      </span>
+                    </summary>
+
+                    <form
+                      action={updateReplyTemplate}
+                      className="mt-2 space-y-2 border-t border-black/5 pt-2"
                     >
-                      삭제
-                    </ConfirmButton>
-                  </form>
+                      <input type="hidden" name="id" value={t.id} />
+                      <input
+                        name="title"
+                        required
+                        defaultValue={t.title}
+                        aria-label="템플릿 제목"
+                        className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                      />
+                      <textarea
+                        name="content"
+                        required
+                        rows={4}
+                        defaultValue={t.content}
+                        aria-label="템플릿 내용"
+                        className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                      />
+                      <button className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-700">
+                        저장
+                      </button>
+                    </form>
+
+                    <form action={deleteReplyTemplate} className="mt-2">
+                      <input type="hidden" name="id" value={t.id} />
+                      <ConfirmButton
+                        message={`템플릿 "${t.title}"을(를) 삭제할까요?`}
+                        className="whitespace-nowrap rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                      >
+                        삭제
+                      </ConfirmButton>
+                    </form>
+                  </details>
                 </li>
               ))}
             </ul>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import BrandIcon from "./BrandIcon";
 
 export type ImageOption = { value: string; label: string; img: string };
 
@@ -42,8 +43,7 @@ export default function ImageSelect({
       >
         {selected ? (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={selected.img} alt="" className={`${imgClass} shrink-0`} loading="lazy" />
+            <BrandIcon src={selected.img} className={`${imgClass} shrink-0`} />
             <span className="truncate font-medium">{selected.label}</span>
           </>
         ) : (
@@ -74,8 +74,7 @@ export default function ImageSelect({
                   o.value === value ? "bg-emerald-50 font-semibold" : ""
                 }`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={o.img} alt="" className={`${imgClass} shrink-0`} loading="lazy" />
+                <BrandIcon src={o.img} className={`${imgClass} shrink-0`} />
                 <span className="truncate">{o.label}</span>
                 {o.value === value && (
                   <i className="fa-solid fa-check ml-auto text-emerald-600" aria-hidden />

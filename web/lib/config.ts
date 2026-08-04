@@ -298,4 +298,17 @@ export const SERVICES: { value: string; slug: string; label: string }[] = [
   { value: "paypal", slug: "paypal", label: "페이팔" },
   { value: "steam", slug: "steam", label: "스팀" },
   { value: "snapchat", slug: "snapchat", label: "스냅챗" },
+  // 아래는 5sim 가격표를 실측해 "실제로 발급 가능한 국가가 여러 곳 있는" 것만 골라 추가했다.
+  // (재고 count 는 못 믿으므로 rate24 가 있고 10% 초과인 국가 수로 판단 — 괄호가 그 국가 수)
+  // 한국 수요가 높아도 통과 국가가 0개면 목록이 비어 보이므로 넣지 않았다:
+  //   riotgames(롤·발로란트)·nexon·netmarble·epicgames·spotify — 전부 0개.
+  //   토스·배민·당근·카카오뱅크 등 국내 앱은 5sim 자체에 없다.
+  { value: "openai", slug: "openai", label: "ChatGPT" }, // 13개국
+  { value: "netflix", slug: "netflix", label: "넷플릭스" }, // 36개국
+  { value: "aliexpress", slug: "aliexpress", label: "알리익스프레스" }, // 11개국
+  { value: "temu", slug: "temu", label: "테무" }, // 3개국
+  { value: "amazon", slug: "amazon", label: "아마존" }, // 31개국
+  { value: "shein", slug: "shein", label: "쉬인" }, // 8개국
+  { value: "roblox", slug: "roblox", label: "로블록스" }, // 3개국
+  { value: "twitch", slug: "twitch", label: "트위치" }, // 4개국
 ];

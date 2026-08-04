@@ -6,6 +6,7 @@ import { COUNTRIES, SERVICES, SMS_BASE_POINT } from "@/lib/config";
 import { phoneFmt } from "@/lib/format";
 import ImageSelect from "@/components/ImageSelect";
 import CopyButton from "@/components/CopyButton";
+import BrandIcon from "@/components/BrandIcon";
 
 type Props = { initialPoint: number };
 type Svc = {
@@ -199,8 +200,7 @@ function CompareTable({
                     {/* 1줄: 이름 + 가격 */}
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex min-w-0 items-center gap-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={r.img} alt="" className={`${imgClass} shrink-0`} loading="lazy" />
+                        <BrandIcon src={r.img} className={`${imgClass} shrink-0`} />
                         <span className={`truncate text-sm ${sel ? "font-bold" : "font-medium"}`}>
                           {r.label}
                         </span>

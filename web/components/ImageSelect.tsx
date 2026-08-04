@@ -43,7 +43,7 @@ export default function ImageSelect({
       >
         {selected ? (
           <>
-            <BrandIcon src={selected.img} className={`${imgClass} shrink-0`} />
+            <BrandIcon src={selected.img} label={selected.label} className={`${imgClass} shrink-0`} />
             <span className="truncate font-medium">{selected.label}</span>
           </>
         ) : (
@@ -74,7 +74,7 @@ export default function ImageSelect({
                   o.value === value ? "bg-emerald-50 font-semibold" : ""
                 }`}
               >
-                <BrandIcon src={o.img} className={`${imgClass} shrink-0`} />
+                <BrandIcon src={o.img} label={o.label} className={`${imgClass} shrink-0`} />
                 <span className="truncate">{o.label}</span>
                 {o.value === value && (
                   <i className="fa-solid fa-check ml-auto text-emerald-600" aria-hidden />

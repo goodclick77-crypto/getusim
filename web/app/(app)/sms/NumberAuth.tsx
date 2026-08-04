@@ -200,7 +200,7 @@ function CompareTable({
                     {/* 1줄: 이름 + 가격 */}
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex min-w-0 items-center gap-2">
-                        <BrandIcon src={r.img} className={`${imgClass} shrink-0`} />
+                        <BrandIcon src={r.img} label={r.label} className={`${imgClass} shrink-0`} />
                         <span className={`truncate text-sm ${sel ? "font-bold" : "font-medium"}`}>
                           {r.label}
                         </span>

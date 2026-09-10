@@ -97,3 +97,30 @@ textarea:focus-visible {
   outline: 2px solid #10b981;
   outline-offset: 2px;
 }
+
+/* ---------- 상단 공지 마퀴 ---------- */
+/* 자식(문구)을 여러 벌 깔아두고 절반만큼 밀면 이음매 없이 반복된다.
+   translateX 는 .marquee 자신의 너비(=max-content) 기준이라 문구 길이가 바뀌어도 그대로 맞는다. */
+.marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 30s linear infinite;
+  will-change: transform;
+}
+.marquee > * {
+  flex: none;
+}
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+/* 움직임 최소화 설정을 켠 사용자에게는 흐르지 않고 그대로 보여준다. */
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    animation: none;
+  }
+}

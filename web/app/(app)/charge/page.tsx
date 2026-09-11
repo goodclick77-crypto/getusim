@@ -1,7 +1,8 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymdhm } from "@/lib/format";
-import { BANK_INFO, CHARGE_POINT_UNITS, CHARGE_FEE_RATE } from "@/lib/config";
+import { CHARGE_POINT_UNITS, CHARGE_FEE_RATE } from "@/lib/config";
+import { BANK_INFO, bankImageSize } from "@/lib/deposit-account";
 import { createChargeRequest, cancelChargeRequest } from "./actions";
 import ChargeForm from "./ChargeForm";
 import Reveal from "@/components/Reveal";
@@ -132,11 +133,19 @@ export default async function ChargePage({
             <div className="flex items-center justify-between gap-3 border-b border-black/5 bg-emerald-50/40 px-4 py-3">
               <dt className="shrink-0 text-sm text-zinc-500">계좌번호</dt>
               <dd className="flex min-w-0 items-center justify-end gap-2">
-                <b className="font-num whitespace-nowrap text-base tracking-tight sm:text-lg">
-                  {BANK_INFO.account}
-                </b>
+                {/* 계좌번호는 텍스트로 싣지 않고 이미지로만 표시한다(크롤링 → 보이스피싱 악용 방지).
+                    alt 에도 번호를 넣지 않는다 — 스크린리더 사용자는 복사 버튼으로 받는다. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/api/bank-account/image"
+                  alt="입금 계좌번호 (옆의 복사 버튼으로 복사할 수 있습니다)"
+                  width={bankImageSize().width}
+                  height={bankImageSize().height}
+                  draggable={false}
+                  className="h-auto min-w-0 max-w-full select-none"
+                />
                 <CopyButton
-                  text={BANK_INFO.account.replace(/[^\d]/g, "")}
+                  src="/api/bank-account"
                   label="복사"
                   className="border border-black/10"
                 />

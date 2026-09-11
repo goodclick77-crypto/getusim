@@ -1,11 +1,5 @@
 // 서비스 운영 상수 (추후 DB 설정/관리자 화면으로 이전 가능)
-
-/** 무통장입금 안내 계좌 (농협 301-0158-0663-91 엄전혜(위인터내셔널)) */
-export const BANK_INFO = {
-  bank: process.env.DEPOSIT_BANK || "농협은행",
-  account: process.env.DEPOSIT_ACCOUNT || "301-0158-0663-91",
-  holder: process.env.DEPOSIT_HOLDER || "엄전혜(위인터내셔널)",
-};
+// ※ 무통장입금 계좌는 클라이언트 컴포넌트도 이 파일을 import 하므로 여기 두지 않는다 → lib/bank.ts
 
 /** 충전 포인트 단위(클릭하면 누적). 1만P를 두 번 누르면 2만P. */
 export const CHARGE_POINT_UNITS = [1_000, 3_000, 5_000, 10_000, 50_000, 100_000];

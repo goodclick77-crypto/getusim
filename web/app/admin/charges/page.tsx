@@ -10,6 +10,7 @@ import {
   dismissDeposit,
   deleteDeposit,
 } from "../actions";
+import { normDepositName } from "@/lib/config";
 import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -119,7 +120,6 @@ export default async function AdminChargesPage({
   const deposits = [...unmatchedDeposits, ...recentMatched];
 
   const lastPage = Math.max(1, Math.ceil(count / PER));
-  const norm = (s: string) => s.replace(/\s/g, "");
 
   type DepositItem = (typeof deposits)[number];
   const explainDeposit = (d: DepositItem) => {
@@ -133,7 +133,9 @@ export default async function AdminChargesPage({
     const sameAmount = matchCandidates.filter((o) => o.amount === d.amount);
     if (sameAmount.length === 0) return "같은 금액의 입금대기 주문 없음 (이미 지급했다면 해제)";
 
-    const sameName = sameAmount.some((o) => norm(o.depositName) === norm(d.depositorName));
+    const sameName = sameAmount.some(
+      (o) => normDepositName(o.depositName) === normDepositName(d.depositorName),
+    );
     return sameName
       ? "같은 이름·금액의 입금대기 주문이 있음 (아직 연결 안 됨)"
       : "금액은 맞지만 입금자명이 다른 입금대기 주문만 있음";
@@ -224,7 +226,7 @@ export default async function AdminChargesPage({
             {deposits.map((d) => {
               const sameAmount = matchCandidates.filter((o) => o.amount === d.amount);
               const isSameName = (o: (typeof matchCandidates)[number]) =>
-                norm(o.depositName) === norm(d.depositorName);
+                normDepositName(o.depositName) === normDepositName(d.depositorName);
               const sameNameCandidates = sameAmount.filter(isSameName);
               // 입금자명이 같은 주문을 맨 위로 — 미매칭은 이름이 안 맞는 건이라 이름으로
               // 거를 수는 없지만, 맞는 게 있으면 그게 정답일 확률이 가장 높다.
@@ -448,8 +450,13 @@ function DateGroup({
                     href={`/admin/members/${o.userId}`}
                     className="text-emerald-700 hover:underline"
                   >
-                    {o.user.name || o.user.loginId}
-                  </Link>{" "}
+                    {o.user.loginId}
+                  </Link>
+                  {/* 입금자명이 회원 이름과 다르면 타인 명의 입금일 수 있어 그때만 덧붙인다 */}
+                  {o.user.name &&
+                    normDepositName(o.user.name) !== normDepositName(o.depositName) && (
+                      <span className="text-zinc-500"> (회원명 {o.user.name})</span>
+                    )}{" "}
                   · {ymdhm(o.createdAt).slice(11)}
                 </p>
               </div>

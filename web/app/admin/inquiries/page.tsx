@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { ymdhm, pt, won, dateRange } from "@/lib/format";
+import { ymd, ymdhm, pt, won, dateRange, daysAgo } from "@/lib/format";
 import { chargeAmount } from "@/lib/config";
 import {
   deleteInquiry,
@@ -31,6 +31,29 @@ const CAT_LABEL: Record<string, string> = {
   OTHER: "기타문의",
 };
 
+// 충전 상태 표기 — 관리자 충전관리 화면(app/admin/charges)과 같은 라벨/색을 쓴다.
+const CHARGE_LABEL: Record<string, string> = {
+  PENDING: "입금대기",
+  COMPLETED: "충전완료",
+  CANCELED: "취소",
+};
+const CHARGE_BADGE: Record<string, string> = {
+  PENDING: "bg-amber-100 text-amber-700",
+  COMPLETED: "bg-emerald-100 text-emerald-700",
+  CANCELED: "bg-zinc-200 text-zinc-500",
+};
+/** 문의 옆에 붙여 보여줄 충전내역 조회 기간(일). 입금 문의는 대개 최근 건이다. */
+const CHARGE_LOOKBACK_DAYS = 60;
+
+type ChargeBrief = {
+  id: number;
+  amount: number;
+  chargePoint: number;
+  status: string;
+  depositName: string;
+  createdAt: Date;
+};
+
 export default async function AdminInquiriesPage({
   searchParams,
 }: {
@@ -58,7 +81,7 @@ export default async function AdminInquiriesPage({
       orderBy: { createdAt: "desc" },
       include: {
         replies: { orderBy: { createdAt: "asc" } },
-        user: { select: { loginId: true } },
+        user: { select: { loginId: true, point: true } },
       },
       take: 100,
     }),
@@ -67,6 +90,38 @@ export default async function AdminInquiriesPage({
       select: { id: true, title: true, content: true },
     }),
   ]);
+
+  // 답변하면서 "이 회원 입금이 들어왔나"를 바로 보려고 최근 충전건을 같이 읽는다.
+  // 문의와 충전은 userId 로 이미 이어져 있어 이름 대조가 필요 없다.
+  // 문의마다 쿼리를 날리지 않도록 회원 id 를 모아 한 번에 조회한다.
+  const inquiryUserIds = [
+    ...new Set(inquiries.map((q) => q.userId).filter((v): v is number => typeof v === "number")),
+  ];
+  const recentCharges = inquiryUserIds.length
+    ? await prisma.chargeOrder.findMany({
+        where: {
+          userId: { in: inquiryUserIds },
+          createdAt: { gte: daysAgo(CHARGE_LOOKBACK_DAYS) },
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          userId: true,
+          amount: true,
+          chargePoint: true,
+          status: true,
+          depositName: true,
+          createdAt: true,
+        },
+      })
+    : [];
+  // 조회가 최신순이므로 회원별 배열도 최신순으로 쌓인다.
+  const chargesByUser = new Map<number, ChargeBrief[]>();
+  for (const c of recentCharges) {
+    const arr = chargesByUser.get(c.userId);
+    if (arr) arr.push(c);
+    else chargesByUser.set(c.userId, [c]);
+  }
 
   return (
     <div className="space-y-5">
@@ -313,6 +368,13 @@ export default async function AdminInquiriesPage({
                 · {ymdhm(q.createdAt)}
               </p>
 
+              {q.userId && (
+                <MemberCharges
+                  point={q.user?.point ?? 0}
+                  charges={chargesByUser.get(q.userId) ?? []}
+                />
+              )}
+
               {q.category === "REFUND" && (
                 <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-sm">
                   <p className="flex items-center gap-1.5 font-semibold text-amber-700">
@@ -387,6 +449,41 @@ export default async function AdminInquiriesPage({
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** 문의 옆 회원 요약: 보유 포인트 + 최근 충전 3건(상태·입금자명).
+ *  "입금했는데 충전이 안 됐다" 류 문의를 화면 이동 없이 확인하려는 용도다. */
+function MemberCharges({ point, charges }: { point: number; charges: ChargeBrief[] }) {
+  return (
+    <div className="mt-2 rounded-xl border border-black/5 bg-black/[0.02] px-3 py-2 text-xs">
+      <p className="flex flex-wrap items-center gap-x-1.5 font-medium text-zinc-600">
+        <i className="fa-solid fa-coins text-emerald-600" aria-hidden />
+        보유 {pt(point)}
+        {charges.length === 0 && (
+          <span className="font-normal text-zinc-400">
+            · 최근 {CHARGE_LOOKBACK_DAYS}일 충전 없음
+          </span>
+        )}
+      </p>
+      {charges.slice(0, 3).map((c) => (
+        <p key={c.id} className="font-num mt-1 flex flex-wrap items-center gap-x-2 text-zinc-600">
+          <span
+            className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
+              CHARGE_BADGE[c.status] ?? "bg-zinc-100 text-zinc-500"
+            }`}
+          >
+            {CHARGE_LABEL[c.status] ?? c.status}
+          </span>
+          <span>
+            {won(c.amount)} → {pt(c.chargePoint)}
+          </span>
+          <span className="text-zinc-400">
+            {c.depositName || "(입금자명 없음)"} · {ymd(c.createdAt)}
+          </span>
+        </p>
+      ))}
     </div>
   );
 }

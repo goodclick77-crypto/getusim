@@ -58,6 +58,9 @@ export const ymdhm = (d: Date | string | null | undefined) => {
   return toKst(dt).toISOString().slice(0, 16).replace("T", " ");
 };
 
+/** n일 전 시각. 컴포넌트 본문에서 Date.now() 를 직접 부르면 react-hooks/purity 에 걸린다. */
+export const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
 /** "YYYY-MM-DD"(한국시간) from/to → Prisma createdAt 필터({gte,lte}). 둘 다 비면 null. */
 export function dateRange(from?: string, to?: string): { gte?: Date; lte?: Date } | null {
   const r: { gte?: Date; lte?: Date } = {};

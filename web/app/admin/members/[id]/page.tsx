@@ -6,8 +6,21 @@ import { pt, won, ymd, ymdhm } from "@/lib/format";
 import { adjustMemberPoint, toggleBlock } from "../actions";
 import ConfirmButton from "@/components/ConfirmButton";
 import PointApplyButton from "@/components/PointApplyButton";
+import RentalLabel from "@/components/RentalLabel";
 
 export const dynamic = "force-dynamic";
+
+// 충전 상태 표기 — 관리자 충전관리 화면(app/admin/charges)과 같은 라벨/색을 쓴다.
+const CHARGE_LABEL: Record<string, string> = {
+  PENDING: "입금대기",
+  COMPLETED: "충전완료",
+  CANCELED: "취소",
+};
+const CHARGE_BADGE: Record<string, string> = {
+  PENDING: "bg-amber-100 text-amber-700",
+  COMPLETED: "bg-emerald-100 text-emerald-700",
+  CANCELED: "bg-zinc-200 text-zinc-500",
+};
 
 export default async function MemberDetail({
   params,
@@ -34,6 +47,24 @@ export default async function MemberDetail({
       take: 10,
     }),
   ]);
+
+  // 포인트 차감이 "어떤 서비스 인증"이었는지 보여주려면 rental 로그를 실제 임대건과 이어야 한다.
+  // (PointLog.reason 에는 5sim 주문번호만 남아 서비스/국가를 알 수 없다)
+  const rentalIds = [
+    ...new Set(
+      points
+        .filter((p) => p.relType === "rental")
+        .map((p) => Number(p.relId))
+        .filter((n) => Number.isInteger(n) && n > 0),
+    ),
+  ];
+  const rentals = rentalIds.length
+    ? await prisma.numberRental.findMany({
+        where: { id: { in: rentalIds } },
+        select: { id: true, service: true, country: true, phoneNumber: true },
+      })
+    : [];
+  const rentalById = new Map(rentals.map((r) => [r.id, r]));
 
   const INFO: [string, string][] = [
     ["아이디", user.loginId],
@@ -136,18 +167,31 @@ export default async function MemberDetail({
           <p className="text-sm text-zinc-500">내역 없음</p>
         ) : (
           <ul className="divide-y divide-black/5 text-sm">
-            {points.map((p) => (
-              <li key={p.id} className="flex items-center justify-between py-2">
-                <div>
-                  <p>{p.reason || "포인트 변동"}</p>
-                  <p className="font-num text-xs text-zinc-400">{ymdhm(p.createdAt)}</p>
-                </div>
-                <span className={`font-num font-semibold ${p.amount >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                  {p.amount >= 0 ? "+" : ""}
-                  {pt(p.amount)}
-                </span>
-              </li>
-            ))}
+            {points.map((p) => {
+              const r = p.relType === "rental" ? rentalById.get(Number(p.relId)) : undefined;
+              return (
+                <li key={p.id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    {/* 인증 차감이면 어떤 서비스/국가로 받았는지를 앞세운다 */}
+                    {r ? (
+                      <RentalLabel country={r.country} service={r.service} phone={r.phoneNumber} />
+                    ) : (
+                      <p>{p.reason || "포인트 변동"}</p>
+                    )}
+                    <p className="font-num text-xs text-zinc-400">
+                      {ymdhm(p.createdAt)}
+                      {r && p.reason ? ` · ${p.reason}` : ""}
+                    </p>
+                  </div>
+                  <span
+                    className={`font-num shrink-0 font-semibold ${p.amount >= 0 ? "text-emerald-600" : "text-red-500"}`}
+                  >
+                    {p.amount >= 0 ? "+" : ""}
+                    {pt(p.amount)}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -161,11 +205,20 @@ export default async function MemberDetail({
           ) : (
             <ul className="divide-y divide-black/5 text-sm">
               {charges.map((c) => (
-                <li key={c.id} className="flex items-center justify-between py-2">
+                <li key={c.id} className="flex items-center justify-between gap-2 py-2">
                   <span className="font-num">
                     {won(c.amount)} → {pt(c.chargePoint)}
                   </span>
-                  <span className="font-num text-xs text-zinc-400">{ymd(c.createdAt)}</span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span
+                      className={`rounded-md px-1.5 py-0.5 text-xs font-medium ${
+                        CHARGE_BADGE[c.status] ?? "bg-zinc-100 text-zinc-500"
+                      }`}
+                    >
+                      {CHARGE_LABEL[c.status] ?? c.status}
+                    </span>
+                    <span className="font-num text-xs text-zinc-400">{ymd(c.createdAt)}</span>
+                  </span>
                 </li>
               ))}
             </ul>

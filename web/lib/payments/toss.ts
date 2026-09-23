@@ -6,6 +6,7 @@ import {
   type BillingKeyResult,
   type CancelParams,
   type CancelResult,
+  type ConfirmParams,
   type PaymentProvider,
 } from "./types";
 
@@ -79,6 +80,16 @@ export class TossPaymentProvider implements PaymentProvider {
         orderName: p.orderName,
       },
       p.orderId, // 같은 주문 재시도 시 이중 승인 방지
+    );
+    return { txId: r.paymentKey, approvedAt: new Date(r.approvedAt), raw: r };
+  }
+
+  /** 결제창(결제위젯) 성공 콜백의 paymentKey/orderId/amount 로 최종 승인 */
+  async confirm(p: ConfirmParams): Promise<ApproveResult> {
+    const r = await this.call<{ paymentKey: string; approvedAt: string }>(
+      "/payments/confirm",
+      { paymentKey: p.token, orderId: p.orderId, amount: p.amount },
+      p.orderId,
     );
     return { txId: r.paymentKey, approvedAt: new Date(r.approvedAt), raw: r };
   }

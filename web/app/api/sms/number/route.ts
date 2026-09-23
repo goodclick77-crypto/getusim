@@ -27,6 +27,9 @@ const GENERIC_FAIL = "일시적인 문제로 발급이 불가능합니다. 다�
 // pay="card" 면 포인트 대신 등록된 카드(빌링키)로 건별 결제한다:
 //   번호 발급 성공 → 카드 승인 → (코드 수신) 확정 / (미수신) 승인취소.
 //   번호가 안 잡히면 승인 자체가 없으므로 "안 되는 국가"에 돈이 나가는 일이 없다.
+// pay="window" 는 PG 결제창 경로(windowToken = 결제창 성공 콜백의 결제키):
+//   결제창은 이미 닫혔으므로 먼저 최종 승인(confirm) → 번호 발급. 발급이 어떤 이유로든
+//   실패하면 finally 에서 승인을 즉시 취소해 회원 돈이 나가지 않게 한다.
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
@@ -37,22 +40,48 @@ export async function POST(req: Request) {
     await touchLastSeen(user.id, ip);
 
     // maxPoint = 회원 화면에 표시됐던 차감 예정 포인트. 있으면 그 금액을 상한으로 쓴다.
-    const { country, service, maxPoint, pay } = await req.json().catch(() => ({}));
+    const { country, service, maxPoint, pay, windowToken } = await req.json().catch(() => ({}));
     if (
       !COUNTRIES.some((c) => c.value === country) ||
       !SERVICES.some((s) => s.value === service)
     ) {
       return NextResponse.json({ error: "국가와 서비스를 선택하세요" }, { status: 400 });
     }
-    const payMethod: "POINT" | "CARD" = pay === "card" ? "CARD" : "POINT";
-    if (payMethod === "CARD") {
-      if (!getPaymentProvider().isConfigured()) {
-        return NextResponse.json({ error: "card", message: "카드 결제가 아직 준비되지 않았습니다." });
-      }
-      if (!user.billingKey) {
-        return NextResponse.json({ error: "card", message: "먼저 결제할 카드를 등록해 주세요." });
+    const viaWindow = pay === "window";
+    const payMethod: "POINT" | "CARD" = pay === "card" || viaWindow ? "CARD" : "POINT";
+    if (payMethod === "CARD" && !getPaymentProvider().isConfigured()) {
+      return NextResponse.json({ error: "card", message: "카드 결제가 아직 준비되지 않았습니다." });
+    }
+    if (pay === "card" && !user.billingKey) {
+      return NextResponse.json({ error: "card", message: "먼저 결제할 카드를 등록해 주세요." });
+    }
+    if (viaWindow && typeof windowToken !== "string") {
+      return NextResponse.json({ error: "card", message: "결제 정보가 없습니다. 다시 결제해 주세요." });
+    }
+
+    // 결제창 경로: 표시 가격(maxPoint)으로 먼저 최종 승인. 발급 실패 시 finally 에서 취소.
+    let windowTx: { txId: string; amount: number } | null = null;
+    let issued = false;
+    if (viaWindow) {
+      const shownPoint = Number(maxPoint) > 0 ? Number(maxPoint) : SMS_MIN_POINT;
+      const amount = cardAmountFor(shownPoint);
+      try {
+        const r = await getPaymentProvider().confirm({
+          token: windowToken,
+          orderId: `W${user.id}-${Date.now()}`,
+          amount,
+          customerId: `U${user.id}`,
+        });
+        windowTx = { txId: r.txId, amount };
+      } catch (e) {
+        console.error("[sms/number] 결제창 승인 실패:", e);
+        return NextResponse.json({
+          error: "pay_failed",
+          message: "결제 승인에 실패했습니다. 다시 시도해 주세요.",
+        });
       }
     }
+    try {
     if (payMethod === "POINT" && user.point < SMS_MIN_POINT) {
       return NextResponse.json({
         error: "need",
@@ -195,7 +224,15 @@ export async function POST(req: Request) {
 
     // 카드 건별 결제: 번호가 잡힌 뒤에만 승인한다. 승인 실패면 번호를 되돌리고 회원에게 알린다.
     let payAmount = 0;
-    if (payMethod === "CARD") {
+    if (windowTx) {
+      // 결제창 경로: 이미 승인된 거래를 발급건에 연결 (코드 미수신 시 voidRentalPayment 가 취소)
+      await prisma.numberRental.update({
+        where: { id: rental.id },
+        data: { payMethod: "CARD", payAmount: windowTx.amount, payTxId: windowTx.txId, payStatus: "APPROVED" },
+      });
+      payAmount = windowTx.amount;
+      issued = true;
+    } else if (payMethod === "CARD") {
       try {
         const r = await approveForRental({
           rentalId: rental.id,
@@ -227,6 +264,7 @@ export async function POST(req: Request) {
       `회원: ${user.name || user.loginId}\n국가/서비스: ${countryLabel(country)} / ${serviceLabel(service)}\n번호: ${order.phone}\n${payMethod === "CARD" ? `카드 승인: ${payAmount.toLocaleString("ko-KR")}원 (미수신 시 자동취소)` : `차감예정: ${pricePoint.toLocaleString("ko-KR")}P`}`,
     );
 
+    issued = true;
     return NextResponse.json({
       rentalId: rental.id,
       phone: order.phone,
@@ -235,6 +273,17 @@ export async function POST(req: Request) {
       payMethod,
       payAmount,
     });
+    } finally {
+      // 결제창에서 돈은 받았는데 번호를 못 준 모든 경우(번호 없음·가격 변동·DB 오류) → 즉시 승인취소.
+      if (windowTx && !issued) {
+        try {
+          await getPaymentProvider().cancel({ txId: windowTx.txId, reason: "번호 발급 실패(자동 취소)" });
+          console.info(`[sms/number] 결제창 승인 취소: ${windowTx.txId}`);
+        } catch (e) {
+          console.error(`[sms/number] ★ 결제창 승인취소 실패 — 수동 확인 필요: ${windowTx.txId}`, e);
+        }
+      }
+    }
   } catch (e) {
     // 처리되지 않은 예외(네트워크/DB 등)는 흰 화면 500 대신 중립 메시지로.
     // 실제 원인은 공급사 노출 없이 서버 로그에만 남긴다.

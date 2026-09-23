@@ -5,9 +5,12 @@
  *
  */
 export const COMPANY = {
-  name: "겟유심",
+  /** 상호(법적 사업자명). 서비스명은 brand. */
+  name: "위인터내셔널",
   brand: "GetUsim",
   ceo: "엄전혜",
+  /** 대표 고객센터 전화 */
+  phone: "010-9926-0938",
   bizNo: "843-08-01310",
   /** 통신판매업신고번호 (양주시, 2021년 신고). 환경변수로 덮어쓸 수 있다. */
   mailOrderNo: process.env.MAIL_ORDER_NO || "2021-경기양주-0890",

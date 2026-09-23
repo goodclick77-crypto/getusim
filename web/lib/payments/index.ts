@@ -27,6 +27,9 @@ class NoneProvider implements PaymentProvider {
   async approve(): Promise<never> {
     throw new PaymentNotConfiguredError("none");
   }
+  async confirm(): Promise<never> {
+    throw new PaymentNotConfiguredError("none");
+  }
   async cancel(): Promise<never> {
     throw new PaymentNotConfiguredError("none");
   }

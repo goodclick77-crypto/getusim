@@ -22,13 +22,20 @@ export default function Footer() {
                 통신판매업신고번호·주소·연락처. PG 심사 시에도 이 표기를 확인한다. */}
             <address className="mt-3 space-y-0.5 text-xs not-italic leading-relaxed text-zinc-500">
               <p>
-                {COMPANY.name} | 대표자 : {COMPANY.ceo}
+                상호 : {COMPANY.name} ({COMPANY.brand}) | 대표자 : {COMPANY.ceo}
               </p>
               <p className="font-num">사업자등록번호 : {COMPANY.bizNo}</p>
               <p className="font-num">
                 통신판매업신고번호 : {COMPANY.mailOrderNo || "신고 준비 중"}
               </p>
               <p>주소 : {COMPANY.address}</p>
+              <p className="font-num">
+                고객센터 :{" "}
+                <a href={`tel:${COMPANY.phone.replace(/-/g, "")}`} className="hover:text-zinc-700">
+                  {COMPANY.phone}
+                </a>{" "}
+                ({COMPANY.supportHours})
+              </p>
               <p>
                 E-mail :{" "}
                 <a href={`mailto:${COMPANY.email}`} className="hover:text-zinc-700">

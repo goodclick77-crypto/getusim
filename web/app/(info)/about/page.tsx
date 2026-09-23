@@ -23,6 +23,7 @@ export default function AboutPage() {
           ["지원 서비스", "텔레그램·왓츠앱·구글·인스타그램 등 23종"],
           ["고객지원", "1:1 문의 게시판"],
           ["상호 / 대표자", `${COMPANY.name} / ${COMPANY.ceo}`],
+          ["고객센터", `${COMPANY.phone} (${COMPANY.supportHours})`],
           ["사업자등록번호", COMPANY.bizNo],
           ["통신판매업신고", COMPANY.mailOrderNo || "신고 준비 중"],
           ["주소", COMPANY.address],

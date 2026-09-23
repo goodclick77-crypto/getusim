@@ -39,6 +39,15 @@ export type ApproveResult = {
   raw?: unknown;
 };
 
+/** PG 결제창이 돌려준 결제키로 최종 승인(결제창 방식). 빌링키 없이 첫 결제부터 가능. */
+export type ConfirmParams = {
+  /** 결제창 성공 콜백의 결제키(토스 paymentKey 등) */
+  token: string;
+  orderId: string;
+  amount: number;
+  customerId: string;
+};
+
 export type CancelParams = {
   txId: string;
   /** 부분취소가 필요하면 금액 지정, 없으면 전액취소 */
@@ -61,6 +70,8 @@ export interface PaymentProvider {
     authPayload: Record<string, string>;
   }): Promise<BillingKeyResult>;
   approve(params: ApproveParams): Promise<ApproveResult>;
+  /** 결제창 결제의 서버 최종 승인 */
+  confirm(params: ConfirmParams): Promise<ApproveResult>;
   cancel(params: CancelParams): Promise<CancelResult>;
 }
 

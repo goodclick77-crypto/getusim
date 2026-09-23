@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 const NAV = [
   { href: "/dashboard", label: "대시보드", icon: "fa-gauge" },
+  { href: "/products", label: "상품", icon: "fa-bag-shopping" },
   { href: "/sms", label: "SMS 인증", icon: "fa-comment-sms" },
   { href: "/charge", label: "잔액 충전", icon: "fa-coins" },
   { href: "/notice", label: "공지사항", icon: "fa-bullhorn" },

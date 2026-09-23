@@ -5,6 +5,7 @@ import type {
   BillingKeyResult,
   CancelParams,
   CancelResult,
+  ConfirmParams,
   PaymentProvider,
 } from "./types";
 
@@ -32,6 +33,12 @@ export class MockPaymentProvider implements PaymentProvider {
     this.seq += 1;
     console.info(`[pay:mock] approve ${p.orderId} ${p.amount}원 (${p.orderName})`);
     return { txId: `mock-tx-${this.seq}-${p.orderId}`, approvedAt: new Date() };
+  }
+
+  async confirm(p: ConfirmParams): Promise<ApproveResult> {
+    this.seq += 1;
+    console.info(`[pay:mock] confirm ${p.orderId} ${p.amount}원 token=${p.token}`);
+    return { txId: `mock-win-${this.seq}-${p.orderId}`, approvedAt: new Date() };
   }
 
   async cancel(p: CancelParams): Promise<CancelResult> {

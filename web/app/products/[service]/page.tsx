@@ -92,7 +92,6 @@ export default async function ProductDetailPage({ params }: Params) {
                   <tr>
                     <th className="px-4 py-2.5 text-left font-medium">국가</th>
                     <th className="px-3 py-2.5 text-left font-medium">예상 수신률</th>
-                    <th className="hidden px-3 py-2.5 text-left font-medium sm:table-cell">실측</th>
                     <th className="px-3 py-2.5 text-right font-medium">가격</th>
                     <th className="px-3 py-2.5" />
                   </tr>
@@ -116,9 +115,6 @@ export default async function ProductDetailPage({ params }: Params) {
                       <td className="px-3 py-2.5">
                         <span className={`rounded px-1.5 py-0.5 text-xs font-semibold ${rateClass(o.rate)}`}>{o.rate}%</span>
                       </td>
-                      <td className="hidden px-3 py-2.5 text-xs text-zinc-500 sm:table-cell">
-                        {o.ours ? `${o.ours.rate}% (${o.ours.n}건)` : "-"}
-                      </td>
                       <td className="font-num px-3 py-2.5 text-right font-bold">{wonOf(o.price)}</td>
                       <td className="px-3 py-2.5 text-right">
                         <Link
@@ -135,7 +131,7 @@ export default async function ProductDetailPage({ params }: Params) {
             </div>
           )}
           <p className="mt-2 text-xs text-zinc-400">
-            예상 수신률은 공급사 최근 24시간 통계, 실측은 겟유심 회원의 최근 실제 발급 결과입니다. 모두 참고용입니다.
+            예상 수신률은 공급사 최근 24시간 통계로 참고용이며, 실제 결과와 다를 수 있습니다.
           </p>
         </section>
       </main>

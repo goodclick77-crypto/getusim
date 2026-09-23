@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
 
 /** 비회원도 보는 공개 페이지(상품·가격표) 공용 헤더 */
-export default async function PublicHeader({ active }: { active?: "products" | "prices" }) {
+export default async function PublicHeader({ active }: { active?: "products" }) {
   const user = await getCurrentUser();
   const tab = (href: string, label: string, on: boolean) => (
     <Link
@@ -21,7 +21,6 @@ export default async function PublicHeader({ active }: { active?: "products" | "
           </Link>
           <nav className="ml-2 flex items-center gap-0.5 text-sm">
             {tab("/products", "상품", active === "products")}
-            {tab("/prices", "실시간 가격", active === "prices")}
           </nav>
         </div>
         <nav className="flex items-center gap-1 text-sm sm:gap-2">

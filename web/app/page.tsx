@@ -38,9 +38,6 @@ export default async function Home() {
           <Link href="/products" className="rounded-xl px-2.5 py-2 font-medium hover:bg-black/5 sm:px-3">
             상품
           </Link>
-          <Link href="/prices" className="rounded-xl px-2.5 py-2 font-medium hover:bg-black/5 sm:px-3">
-            가격
-          </Link>
           {user ? (
             <Link
               href="/dashboard"

@@ -10,15 +10,12 @@ import BrandIcon from "@/components/BrandIcon";
 
 type Props = { initialPoint: number };
 type PayMethod = "POINT" | "CARD";
-/** 겟유심 자체 발급 이력으로 계산한 실측 성공률(최근 N일). 표본 부족이면 null. */
-type Ours = { rate: number; n: number } | null;
 type Svc = {
   value: string;
   label: string;
   slug: string;
   price?: number;
   rate?: number;
-  ours?: Ours;
 };
 type Cnt = {
   value: string;
@@ -26,7 +23,6 @@ type Cnt = {
   iso: string;
   price?: number;
   rate?: number;
-  ours?: Ours;
 };
 type Recent = { value: string; label: string; iso: string };
 
@@ -111,20 +107,7 @@ function ReferenceRow({
   );
 }
 
-type Row = {
-  value: string;
-  label: string;
-  img: string;
-  rate: number;
-  price: number;
-  ours?: Ours;
-};
-
-/** 실측 표본이 이만큼 쌓였는데 성공이 0건이면 "안 되는 조합"으로 보고 흐리게 표시한다. */
-const OURS_DEAD_SAMPLE = 5;
-function isDead(o: Ours | undefined) {
-  return !!o && o.n >= OURS_DEAD_SAMPLE && o.rate === 0;
-}
+type Row = { value: string; label: string; img: string; rate: number; price: number };
 
 function CompareTable({
   colLabel,
@@ -188,14 +171,11 @@ function CompareTable({
             {sorted.map((r) => {
               const sel = selected === r.value;
               const fav = favValues.has(r.value);
-              const dead = isDead(r.ours);
               return (
                 <li
                   key={r.value}
                   ref={sel ? selectedRef : undefined}
-                  className={`flex items-stretch ${sel ? "bg-emerald-50" : ""} ${
-                    dead && !sel ? "opacity-55" : ""
-                  }`}
+                  className={`flex items-stretch ${sel ? "bg-emerald-50" : ""}`}
                 >
                   <button
                     type="button"
@@ -235,27 +215,10 @@ function CompareTable({
                         5sim이 주는 재고(count)가 실제 구매 가능 여부와 맞지 않기 때문이다.
                         재고 36,600개로 표시된 조합을 연속 3회 사봤지만 전부 "번호 없음"이었다.
                         틀린 숫자를 보여주면 회원 신뢰만 깎이므로 뺀다(필터로는 계속 쓴다). */}
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                    <div className="mt-1 flex items-center gap-2 text-xs">
                       <span className={`rounded px-1.5 py-0.5 font-semibold ${rateColor(r.rate)}`}>
                         예상 수신률 {r.rate}%
                       </span>
-                      {/* 겟유심 실측: 우리 회원이 최근 실제로 받은 비율. 5sim 통계보다 한국 사용 패턴에 가깝다.
-                          표본이 적으면(서버 기준 3건 미만) 내려오지 않으므로 표시하지 않는다. */}
-                      {r.ours &&
-                        (dead ? (
-                          <span className="rounded bg-zinc-200 px-1.5 py-0.5 font-semibold text-zinc-500">
-                            <i className="fa-solid fa-ban mr-1" aria-hidden />
-                            최근 성공 사례 없음 ({r.ours.n}건)
-                          </span>
-                        ) : (
-                          <span
-                            className={`rounded px-1.5 py-0.5 font-semibold ring-1 ring-inset ring-current/20 ${rateColor(r.ours.rate)}`}
-                            title="겟유심 회원의 최근 실제 발급 결과로 계산한 성공률"
-                          >
-                            <i className="fa-solid fa-circle-check mr-1" aria-hidden />
-                            실측 {r.ours.rate}% ({r.ours.n}건)
-                          </span>
-                        ))}
                     </div>
                   </button>
                 </li>
@@ -267,8 +230,7 @@ function CompareTable({
       {!loading && rows.length > 0 && (
         <p className="mt-1.5 text-xs text-zinc-400">
           <i className="fa-solid fa-circle-info mr-1" aria-hidden />
-          예상 수신률은 공급사의 최근 24시간 통계, 실측은 겟유심 회원의 최근 실제 발급 결과예요.
-          둘 다 참고용이며 실제 결과와 다를 수 있어요.
+          표시된 수신률은 최근 24시간 통계로 참고용이며, 실제 발급 결과와 다를 수 있어요.
         </p>
       )}
     </div>
@@ -652,7 +614,6 @@ export default function NumberAuth({ initialPoint }: Props) {
                 img: `https://cdn.simpleicons.org/${s.slug}`,
                 rate: s.rate ?? 0,
                 price: s.price ?? 0,
-                ours: s.ours,
               }))}
             />
           )}
@@ -685,7 +646,6 @@ export default function NumberAuth({ initialPoint }: Props) {
                 img: `https://flagcdn.com/w40/${c.iso}.png`,
                 rate: c.rate ?? 0,
                 price: c.price ?? 0,
-                ours: c.ours,
               }))}
             />
           )}

@@ -11,7 +11,6 @@ import {
   smsPointPrice,
 } from "./config";
 import { isUnavailable } from "./unavailable";
-import { loadSuccessStats, pickSuccessStat, type SuccessStat } from "./success-rate";
 
 /**
  * 상품 카탈로그: "서비스 × 국가 = 인증 1건" 상품의 가격·수신률 목록.
@@ -25,8 +24,6 @@ export type CountryOffer = {
   price: number;
   /** 5sim 최근 24시간 수신률(%) */
   rate: number;
-  /** 겟유심 실측 성공률 (표본 부족이면 null) */
-  ours: SuccessStat | null;
 };
 
 /** 통신사 가격표 항목들 중 "수신률 높고, 같으면 싼" 최선 후보. 재고·단가 상한 밖은 제외. */
@@ -57,7 +54,7 @@ export async function listCountryOffers(service: string): Promise<CountryOffer[]
     return [];
   }
 
-  const [fx, stats] = await Promise.all([getUsdKrw(), loadSuccessStats()]);
+  const fx = await getUsdKrw();
   const build = (allowShortWindow: boolean) =>
     COUNTRIES.flatMap((c) => {
       // 사봤다가 "번호 없음"이 확인된 조합은 숨긴다 — 5sim 재고 표시가 실제와 맞지 않는다.
@@ -71,7 +68,6 @@ export async function listCountryOffers(service: string): Promise<CountryOffer[]
           iso: c.iso,
           price: smsPointPrice(best.cost, fx),
           rate: Math.round(best.rate),
-          ours: pickSuccessStat(stats, c.value, service),
         },
       ];
     });

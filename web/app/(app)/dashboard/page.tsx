@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { bal, ymdhm } from "@/lib/format";
+import { cardPaymentAvailable } from "@/lib/payments";
 import Reveal from "@/components/Reveal";
 import Tilt from "@/components/Tilt";
 import RentalLabel from "@/components/RentalLabel";
@@ -50,12 +51,21 @@ export default async function DashboardPage() {
               >
                 <i className="fa-solid fa-comment-sms" aria-hidden /> SMS 인증받기
               </Link>
-              <Link
-                href="/charge"
-                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
-              >
-                <i className="fa-solid fa-coins" aria-hidden /> 잔액 충전
-              </Link>
+              {cardPaymentAvailable() ? (
+                <Link
+                  href="/products"
+                  className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+                >
+                  <i className="fa-solid fa-bag-shopping" aria-hidden /> 상품 보기
+                </Link>
+              ) : (
+                <Link
+                  href="/charge"
+                  className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+                >
+                  <i className="fa-solid fa-coins" aria-hidden /> 잔액 충전
+                </Link>
+              )}
             </div>
           </section>
         </Tilt>

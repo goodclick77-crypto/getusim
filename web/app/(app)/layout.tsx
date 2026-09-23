@@ -5,6 +5,7 @@ import { bal } from "@/lib/format";
 import MobileNav from "@/components/MobileNav";
 import NavLinks from "@/components/NavLinks";
 import Footer from "@/components/Footer";
+import { cardPaymentAvailable } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,11 @@ export default async function AppLayout({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  // 건별 결제(결제사 설정)가 되는 환경에서는 "잔액 충전" 메뉴를 숨긴다 — 결제는 주문 페이지에서.
+  // 운영은 PG 승인 전까지 무통장 충전이 유일한 결제수단이라 메뉴가 그대로 남는다.
+  const cardPay = cardPaymentAvailable();
+  const nav = cardPay ? NAV.filter((n) => n.href !== "/charge") : NAV;
+
   return (
     <div className="flex flex-1 flex-col">
       <header className="glass sticky top-7 z-40">
@@ -35,14 +41,14 @@ export default async function AppLayout({
             <Link href="/" className="font-mont text-lg font-extrabold tracking-tight">
               GetUsim
             </Link>
-            <NavLinks items={NAV} />
+            <NavLinks items={nav} />
           </div>
 
           <div className="flex shrink-0 items-center gap-2 text-sm">
             <Link
-              href="/charge"
+              href={cardPay ? "/history?tab=point" : "/charge"}
               className="rounded-xl bg-emerald-600/10 px-3 py-1.5 font-semibold text-emerald-700 hover:bg-emerald-600/15"
-              title="잔액 충전"
+              title={cardPay ? "잔액 내역" : "잔액 충전"}
             >
               <i className="fa-solid fa-coins mr-1.5" aria-hidden />
               <span className="font-num">{bal(user.point)}</span>
@@ -63,7 +69,7 @@ export default async function AppLayout({
                 <i className="fa-solid fa-right-from-bracket" aria-hidden /> 로그아웃
               </button>
             </form>
-            <MobileNav items={NAV} isAdmin={user.role === "ADMIN"} />
+            <MobileNav items={nav} isAdmin={user.role === "ADMIN"} />
           </div>
         </div>
       </header>

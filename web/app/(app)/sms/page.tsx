@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { pt, ymdhm, phoneFmt } from "@/lib/format";
+import { pt, won, ymdhm, phoneFmt } from "@/lib/format";
+import { cardPaymentAvailable } from "@/lib/payments";
 import NumberAuth from "./NumberAuth";
 import RentalLabel from "@/components/RentalLabel";
 
@@ -35,7 +36,11 @@ export default async function SmsPage() {
         <i className="fa-solid fa-comment-sms text-emerald-600" aria-hidden /> 해외 SMS 인증
       </h1>
 
-      <NumberAuth initialPoint={user.point} />
+      <NumberAuth
+        initialPoint={user.point}
+        card={user.billingKey ? { label: user.cardLabel } : null}
+        cardAvailable={cardPaymentAvailable()}
+      />
 
       <section>
         <h2 className="mb-3 flex items-center gap-2 font-bold">
@@ -64,7 +69,15 @@ export default async function SmsPage() {
                 </div>
                 <p className="font-num mt-1 text-xs text-zinc-400">
                   {r.phoneNumber ? phoneFmt(r.phoneNumber) : "-"} · {ymdhm(r.createdAt)}
-                  {r.smsCode ? ` · 코드 ${r.smsCode} · -${pt(r.pricePoint)}` : ""}
+                  {r.smsCode
+                    ? ` · 코드 ${r.smsCode} · ${
+                        r.payMethod === "CARD" ? `카드 ${won(r.payAmount)}` : `-${pt(r.pricePoint)}`
+                      }`
+                    : r.payMethod === "CARD" && r.payStatus === "CANCELED"
+                      ? ` · 카드 ${won(r.payAmount)} 승인취소됨`
+                      : r.payMethod === "CARD" && r.payStatus === "APPROVED"
+                        ? ` · 카드 ${won(r.payAmount)} 승인(대기)`
+                        : ""}
                 </p>
               </li>
               );

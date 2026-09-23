@@ -2,13 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { COUNTRIES, SERVICES, SMS_BASE_POINT } from "@/lib/config";
+import { COUNTRIES, SERVICES, SMS_BASE_POINT, chargeAmount } from "@/lib/config";
 import { phoneFmt } from "@/lib/format";
 import ImageSelect from "@/components/ImageSelect";
 import CopyButton from "@/components/CopyButton";
 import BrandIcon from "@/components/BrandIcon";
 
-type Props = { initialPoint: number };
+type Props = {
+  initialPoint: number;
+  /** 등록된 결제 카드(빌링키). 없으면 null. */
+  card: { label: string } | null;
+  /** 결제사가 설정돼 카드 결제를 쓸 수 있는지(운영은 PG 승인 전까지 false). */
+  cardAvailable: boolean;
+};
+type PayMethod = "POINT" | "CARD";
 /** 겟유심 자체 발급 이력으로 계산한 실측 성공률(최근 N일). 표본 부족이면 null. */
 type Ours = { rate: number; n: number } | null;
 type Svc = {
@@ -275,8 +282,14 @@ function CompareTable({
   );
 }
 
-export default function NumberAuth({ initialPoint }: Props) {
+export default function NumberAuth({ initialPoint, card, cardAvailable }: Props) {
   const [point, setPoint] = useState(initialPoint);
+  const [cardLabel, setCardLabel] = useState<string | null>(card?.label ?? null);
+  const [cardBusy, setCardBusy] = useState(false);
+  /** 회원이 고른 결제수단. "auto"면 포인트가 충분할 때 포인트, 아니면 카드. */
+  const [payPick, setPayPick] = useState<"auto" | PayMethod>("auto");
+  /** 현재 발급건의 결제 정보(결과 패널 표시용) */
+  const [paid, setPaid] = useState<{ method: PayMethod; amount: number } | null>(null);
   const [country, setCountry] = useState("");
   const [service, setService] = useState("");
 
@@ -295,6 +308,11 @@ export default function NumberAuth({ initialPoint }: Props) {
   const [favs, setFavs] = useState<Set<string>>(new Set()); // `${kind}:${value}`
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const pollGenRef = useRef(0); // 폴링 세대 토큰(동시 폴링 방지)
+  // 비동기 폴링 루프 안에서 최신 결제 정보를 읽기 위한 ref(렌더 중 접근 금지 규칙 때문에 effect 로 동기화)
+  const paidRef = useRef<{ method: PayMethod; amount: number } | null>(null);
+  useEffect(() => {
+    paidRef.current = paid;
+  }, [paid]);
 
   // 즐겨찾기 로드 (회원별)
   useEffect(() => {
@@ -353,12 +371,18 @@ export default function NumberAuth({ initialPoint }: Props) {
         const raw = r.expiresAt ? new Date(r.expiresAt).getTime() : Infinity;
         const deadline = Math.min(raw, Date.now() + SMS_WAIT_MS);
         setExpiresAt(deadline);
+        const isCard = r.payMethod === "CARD";
+        setPaid(
+          isCard
+            ? { method: "CARD", amount: r.payAmount ?? 0 }
+            : { method: "POINT", amount: r.pricePoint ?? SMS_BASE_POINT },
+        );
         if (r.smsCode) {
           setCode(r.smsCode);
           setStatus("인증코드 수신 완료");
         } else if (deadline - Date.now() > 0) {
-          // 폴링 재개 (남은 시간 있으면)
-          pollCode(r.id, r.pricePoint ?? SMS_BASE_POINT, deadline);
+          // 폴링 재개 (남은 시간 있으면). 카드 건은 포인트를 깎지 않는다.
+          pollCode(r.id, isCard ? 0 : (r.pricePoint ?? SMS_BASE_POINT), deadline);
         }
       })
       .catch(() => {});
@@ -434,6 +458,52 @@ export default function NumberAuth({ initialPoint }: Props) {
     return () => clearInterval(t);
   }, [expiresAt]);
 
+  // ---- 결제수단 결정 ----
+  // 표시 가격(포인트)과 그 카드 결제 환산액. 카드 금액은 충전 수수료율을 그대로 적용해 두 경로가 같은 값이다.
+  const need = Math.max(selected?.price ?? SMS_BASE_POINT, SMS_BASE_POINT);
+  const needWon = chargeAmount(need);
+  const pointEnough = point >= need;
+  const canCard = cardAvailable && !!cardLabel;
+  const payMethod: PayMethod = payPick === "auto" ? (pointEnough ? "POINT" : "CARD") : payPick;
+  /** 지금 상태로 결제가 가능한가(버튼 활성 조건) */
+  const payReady = payMethod === "POINT" ? pointEnough : canCard;
+
+  async function registerCard() {
+    if (cardBusy) return;
+    setCardBusy(true);
+    setStatus("");
+    try {
+      // 실제 PG(토스 등)는 카드등록 창을 띄워 authKey 를 받아 넘긴다. mock 결제사는 즉시 발급.
+      const res = await fetch("/api/payments/billing-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authPayload: {} }),
+      });
+      const j = await res.json();
+      if (j.ok && j.card?.label) {
+        setCardLabel(j.card.label);
+        setStatus(`카드가 등록되었습니다 (${j.card.label})`);
+      } else {
+        setStatus(j.error || "카드 등록에 실패했습니다");
+      }
+    } catch {
+      setStatus("카드 등록에 실패했습니다");
+    } finally {
+      setCardBusy(false);
+    }
+  }
+
+  async function removeCard() {
+    if (cardBusy) return;
+    setCardBusy(true);
+    try {
+      await fetch("/api/payments/billing-key", { method: "DELETE" });
+      setCardLabel(null);
+      setPayPick("auto");
+    } catch {}
+    setCardBusy(false);
+  }
+
   async function getNumber() {
     if (running) return;
     pollGenRef.current++; // 진행 중 폴링(이어받기 등) 취소
@@ -443,21 +513,26 @@ export default function NumberAuth({ initialPoint }: Props) {
     setExpiresAt(null);
     setStatus("");
     setNeedCharge(false);
+    setPaid(null);
     if (!country || !service) {
       setStatus("국가와 서비스를 선택하세요");
       return;
     }
-    // 선택한 서비스 가격을 미리 알고 있으면, 발급 요청 전에 부족 안내
-    const need = selected?.price ?? SMS_BASE_POINT;
-    if (point < Math.max(need, SMS_BASE_POINT)) {
+    // 결제 가능 여부를 먼저 확인 — 포인트가 모자라고 카드도 없으면 요청 자체를 하지 않는다.
+    if (payMethod === "POINT" && !pointEnough) {
       setStatus(
         `포인트가 부족합니다 (${need.toLocaleString("ko-KR")}P 필요, 보유 ${point.toLocaleString("ko-KR")}P)`,
       );
       setNeedCharge(true);
       return;
     }
+    if (payMethod === "CARD" && !canCard) {
+      setStatus(cardAvailable ? "먼저 결제할 카드를 등록해 주세요" : "카드 결제가 아직 준비되지 않았습니다");
+      if (!cardAvailable) setNeedCharge(true);
+      return;
+    }
 
-    setStatus("번호 요청 중…");
+    setStatus(payMethod === "CARD" ? "번호 요청 중… (번호가 잡히면 결제됩니다)" : "번호 요청 중…");
     setRunning(true);
 
     let data: {
@@ -467,6 +542,8 @@ export default function NumberAuth({ initialPoint }: Props) {
       error?: string;
       message?: string;
       pricePoint?: number;
+      payMethod?: PayMethod;
+      payAmount?: number;
     };
     try {
       const res = await fetch("/api/sms/number", {
@@ -474,7 +551,12 @@ export default function NumberAuth({ initialPoint }: Props) {
         headers: { "Content-Type": "application/json" },
         // maxPoint = 지금 화면에 떠 있는 차감예정 금액. 조회~발급 사이 5sim 가격이 올라도
         // 이 금액을 넘으면 서버가 사지 않고 취소한다(스마트·수동 모드 공통).
-        body: JSON.stringify({ country, service, maxPoint: selected?.price }),
+        body: JSON.stringify({
+          country,
+          service,
+          maxPoint: selected?.price,
+          pay: payMethod === "CARD" ? "card" : "point",
+        }),
       });
       data = await res.json();
     } catch {
@@ -516,7 +598,14 @@ export default function NumberAuth({ initialPoint }: Props) {
       return;
     }
 
-    const charged = data.pricePoint ?? SMS_BASE_POINT;
+    const isCard = data.payMethod === "CARD";
+    // 카드 건은 이미 결제됐으므로 코드 수신 시 포인트를 깎지 않는다(charged=0).
+    const charged = isCard ? 0 : (data.pricePoint ?? SMS_BASE_POINT);
+    setPaid(
+      isCard
+        ? { method: "CARD", amount: data.payAmount ?? needWon }
+        : { method: "POINT", amount: data.pricePoint ?? SMS_BASE_POINT },
+    );
     // 5sim 만료와 3분 중 먼저 오는 쪽까지만 대기(카운트다운도 이 값 기준).
     const raw = data.expires ? new Date(data.expires).getTime() : Date.now() + 15 * 60 * 1000;
     const deadline = Math.min(raw, Date.now() + SMS_WAIT_MS);
@@ -560,11 +649,16 @@ export default function NumberAuth({ initialPoint }: Props) {
         } catch {
           /* 밴 요청 실패는 무시 — 서버 스케줄러가 정리한다 */
         }
-        setStatus("문자가 오지 않아 번호를 자동 취소했어요. 다른 국가·서비스로 다시 받아주세요.");
+        setStatus(
+          paidRef.current?.method === "CARD"
+            ? "문자가 오지 않아 번호를 자동 취소했어요. 카드 결제도 자동 취소되어 요금이 청구되지 않습니다."
+            : "문자가 오지 않아 번호를 자동 취소했어요. 다른 국가·서비스로 다시 받아주세요.",
+        );
         setRunning(false);
         setPhone("");
         setExpiresAt(null);
         setRemain(null);
+        setPaid(null);
         return;
       }
       try {
@@ -607,9 +701,14 @@ export default function NumberAuth({ initialPoint }: Props) {
         return;
       }
     } catch {}
-    setStatus("번호를 밴 처리했습니다. 다시 번호를 받아주세요.");
+    setStatus(
+      paidRef.current?.method === "CARD"
+        ? "번호를 밴 처리했고 카드 결제는 자동 취소되었습니다. 다시 번호를 받아주세요."
+        : "번호를 밴 처리했습니다. 다시 번호를 받아주세요.",
+    );
     setPhone("");
     setRemain(null);
+    setPaid(null);
   }
 
   return (
@@ -625,6 +724,40 @@ export default function NumberAuth({ initialPoint }: Props) {
           인증코드 수신 성공 시 차감 (번호 발급은 무료) · 서비스별 가격 상이, 최소{" "}
           {SMS_BASE_POINT.toLocaleString("ko-KR")}P
         </p>
+        {cardAvailable && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-sm">
+            <span className="flex items-center gap-2 text-zinc-300">
+              <i className="fa-regular fa-credit-card text-emerald-400" aria-hidden />
+              {cardLabel ? (
+                <>
+                  결제 카드 <b className="font-num text-white">{cardLabel}</b>
+                </>
+              ) : (
+                "결제 카드 없음 · 등록하면 포인트 없이 건별 결제할 수 있어요"
+              )}
+            </span>
+            {cardLabel ? (
+              <button
+                type="button"
+                onClick={removeCard}
+                disabled={cardBusy}
+                className="rounded-lg border border-white/15 px-2.5 py-1 text-xs text-zinc-300 hover:bg-white/10 disabled:opacity-50"
+              >
+                카드 해제
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={registerCard}
+                disabled={cardBusy}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-400 disabled:opacity-50"
+              >
+                <i className={`fa-solid ${cardBusy ? "fa-spinner fa-spin" : "fa-plus"}`} aria-hidden />
+                카드 등록
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="glass rounded-2xl p-5">
@@ -753,28 +886,136 @@ export default function NumberAuth({ initialPoint }: Props) {
             />
           )}
 
-          {/* 액션 */}
-          <div className="flex gap-2">
-            <button
-              onClick={getNumber}
-              disabled={running || !country || !service}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
-            >
-              <i
-                className={`fa-solid ${running ? "fa-spinner fa-spin" : "fa-mobile-screen-button"}`}
-                aria-hidden
-              />
-              {running ? "진행 중…" : "번호 받기"}
-            </button>
-            {running && (
+          {/* 상품 요약 + 결제 — 국가·서비스가 정해지면 "무엇을 얼마에 사는지"를 한 칸으로 보여준다 */}
+          {country && service && !running && !phone && (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">상품</p>
+                  <p className="mt-0.5 truncate font-bold">
+                    {SERVICES.find((s) => s.value === service)?.label ?? service} ·{" "}
+                    {COUNTRIES.find((c) => c.value === country)?.label ?? country} 인증 1건
+                  </p>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    번호 발급 후 {Math.round(SMS_WAIT_MS / 60000)}분 안에 코드가 안 오면 자동 취소 · 요금 없음
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="font-num text-xl font-bold text-emerald-700">
+                    {payMethod === "CARD"
+                      ? `${needWon.toLocaleString("ko-KR")}원`
+                      : `${need.toLocaleString("ko-KR")}P`}
+                  </p>
+                  <p className="font-num text-[11px] text-zinc-400">
+                    {payMethod === "CARD"
+                      ? `= ${need.toLocaleString("ko-KR")}P 상당`
+                      : `카드 결제 시 ${needWon.toLocaleString("ko-KR")}원`}
+                  </p>
+                </div>
+              </div>
+
+              {/* 결제수단 — 카드 결제가 가능한 환경에서만 고르게 한다 */}
+              {cardAvailable && (
+                <div className="mt-3 grid grid-cols-2 gap-2" role="radiogroup" aria-label="결제수단">
+                  {(
+                    [
+                      {
+                        v: "POINT",
+                        label: "포인트",
+                        sub: pointEnough ? `보유 ${point.toLocaleString("ko-KR")}P` : "포인트 부족",
+                        ok: pointEnough,
+                        icon: "fa-coins",
+                      },
+                      {
+                        v: "CARD",
+                        label: "카드 결제",
+                        sub: cardLabel ?? "카드 등록 필요",
+                        ok: canCard,
+                        icon: "fa-credit-card",
+                      },
+                    ] as { v: PayMethod; label: string; sub: string; ok: boolean; icon: string }[]
+                  ).map((o) => {
+                    const on = payMethod === o.v;
+                    return (
+                      <button
+                        key={o.v}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => setPayPick(o.v)}
+                        className={`rounded-xl border px-3 py-2 text-left text-sm transition ${
+                          on ? "border-emerald-500 bg-white shadow-sm" : "border-black/10 bg-white/50 hover:bg-white"
+                        } ${o.ok ? "" : "opacity-60"}`}
+                      >
+                        <span className="flex items-center gap-1.5 font-semibold">
+                          <i
+                            className={`fa-solid ${o.icon} ${on ? "text-emerald-600" : "text-zinc-400"}`}
+                            aria-hidden
+                          />
+                          {o.label}
+                        </span>
+                        <span className="font-num mt-0.5 block text-xs text-zinc-500">{o.sub}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {payMethod === "CARD" && !canCard && cardAvailable ? (
+                  <button
+                    type="button"
+                    onClick={registerCard}
+                    disabled={cardBusy}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    <i className={`fa-solid ${cardBusy ? "fa-spinner fa-spin" : "fa-credit-card"}`} aria-hidden />
+                    카드 등록하고 결제하기
+                  </button>
+                ) : (
+                  <button
+                    onClick={getNumber}
+                    disabled={!payReady}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    <i className="fa-solid fa-mobile-screen-button" aria-hidden />
+                    {payMethod === "CARD"
+                      ? `${needWon.toLocaleString("ko-KR")}원 결제하고 번호 받기`
+                      : `${need.toLocaleString("ko-KR")}P로 번호 받기`}
+                  </button>
+                )}
+                {!payReady && payMethod === "POINT" && (
+                  <Link
+                    href="/charge"
+                    className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+                  >
+                    <i className="fa-solid fa-bolt text-indigo-500" aria-hidden /> 포인트 충전
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 진행 중 액션 */}
+          {(running || phone) && (
+            <div className="flex gap-2">
               <button
-                onClick={ban}
-                className="rounded-xl bg-red-600 px-4 py-3 font-medium text-white hover:bg-red-500"
+                disabled
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white opacity-60"
               >
-                밴넘버
+                <i className="fa-solid fa-spinner fa-spin" aria-hidden />
+                진행 중…
               </button>
-            )}
-          </div>
+              {running && (
+                <button
+                  onClick={ban}
+                  className="rounded-xl bg-red-600 px-4 py-3 font-medium text-white hover:bg-red-500"
+                >
+                  밴넘버
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {status && (
@@ -820,6 +1061,26 @@ export default function NumberAuth({ initialPoint }: Props) {
               <span className="text-zinc-500">남은 시간</span>
               <span className="font-num">{remain != null ? `${remain}초` : "-"}</span>
             </div>
+            {paid && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-zinc-500">결제</span>
+                <span className="font-num text-right">
+                  {paid.method === "CARD" ? (
+                    <>
+                      카드 {paid.amount.toLocaleString("ko-KR")}원{" "}
+                      <span className="text-xs text-zinc-400">
+                        {code ? "· 확정" : "· 승인됨 (미수신 시 자동취소)"}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      포인트 {paid.amount.toLocaleString("ko-KR")}P{" "}
+                      <span className="text-xs text-zinc-400">{code ? "· 차감됨" : "· 수신 시 차감"}</span>
+                    </>
+                  )}
+                </span>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-2 border-t border-black/5 pt-2.5">
               <span className="text-zinc-500">인증코드</span>
               {code ? (

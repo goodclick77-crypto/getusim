@@ -1,12 +1,15 @@
 import { prisma } from "./prisma";
 import { fivesim, FiveSimError } from "./fivesim";
 import { SMS_WAIT_MS } from "./config";
+import { captureRental, voidRentalPayment } from "./rental-pay";
 
 type RentalLike = {
   id: number;
   userId: number;
   pricePoint: number;
   fivesimId: string | null;
+  /** CARD 면 포인트를 차감하지 않고 카드 승인을 확정(CAPTURED)한다. 생략 시 POINT. */
+  payMethod?: "POINT" | "CARD";
 };
 
 /**
@@ -30,6 +33,9 @@ export async function settleReceived(
     });
     if (upd.count !== 1) return; // 동시 처리/이미 반영 → 중복 차감 방지
     credited = true;
+
+    // 카드 건별 결제 건은 이미 승인된 금액이 매출이다 — 포인트는 건드리지 않는다.
+    if (rental.payMethod === "CARD") return;
 
     // 정액 차감하되 보유 포인트를 넘지 않도록(음수 방지). 발급~수신 사이 차감/환불 대비.
     const cur = await tx.user.findUnique({
@@ -55,6 +61,10 @@ export async function settleReceived(
     });
   });
 
+  if (credited && rental.payMethod === "CARD") {
+    await captureRental(rental.id); // 승인 유지 = 확정
+  }
+
   if (credited && rental.fivesimId) {
     try {
       await fivesim.finish(rental.fivesimId);
@@ -69,6 +79,8 @@ async function markExpired(id: number) {
   await prisma.numberRental
     .updateMany({ where: { id, status: "PENDING" }, data: { status: "EXPIRED" } })
     .catch(() => {});
+  // 카드 건이면 승인취소(미수신 → 무과금). 포인트 건은 아무 일도 없다.
+  await voidRentalPayment(id, "인증코드 미수신(시간 초과)");
 }
 
 /**
@@ -86,7 +98,7 @@ export async function expireStaleRentals() {
   try {
     stale = await prisma.numberRental.findMany({
       where: { status: "PENDING", createdAt: { lt: cutoff } },
-      select: { id: true, userId: true, pricePoint: true, fivesimId: true },
+      select: { id: true, userId: true, pricePoint: true, fivesimId: true, payMethod: true },
       take: 20,
     });
   } catch {

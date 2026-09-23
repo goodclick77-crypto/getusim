@@ -18,6 +18,8 @@ export async function GET() {
       service: true,
       pricePoint: true,
       smsCode: true,
+      payMethod: true,
+      payAmount: true,
     },
   });
 

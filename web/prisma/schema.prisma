@@ -37,6 +37,11 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at")  // ← mb_datetime
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
+  // 건별 카드 결제(원클릭)용 빌링키. 카드번호는 저장하지 않고 PG가 준 키만 둔다.
+  billingKey      String? @map("billing_key")
+  billingProvider String  @default("") @map("billing_provider") // 발급한 결제사(toss/kcp/mock)
+  cardLabel       String  @default("") @map("card_label")       // 표시용 "신한 **** 1234"
+
   pointLogs    PointLog[]
   chargeOrders ChargeOrder[]
   inquiries    Inquiry[]
@@ -207,6 +212,11 @@ model NumberRental {
   pricePoint  Int          @map("price_point")           // 차감 포인트(매출)
   costKrw     Int          @default(0) @map("cost_krw")  // 5sim 실제 원가(원) — 마진 계산용
   status      RentalStatus @default(PENDING)
+  // 건별 결제: 포인트 차감(POINT) 또는 카드 승인(CARD). CARD 는 코드 수신 시 확정, 미수신 시 승인취소.
+  payMethod   RentalPayMethod @default(POINT) @map("pay_method")
+  payAmount   Int          @default(0) @map("pay_amount")     // 카드 승인 금액(원)
+  payTxId     String?      @map("pay_tx_id")                  // PG 거래번호(취소·정산 대조)
+  payStatus   PayStatus    @default(NONE) @map("pay_status")
   expiresAt   DateTime?    @map("expires_at")
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
@@ -215,7 +225,21 @@ model NumberRental {
 
   @@index([userId, createdAt])
   @@index([status])
+  @@index([payStatus])
   @@map("number_rental")
+}
+
+enum RentalPayMethod {
+  POINT // 포인트 차감(기존)
+  CARD  // 카드 빌링키 건별 승인
+}
+
+enum PayStatus {
+  NONE          // 결제 없음(포인트) 
+  APPROVED      // 승인됨(코드 대기 중)
+  CAPTURED      // 확정(코드 수신 → 매출)
+  CANCELED      // 승인취소 완료(미수신)
+  CANCEL_FAILED // 승인취소 실패 → 관리자 확인 필요
 }
 
 /// 공지사항  ← g5_write_notice

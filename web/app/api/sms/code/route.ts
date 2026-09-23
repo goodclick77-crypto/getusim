@@ -41,6 +41,7 @@ export async function GET(req: Request) {
       userId: rental.userId,
       pricePoint: rental.pricePoint,
       fivesimId: rental.fivesimId,
+      payMethod: rental.payMethod,
     },
     sms.code,
     sms.text,

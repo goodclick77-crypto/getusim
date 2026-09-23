@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { fivesim, FiveSimError } from "@/lib/fivesim";
 import { settleReceived } from "@/lib/rentals";
+import { voidRentalPayment } from "@/lib/rental-pay";
 
 // 번호 밴(수신 실패 시). 단, 밴 직전 코드가 이미 도착했을 수 있으므로 먼저 5sim을 확인한다.
 // 코드가 있으면 5sim은 이미 과금한 상태 → 그냥 밴하면 원가만 나가고 포인트는 안 빠져 손실.
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
         userId: rental.userId,
         pricePoint: rental.pricePoint,
         fivesimId: rental.fivesimId,
+        payMethod: rental.payMethod,
       },
       sms.code,
       sms.text,
@@ -65,5 +67,15 @@ export async function POST(req: Request) {
     where: { id: rental.id, status: "PENDING" },
     data: { status: "CANCELED" },
   });
-  return NextResponse.json({ ok: true, received: false });
+  // 카드 건이면 승인취소 → 회원은 돈을 내지 않는다.
+  await voidRentalPayment(rental.id, "인증코드 미수신(밴)");
+  const after = await prisma.numberRental.findUnique({
+    where: { id: rental.id },
+    select: { payMethod: true, payStatus: true },
+  });
+  return NextResponse.json({
+    ok: true,
+    received: false,
+    payCanceled: after?.payMethod === "CARD" ? after.payStatus === "CANCELED" : undefined,
+  });
 }

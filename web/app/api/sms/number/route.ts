@@ -6,6 +6,8 @@ import { getUsdKrw } from "@/lib/fx";
 import { notifyAdmin } from "@/lib/notify";
 import { markUnavailable, meansNoPhones } from "@/lib/unavailable";
 import { countryLabel, serviceLabel } from "@/lib/config";
+import { getPaymentProvider } from "@/lib/payments";
+import { approveForRental, cardAmountFor } from "@/lib/rental-pay";
 import {
   COUNTRIES,
   SERVICES,
@@ -22,6 +24,9 @@ import {
 const GENERIC_FAIL = "일시적인 문제로 발급이 불가능합니다. 다른 국가·서비스를 이용해주세요.";
 
 // 번호 발급(무료). 동적 가격: 원가에 따라 차감 포인트가 달라짐(수신 성공 시 차감).
+// pay="card" 면 포인트 대신 등록된 카드(빌링키)로 건별 결제한다:
+//   번호 발급 성공 → 카드 승인 → (코드 수신) 확정 / (미수신) 승인취소.
+//   번호가 안 잡히면 승인 자체가 없으므로 "안 되는 국가"에 돈이 나가는 일이 없다.
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
@@ -32,14 +37,23 @@ export async function POST(req: Request) {
     await touchLastSeen(user.id, ip);
 
     // maxPoint = 회원 화면에 표시됐던 차감 예정 포인트. 있으면 그 금액을 상한으로 쓴다.
-    const { country, service, maxPoint } = await req.json().catch(() => ({}));
+    const { country, service, maxPoint, pay } = await req.json().catch(() => ({}));
     if (
       !COUNTRIES.some((c) => c.value === country) ||
       !SERVICES.some((s) => s.value === service)
     ) {
       return NextResponse.json({ error: "국가와 서비스를 선택하세요" }, { status: 400 });
     }
-    if (user.point < SMS_MIN_POINT) {
+    const payMethod: "POINT" | "CARD" = pay === "card" ? "CARD" : "POINT";
+    if (payMethod === "CARD") {
+      if (!getPaymentProvider().isConfigured()) {
+        return NextResponse.json({ error: "card", message: "카드 결제가 아직 준비되지 않았습니다." });
+      }
+      if (!user.billingKey) {
+        return NextResponse.json({ error: "card", message: "먼저 결제할 카드를 등록해 주세요." });
+      }
+    }
+    if (payMethod === "POINT" && user.point < SMS_MIN_POINT) {
       return NextResponse.json({
         error: "need",
         needPoint: SMS_MIN_POINT,
@@ -74,7 +88,7 @@ export async function POST(req: Request) {
 
     // ★ 발급 전에 미리 차단 — 부족하면 구매 자체를 하지 않음 (진행중 번호 예약분 차감)
     const needAmount = Math.max(estPrice, SMS_MIN_POINT);
-    if (available < needAmount) {
+    if (payMethod === "POINT" && available < needAmount) {
       const msg =
         reserved > 0
           ? `포인트가 부족합니다 (필요 ${needAmount.toLocaleString("ko-KR")}P, 사용가능 ${available.toLocaleString("ko-KR")}P · 진행중 번호 ${reserved.toLocaleString("ko-KR")}P 예약중)`
@@ -141,7 +155,7 @@ export async function POST(req: Request) {
     }
 
     // 안전망: 조회 후 가격이 급변해 사용가능 포인트보다 커진 드문 경우만 취소
-    if (available < pricePoint) {
+    if (payMethod === "POINT" && available < pricePoint) {
       try {
         await fivesim.cancel(order.id);
       } catch {}
@@ -166,6 +180,7 @@ export async function POST(req: Request) {
           pricePoint,
           costKrw: Math.round((order.price || 0) * fx),
           status: "PENDING",
+          payMethod,
           // 5sim이 만료시간을 안 주면 15분 후로 기본 설정(이어받기/만료처리 위해 null 금지)
           expiresAt: order.expires ? new Date(order.expires) : new Date(Date.now() + 15 * 60 * 1000),
         },
@@ -178,10 +193,38 @@ export async function POST(req: Request) {
       throw e;
     }
 
+    // 카드 건별 결제: 번호가 잡힌 뒤에만 승인한다. 승인 실패면 번호를 되돌리고 회원에게 알린다.
+    let payAmount = 0;
+    if (payMethod === "CARD") {
+      try {
+        const r = await approveForRental({
+          rentalId: rental.id,
+          userId: user.id,
+          billingKey: user.billingKey!,
+          pricePoint,
+          country,
+          service,
+        });
+        payAmount = r.amount;
+      } catch (e) {
+        console.error("[sms/number] 카드 승인 실패:", country, service, e);
+        try {
+          await fivesim.cancel(order.id);
+        } catch {}
+        await prisma.numberRental
+          .updateMany({ where: { id: rental.id, status: "PENDING" }, data: { status: "CANCELED" } })
+          .catch(() => {});
+        return NextResponse.json({
+          error: "pay_failed",
+          message: `카드 승인에 실패했습니다 (${cardAmountFor(pricePoint).toLocaleString("ko-KR")}원). 카드 한도·유효기간을 확인하거나 다른 카드를 등록해 주세요.`,
+        });
+      }
+    }
+
     await notifyAdmin(
       "order",
       `번호 주문 ${countryLabel(country)}/${serviceLabel(service)}`,
-      `회원: ${user.name || user.loginId}\n국가/서비스: ${countryLabel(country)} / ${serviceLabel(service)}\n번호: ${order.phone}\n차감예정: ${pricePoint.toLocaleString("ko-KR")}P`,
+      `회원: ${user.name || user.loginId}\n국가/서비스: ${countryLabel(country)} / ${serviceLabel(service)}\n번호: ${order.phone}\n${payMethod === "CARD" ? `카드 승인: ${payAmount.toLocaleString("ko-KR")}원 (미수신 시 자동취소)` : `차감예정: ${pricePoint.toLocaleString("ko-KR")}P`}`,
     );
 
     return NextResponse.json({
@@ -189,6 +232,8 @@ export async function POST(req: Request) {
       phone: order.phone,
       expires: rental.expiresAt,
       pricePoint,
+      payMethod,
+      payAmount,
     });
   } catch (e) {
     // 처리되지 않은 예외(네트워크/DB 등)는 흰 화면 500 대신 중립 메시지로.

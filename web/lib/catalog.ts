@@ -104,3 +104,34 @@ export async function quoteOffer(
     return null;
   }
 }
+
+/**
+ * 상품 목록용: 서비스별 "지금 가장 싼 국가의 가격"과 이용 가능 국가 수.
+ * 서비스 수만큼 공급사 가격표를 조회하므로 결과를 잠시(기본 60초) 메모리에 캐시한다.
+ * 조회 실패한 서비스는 null(화면에서 "가격 확인 중"으로).
+ */
+export type ServiceSummary = { minPrice: number; countries: number } | null;
+const SUMMARY_CACHE_MS = Number(process.env.CATALOG_SUMMARY_CACHE_MS || 60 * 1000);
+let summaryCache: { at: number; map: Map<string, ServiceSummary> } | null = null;
+
+export async function listServiceSummaries(): Promise<Map<string, ServiceSummary>> {
+  const now = Date.now();
+  if (summaryCache && now - summaryCache.at < SUMMARY_CACHE_MS) return summaryCache.map;
+
+  const results = await Promise.allSettled(
+    SERVICES.map(async (s) => {
+      const offers = await listCountryOffers(s.value);
+      const summary: ServiceSummary = offers.length
+        ? { minPrice: Math.min(...offers.map((o) => o.price)), countries: offers.length }
+        : { minPrice: 0, countries: 0 };
+      return [s.value, summary] as const;
+    }),
+  );
+  const map = new Map<string, ServiceSummary>();
+  results.forEach((r, i) => {
+    map.set(SERVICES[i].value, r.status === "fulfilled" ? r.value[1] : null);
+  });
+  summaryCache = { at: now, map };
+  return map;
+}
+

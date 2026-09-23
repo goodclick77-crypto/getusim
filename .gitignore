@@ -26,3 +26,7 @@ web/pup-test.js
 
 # Claude Code 개인 설정
 .claude/settings.local.json
+
+# DB 백업(회원 데이터 포함) — 절대 커밋 금지
+Data_Backup/
+*.dump

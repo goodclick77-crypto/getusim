@@ -210,6 +210,11 @@ export async function POST(req: Request) {
           costKrw: Math.round((order.price || 0) * fx),
           status: "PENDING",
           payMethod,
+          // 결제창 경로는 이미 승인된 거래를 생성 시점에 함께 기록한다(별도 update 로 나누면
+          // 그 사이 실패 시 결제는 취소되는데 번호만 남는 틈이 생긴다).
+          ...(windowTx
+            ? { payAmount: windowTx.amount, payTxId: windowTx.txId, payStatus: "APPROVED" as const }
+            : {}),
           // 5sim이 만료시간을 안 주면 15분 후로 기본 설정(이어받기/만료처리 위해 null 금지)
           expiresAt: order.expires ? new Date(order.expires) : new Date(Date.now() + 15 * 60 * 1000),
         },
@@ -225,11 +230,8 @@ export async function POST(req: Request) {
     // 카드 건별 결제: 번호가 잡힌 뒤에만 승인한다. 승인 실패면 번호를 되돌리고 회원에게 알린다.
     let payAmount = 0;
     if (windowTx) {
-      // 결제창 경로: 이미 승인된 거래를 발급건에 연결 (코드 미수신 시 voidRentalPayment 가 취소)
-      await prisma.numberRental.update({
-        where: { id: rental.id },
-        data: { payMethod: "CARD", payAmount: windowTx.amount, payTxId: windowTx.txId, payStatus: "APPROVED" },
-      });
+      // 결제창 경로: 승인 거래가 발급건에 기록됐으므로 여기서부터는 finally 취소 대상이 아니다
+      // (코드 미수신 시에는 voidRentalPayment 가 취소한다).
       payAmount = windowTx.amount;
       issued = true;
     } else if (payMethod === "CARD") {

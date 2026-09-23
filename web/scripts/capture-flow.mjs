@@ -133,13 +133,19 @@ for (const orderHref of orderHrefs.slice(0, 4)) {
   await page.waitForNetworkIdle({ idleTime: 800, timeout: 15000 }).catch(() => {});
   await sleep(1500);
   await settle(page);
-  // 발급 번호·결제 상태 패널이 보이도록 스크롤
+  // 발급 번호·결제 상태 패널(진행중 번호 이어받기 후 렌더)이 뜰 때까지 기다렸다가 그 위치로 스크롤
+  await page
+    .waitForFunction(
+      () => [...document.querySelectorAll("span")].some((x) => x.textContent.trim() === "발급 번호"),
+      { timeout: 15000 },
+    )
+    .catch(() => console.warn("발급 번호 패널을 찾지 못함 — 상단만 캡처"));
   await page.evaluate(() => {
     const el = [...document.querySelectorAll("span")].find((x) => x.textContent.trim() === "발급 번호");
-    el?.closest(".glass")?.scrollIntoView({ block: "start" });
-    window.scrollBy(0, -90);
+    const card = el?.closest(".glass") || el?.parentElement?.parentElement;
+    card?.scrollIntoView({ block: "center" });
   });
-  await sleep(400);
+  await sleep(600);
   await shot(page, "16-after-payment-sms");
   // 발급된 번호는 밴(취소)해서 5sim 비용이 나가지 않게 한다.
   await page.evaluate(() => {

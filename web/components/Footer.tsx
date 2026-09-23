@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { COMPANY } from "@/lib/company";
 
 const LINKS = [
   { href: "/terms", label: "이용약관" },
   { href: "/privacy", label: "개인정보처리방침" },
+  { href: "/refund", label: "환불규정" },
   { href: "/faq", label: "FAQ" },
   { href: "/inquiry", label: "1:1 문의" },
 ];
@@ -14,16 +16,23 @@ export default function Footer() {
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="font-mont text-lg font-extrabold tracking-tight text-zinc-800">
-              GetUsim
+              {COMPANY.brand}
             </p>
+            {/* 전자상거래법 제10조 통신판매업자 표시사항: 상호·대표자·사업자등록번호·
+                통신판매업신고번호·주소·연락처. PG 심사 시에도 이 표기를 확인한다. */}
             <address className="mt-3 space-y-0.5 text-xs not-italic leading-relaxed text-zinc-500">
-              <p>겟유심 | 대표자 : 엄전혜</p>
-              <p>사업자등록번호 : 843-08-01310</p>
-              <p>주소 : 경기도 양주시 고읍남로39번길 48</p>
+              <p>
+                {COMPANY.name} | 대표자 : {COMPANY.ceo}
+              </p>
+              <p className="font-num">사업자등록번호 : {COMPANY.bizNo}</p>
+              <p className="font-num">
+                통신판매업신고번호 : {COMPANY.mailOrderNo || "신고 준비 중"}
+              </p>
+              <p>주소 : {COMPANY.address}</p>
               <p>
                 E-mail :{" "}
-                <a href="mailto:admin@getusim.com" className="hover:text-zinc-700">
-                  admin@getusim.com
+                <a href={`mailto:${COMPANY.email}`} className="hover:text-zinc-700">
+                  {COMPANY.email}
                 </a>
               </p>
             </address>
@@ -37,7 +46,7 @@ export default function Footer() {
           </nav>
         </div>
         <p className="font-num mt-8 border-t border-black/5 pt-6 text-xs text-zinc-400">
-          © {new Date().getFullYear()} GetUsim. All rights reserved.
+          © {new Date().getFullYear()} {COMPANY.brand}. All rights reserved.
         </p>
       </div>
     </footer>

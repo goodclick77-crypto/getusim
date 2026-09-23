@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { COMPANY } from "@/lib/company";
 
 export const metadata: Metadata = { title: "사이트정보 — GetUsim" };
 
@@ -21,6 +22,11 @@ export default function AboutPage() {
           ["지원 국가", "미국·러시아·영국 등 23개국"],
           ["지원 서비스", "텔레그램·왓츠앱·구글·인스타그램 등 23종"],
           ["고객지원", "1:1 문의 게시판"],
+          ["상호 / 대표자", `${COMPANY.name} / ${COMPANY.ceo}`],
+          ["사업자등록번호", COMPANY.bizNo],
+          ["통신판매업신고", COMPANY.mailOrderNo || "신고 준비 중"],
+          ["주소", COMPANY.address],
+          ["이메일", COMPANY.email],
         ].map(([k, v]) => (
           <div key={k} className="grid grid-cols-[5.5rem_1fr] gap-3 py-3 sm:gap-4">
             <dt className="text-zinc-500">{k}</dt>

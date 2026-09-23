@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "이용약관 — GetUsim" };
 
@@ -28,9 +29,9 @@ const SECTIONS: { h: string; body: string[] }[] = [
   {
     h: "제4조 (포인트 및 결제)",
     body: [
-      "포인트는 회사가 정한 방법(무통장입금 등)으로 충전할 수 있습니다.",
-      "충전된 포인트의 유효기간 및 환불 정책은 관련 법령 및 회사의 정책에 따릅니다.",
-      "인증번호 수신이 완료된 건에 대해서는 어떠한 경우에도 환불이 불가능합니다.",
+      "포인트는 회사가 정한 방법(무통장입금, 신용카드·간편결제 등)으로 충전하거나, 인증 1건 단위로 결제하여 이용할 수 있습니다.",
+      "인증번호 수신이 완료된 건은 용역 제공이 완료된 것이므로 어떠한 경우에도 환불이 불가능합니다. 인증번호를 수신하지 못한 건은 요금이 차감되지 않으며, 카드 결제의 경우 승인이 자동 취소됩니다.",
+      "미사용 포인트의 환불 조건·절차·처리 기간은 별도의 환불규정에 따르며, 환불규정은 본 약관의 일부를 구성합니다.",
     ],
   },
   {
@@ -54,6 +55,13 @@ export default function TermsPage() {
       <h1 className="flex items-center gap-2 text-2xl font-bold">
         <i className="fa-solid fa-file-contract text-emerald-600" aria-hidden /> 이용약관
       </h1>
+      <p className="mt-4 text-sm text-zinc-500">
+        환불 조건과 절차는{" "}
+        <Link href="/refund" className="text-emerald-700 underline underline-offset-2">
+          환불규정
+        </Link>
+        에서 확인하실 수 있습니다.
+      </p>
       <div className="mt-6 space-y-7">
         {SECTIONS.map((s) => (
           <section key={s.h}>

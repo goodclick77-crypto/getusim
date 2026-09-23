@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymdhm } from "@/lib/format";
-import { CHARGE_POINT_UNITS, CHARGE_FEE_RATE } from "@/lib/config";
+import { CHARGE_COUNT_UNITS, CHARGE_FEE_RATE, SMS_BASE_POINT } from "@/lib/config";
 import { BANK_INFO, bankImageSize } from "@/lib/deposit-account";
 import { createChargeRequest, cancelChargeRequest } from "./actions";
 import ChargeForm from "./ChargeForm";
@@ -163,11 +163,12 @@ export default async function ChargePage({
         <section className="glass rounded-2xl p-5">
           <h2 className="mb-1 font-bold">충전 신청</h2>
           <p className="mb-4 text-xs text-zinc-500">
-            원하는 금액 단위를 눌러 더하세요. (예: 1만P 두 번 = 2만P)
+            필요한 인증 횟수만큼 눌러 더하세요. (예: 3회 두 번 = 6회)
           </p>
           <ChargeForm
             action={createChargeRequest}
-            units={CHARGE_POINT_UNITS}
+            units={CHARGE_COUNT_UNITS}
+            unitPoint={SMS_BASE_POINT}
             feeRate={CHARGE_FEE_RATE}
             defaultName={user.name}
           />
@@ -187,7 +188,9 @@ export default async function ChargePage({
                     <div className="min-w-0 flex-1">
                       <p className="font-num text-base font-bold">
                         {pt(it.chargePoint)}{" "}
-                        <span className="text-sm font-normal text-zinc-400">충전</span>
+                        <span className="text-sm font-normal text-zinc-400">
+                          충전 · 약 {Math.floor(it.chargePoint / SMS_BASE_POINT).toLocaleString("ko-KR")}회
+                        </span>
                       </p>
                       <p className="font-num mt-0.5 text-xs text-zinc-400">
                         입금액 {won(it.amount)} · {ymdhm(it.createdAt)}

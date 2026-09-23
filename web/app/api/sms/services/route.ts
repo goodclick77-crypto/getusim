@@ -11,6 +11,7 @@ import {
   smsPointPrice,
 } from "@/lib/config";
 import { isUnavailable } from "@/lib/unavailable";
+import { loadSuccessStats, pickSuccessStat } from "@/lib/success-rate";
 
 // 국가 선택 시 전체 서비스의 수신률·재고·가격 비교표 (가격은 공개 정보 → 비회원도 조회 가능)
 export async function GET(req: Request) {
@@ -26,7 +27,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ services: SERVICES.map((s) => ({ ...s, available: false })) });
   }
 
-  const fx = await getUsdKrw();
+  // 겟유심 자체 실측 성공률(최근 N일). 5sim 통계와 별개로 같이 보여준다.
+  const [fx, stats] = await Promise.all([getUsdKrw(), loadSuccessStats()]);
   const build = (allowShortWindow: boolean) =>
     SERVICES.flatMap((s) => {
       // 사봤다가 "번호 없음"이 확인된 조합은 숨긴다 — 5sim 재고 표시가 실제와 맞지 않는다.
@@ -52,6 +54,7 @@ export async function GET(req: Request) {
           available: true,
           price: smsPointPrice(best.cost, fx),
           rate: Math.round(best.rate),
+          ours: pickSuccessStat(stats, country, s.value),
         },
       ];
     });

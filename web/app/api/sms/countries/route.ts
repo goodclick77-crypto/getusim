@@ -11,6 +11,7 @@ import {
   smsPointPrice,
 } from "@/lib/config";
 import { isUnavailable } from "@/lib/unavailable";
+import { loadSuccessStats, pickSuccessStat } from "@/lib/success-rate";
 
 // 서비스 선택 시 잘 받아지는 국가 비교 (가격은 공개 정보 → 비회원도 조회 가능)
 export async function GET(req: Request) {
@@ -26,7 +27,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ countries: [] });
   }
 
-  const fx = await getUsdKrw();
+  // 겟유심 자체 실측 성공률(최근 N일). 5sim 통계와 별개로 같이 보여준다.
+  const [fx, stats] = await Promise.all([getUsdKrw(), loadSuccessStats()]);
   // product 쿼리 응답은 { product: { country: {...} } } 구조
   const build = (allowShortWindow: boolean) =>
     COUNTRIES.flatMap((c) => {
@@ -51,6 +53,7 @@ export async function GET(req: Request) {
           iso: c.iso,
           price: smsPointPrice(best.cost, fx),
           rate: Math.round(best.rate),
+          ours: pickSuccessStat(stats, c.value, service),
         },
       ];
     });

@@ -30,3 +30,6 @@ web/pup-test.js
 # DB 백업(회원 데이터 포함) — 절대 커밋 금지
 Data_Backup/
 *.dump
+
+# Prisma 마이그레이션 SQL은 추적해야 배포 시 migrate deploy 가 적용된다(위 *.sql 예외)
+!web/prisma/migrations/**/*.sql

@@ -282,12 +282,13 @@ export function countryFlag(value: string): string | null {
 export function countryLabel(value: string): string {
   return COUNTRIES.find((x) => x.value === value)?.label || value;
 }
+// 내역·라벨 표시는 숨김 여부와 무관하게 전체 목록에서 찾는다(숨긴 서비스의 과거 발급건이 "naver"처럼 원문으로 보이지 않게).
 export function serviceLogo(value: string): string {
-  const s = SERVICES.find((x) => x.value === value);
+  const s = ALL_SERVICES.find((x) => x.value === value);
   return `https://cdn.simpleicons.org/${s?.slug || value}`;
 }
 export function serviceLabel(value: string): string {
-  return SERVICES.find((x) => x.value === value)?.label || value;
+  return ALL_SERVICES.find((x) => x.value === value)?.label || value;
 }
 
 /** 서비스 목록 (value=5sim product, slug=simpleicons 로고, label=한글)

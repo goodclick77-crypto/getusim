@@ -4,6 +4,8 @@ import { ymd, bal } from "@/lib/format";
 import { updateProfile, withdrawAccount } from "./actions";
 import ConfirmButton from "@/components/ConfirmButton";
 import Reveal from "@/components/Reveal";
+import CardManager from "@/components/CardManager";
+import { cardPaymentAvailable } from "@/lib/payments";
 
 const WITHDRAW_ERRORS: Record<string, string> = {
   pw: "비밀번호가 일치하지 않습니다.",
@@ -90,6 +92,18 @@ export default async function AccountPage({
           </form>
         </section>
       </Reveal>
+
+      {/* 결제 카드 (PG 설정된 환경에서만) — 원클릭 결제용 빌링키 등록/해제 */}
+      {cardPaymentAvailable() && (
+        <Reveal delay={120}>
+          <section className="glass rounded-2xl p-5">
+            <h2 className="mb-3 flex items-center gap-2 font-bold">
+              <i className="fa-regular fa-credit-card text-emerald-600" aria-hidden /> 결제 카드
+            </h2>
+            <CardManager initialLabel={user.billingKey ? user.cardLabel : null} />
+          </section>
+        </Reveal>
+      )}
 
       {/* 회원 탈퇴 (관리자 제외) */}
       {user.role !== "ADMIN" && (

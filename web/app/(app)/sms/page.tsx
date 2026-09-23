@@ -1,7 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { bal, won, ymdhm, phoneFmt } from "@/lib/format";
-import { cardPaymentAvailable } from "@/lib/payments";
 import NumberAuth from "./NumberAuth";
 import RentalLabel from "@/components/RentalLabel";
 
@@ -36,11 +35,7 @@ export default async function SmsPage() {
         <i className="fa-solid fa-comment-sms text-emerald-600" aria-hidden /> 해외 SMS 인증
       </h1>
 
-      <NumberAuth
-        initialPoint={user.point}
-        card={user.billingKey ? { label: user.cardLabel } : null}
-        cardAvailable={cardPaymentAvailable()}
-      />
+      <NumberAuth initialPoint={user.point} />
 
       <section>
         <h2 className="mb-3 flex items-center gap-2 font-bold">

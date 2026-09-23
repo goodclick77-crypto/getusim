@@ -1,15 +1,8 @@
 import { NextResponse } from "next/server";
 import { fivesim, type PricesResponse } from "@/lib/fivesim";
 import { getUsdKrw } from "@/lib/fx";
-import {
-  COUNTRIES,
-  SERVICES,
-  FIVESIM_MAX_PRICE,
-  FIVESIM_MIN_STOCK,
-  FIVESIM_MIN_RATE,
-  deliveryRate,
-  smsPointPrice,
-} from "@/lib/config";
+import { COUNTRIES, SERVICES, FIVESIM_MIN_RATE, smsPointPrice } from "@/lib/config";
+import { pickBestOperator } from "@/lib/catalog";
 import { isUnavailable } from "@/lib/unavailable";
 import { loadSuccessStats, pickSuccessStat } from "@/lib/success-rate";
 
@@ -33,17 +26,7 @@ export async function GET(req: Request) {
     SERVICES.flatMap((s) => {
       // 사봤다가 "번호 없음"이 확인된 조합은 숨긴다 — 5sim 재고 표시가 실제와 맞지 않는다.
       if (isUnavailable(country, s.value)) return [];
-      const ops = data?.[country]?.[s.value] ?? {};
-      let best: { cost: number; rate: number; count: number } | null = null;
-      for (const info of Object.values(ops)) {
-        const cost = Number(info?.cost);
-        const count = Number(info?.count);
-        const rate = deliveryRate(info, allowShortWindow);
-        if (count <= FIVESIM_MIN_STOCK || cost > FIVESIM_MAX_PRICE) continue;
-        if (!best || rate > best.rate || (rate === best.rate && cost < best.cost)) {
-          best = { cost, rate, count };
-        }
-      }
+      const best = pickBestOperator(data?.[country]?.[s.value] ?? {}, allowShortWindow);
       // 번호 없음 / 수신률 낮은 조합(기본 10% 이하) 제외
       if (!best || best.rate <= FIVESIM_MIN_RATE) return [];
       return [

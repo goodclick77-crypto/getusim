@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/session";
-import { COUNTRIES, SERVICES, SMS_WAIT_MS, chargeAmount, pointToWon } from "@/lib/config";
+import { COUNTRIES, SERVICES, SMS_WAIT_MS, chargeAmount, wonOf } from "@/lib/config";
 import { quoteOffer } from "@/lib/catalog";
 import { cardPaymentAvailable } from "@/lib/payments";
 import BrandIcon from "@/components/BrandIcon";
@@ -71,7 +71,7 @@ export default async function OrderPage({
             </p>
           </div>
           <p className="font-num text-lg font-bold">
-            {quote ? `${pointToWon(quote.price).toLocaleString("ko-KR")}원` : "-"}
+            {quote ? wonOf(quote.price) : "-"}
           </p>
         </div>
       </section>

@@ -463,6 +463,7 @@ export default function NumberAuth({ initialPoint }: Props) {
         // 3분 경과 → 폴링 종료 + 5sim 번호 자동 밴(잔액 반환).
         // 단, 밴 직전 코드가 도착했을 수 있어 서버가 정산 후 received로 알려주면 코드를 보여준다.
         pollGenRef.current++;
+        let payCanceled: boolean | undefined;
         try {
           const res = await fetch("/api/sms/ban", {
             method: "POST",
@@ -478,14 +479,11 @@ export default function NumberAuth({ initialPoint }: Props) {
             setRunning(false);
             return;
           }
+          payCanceled = j.payCanceled;
         } catch {
           /* 밴 요청 실패는 무시 — 서버 스케줄러가 정리한다 */
         }
-        setStatus(
-          paidRef.current?.method === "CARD"
-            ? "문자가 오지 않아 번호를 자동 취소했어요. 카드 결제도 자동 취소되어 요금이 청구되지 않습니다."
-            : "문자가 오지 않아 번호를 자동 취소했어요. 다른 국가·서비스로 다시 받아주세요.",
-        );
+        setStatus(cancelMessage("문자가 오지 않아 번호를 자동 취소했어요.", payCanceled));
         setRunning(false);
         setPhone("");
         setExpiresAt(null);
@@ -512,9 +510,22 @@ export default function NumberAuth({ initialPoint }: Props) {
     }
   }
 
+  /**
+   * 취소 안내 문구. 카드 건은 서버가 돌려준 payCanceled 로 실제 취소 여부를 말한다 —
+   * PG 취소가 실패(CANCEL_FAILED)했는데 "취소됐다"고 하면 회원이 환불된 줄 알고 넘어간다.
+   */
+  function cancelMessage(head: string, payCanceled: boolean | undefined) {
+    if (paidRef.current?.method !== "CARD") return `${head} 다른 국가·서비스로 다시 받아주세요.`;
+    if (payCanceled === false) {
+      return `${head} 카드 결제 취소가 지연되고 있어 확인 후 처리해 드립니다. 요금은 청구되지 않습니다.`;
+    }
+    return `${head} 카드 결제도 자동 취소되어 요금이 청구되지 않습니다.`;
+  }
+
   async function ban() {
     if (!rentalId) return;
     pollGenRef.current++; // 폴링 중단
+    let payCanceled: boolean | undefined;
     setRunning(false);
     setExpiresAt(null);
     // 밴 직전 코드가 도착했으면 서버가 정산 후 received로 알려준다 → 코드 표시(차감 반영).
@@ -532,12 +543,9 @@ export default function NumberAuth({ initialPoint }: Props) {
         setRemain(null);
         return;
       }
+      payCanceled = j.payCanceled;
     } catch {}
-    setStatus(
-      paidRef.current?.method === "CARD"
-        ? "번호를 밴 처리했고 카드 결제는 자동 취소되었습니다. 다시 번호를 받아주세요."
-        : "번호를 밴 처리했습니다. 다시 번호를 받아주세요.",
-    );
+    setStatus(cancelMessage("번호를 밴 처리했어요.", payCanceled));
     setPhone("");
     setRemain(null);
     setPaid(null);

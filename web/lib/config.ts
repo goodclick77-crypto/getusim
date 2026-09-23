@@ -23,12 +23,8 @@ export function chargeAmount(point: number): number {
  * 보여줘야 "낸 돈 = 잔액"이 맞는다. 1P=1원으로 보여주면 잔액이 10% 줄어 보인다.
  * DB·API 는 계속 P 단위(정산 기준 단위), 표시만 원. 관리자 화면은 P 를 그대로 본다.
  */
-export function pointToWon(point: number): number {
-  return chargeAmount(point);
-}
-/** 회원 화면용 "7,700원" */
 export function wonOf(point: number): string {
-  return `${pointToWon(point).toLocaleString("ko-KR")}원`;
+  return `${chargeAmount(point).toLocaleString("ko-KR")}원`;
 }
 
 /**

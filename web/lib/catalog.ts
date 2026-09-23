@@ -29,6 +29,24 @@ export type CountryOffer = {
   ours: SuccessStat | null;
 };
 
+/** 통신사 가격표 항목들 중 "수신률 높고, 같으면 싼" 최선 후보. 재고·단가 상한 밖은 제외. */
+export function pickBestOperator(
+  ops: Record<string, { cost?: number; count?: number; rate?: number; rate24?: number } | undefined>,
+  allowShortWindow: boolean,
+): { cost: number; rate: number; count: number } | null {
+  let best: { cost: number; rate: number; count: number } | null = null;
+  for (const info of Object.values(ops)) {
+    const cost = Number(info?.cost);
+    const count = Number(info?.count);
+    const rate = deliveryRate(info, allowShortWindow);
+    if (count <= FIVESIM_MIN_STOCK || cost > FIVESIM_MAX_PRICE) continue;
+    if (!best || rate > best.rate || (rate === best.rate && cost < best.cost)) {
+      best = { cost, rate, count };
+    }
+  }
+  return best;
+}
+
 export async function listCountryOffers(service: string): Promise<CountryOffer[]> {
   if (!SERVICES.some((s) => s.value === service)) return [];
 
@@ -44,17 +62,7 @@ export async function listCountryOffers(service: string): Promise<CountryOffer[]
     COUNTRIES.flatMap((c) => {
       // 사봤다가 "번호 없음"이 확인된 조합은 숨긴다 — 5sim 재고 표시가 실제와 맞지 않는다.
       if (isUnavailable(c.value, service)) return [];
-      const ops = data?.[service]?.[c.value] ?? {};
-      let best: { cost: number; rate: number; count: number } | null = null;
-      for (const info of Object.values(ops)) {
-        const cost = Number(info?.cost);
-        const count = Number(info?.count);
-        const rate = deliveryRate(info, allowShortWindow);
-        if (count <= FIVESIM_MIN_STOCK || cost > FIVESIM_MAX_PRICE) continue;
-        if (!best || rate > best.rate || (rate === best.rate && cost < best.cost)) {
-          best = { cost, rate, count };
-        }
-      }
+      const best = pickBestOperator(data?.[service]?.[c.value] ?? {}, allowShortWindow);
       if (!best || best.rate <= FIVESIM_MIN_RATE) return [];
       return [
         {
@@ -83,6 +91,8 @@ export async function quoteOffer(
   if (!COUNTRIES.some((c) => c.value === country) || !SERVICES.some((s) => s.value === service)) {
     return null;
   }
+  // 목록에서 숨긴("번호 없음" 확인) 조합은 주문 페이지에서도 팔지 않는다 — 결제했다가 바로 환불되는 일을 막는다.
+  if (isUnavailable(country, service)) return null;
   try {
     const [pick, fx] = await Promise.all([
       fivesim.bestOperator(country, service, FIVESIM_MAX_PRICE, FIVESIM_MIN_STOCK),

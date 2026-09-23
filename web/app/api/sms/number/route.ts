@@ -7,7 +7,8 @@ import { notifyAdmin } from "@/lib/notify";
 import { markUnavailable, meansNoPhones } from "@/lib/unavailable";
 import { countryLabel, serviceLabel, wonOf } from "@/lib/config";
 import { getPaymentProvider } from "@/lib/payments";
-import { approveForRental, cardAmountFor } from "@/lib/rental-pay";
+import { approveForRental } from "@/lib/rental-pay";
+import { chargeAmount } from "@/lib/config";
 import {
   COUNTRIES,
   SERVICES,
@@ -40,7 +41,9 @@ export async function POST(req: Request) {
     await touchLastSeen(user.id, ip);
 
     // maxPoint = 회원 화면에 표시됐던 차감 예정 포인트. 있으면 그 금액을 상한으로 쓴다.
-    const { country, service, maxPoint, pay, windowToken } = await req.json().catch(() => ({}));
+    const { country, service, maxPoint, pay, windowToken, windowOrderId } = await req
+      .json()
+      .catch(() => ({}));
     if (
       !COUNTRIES.some((c) => c.value === country) ||
       !SERVICES.some((s) => s.value === service)
@@ -55,7 +58,15 @@ export async function POST(req: Request) {
     if (pay === "card" && !user.billingKey) {
       return NextResponse.json({ error: "card", message: "먼저 결제할 카드를 등록해 주세요." });
     }
-    if (viaWindow && typeof windowToken !== "string") {
+    if (
+      viaWindow &&
+      (typeof windowToken !== "string" ||
+        typeof windowOrderId !== "string" ||
+        !/^W[0-9A-Za-z-]{8,60}$/.test(windowOrderId) ||
+        !(Number(maxPoint) > 0))
+    ) {
+      // 결제창 경로는 결제창을 연 orderId·표시가가 반드시 있어야 한다. 표시가가 없으면 가격 상한이
+      // 풀려 최소 요금으로 비싼 번호를 살 수 있고, orderId 가 다르면 PG 가 승인을 거부한다.
       return NextResponse.json({ error: "card", message: "결제 정보가 없습니다. 다시 결제해 주세요." });
     }
 
@@ -63,12 +74,11 @@ export async function POST(req: Request) {
     let windowTx: { txId: string; amount: number } | null = null;
     let issued = false;
     if (viaWindow) {
-      const shownPoint = Number(maxPoint) > 0 ? Number(maxPoint) : SMS_MIN_POINT;
-      const amount = cardAmountFor(shownPoint);
+      const amount = chargeAmount(Number(maxPoint));
       try {
         const r = await getPaymentProvider().confirm({
           token: windowToken,
-          orderId: `W${user.id}-${Date.now()}`,
+          orderId: windowOrderId, // 결제창을 열 때 쓴 값 — PG 는 이 orderId·amount 로 결제키를 대조한다
           amount,
           customerId: `U${user.id}`,
         });
@@ -93,7 +103,7 @@ export async function POST(req: Request) {
     // 아직 코드 미수신(차감 전)인 진행중 번호들의 예약 포인트 합계.
     // 동시 발급으로 보유보다 많이 받아 무료수신(원가손실)되는 것을 방지.
     const pendingAgg = await prisma.numberRental.aggregate({
-      where: { userId: user.id, status: "PENDING", expiresAt: { gt: new Date() } },
+      where: { userId: user.id, status: "PENDING", payMethod: "POINT", expiresAt: { gt: new Date() } },
       _sum: { pricePoint: true },
     });
     const reserved = pendingAgg._sum.pricePoint ?? 0;
@@ -234,6 +244,21 @@ export async function POST(req: Request) {
       // (코드 미수신 시에는 voidRentalPayment 가 취소한다).
       payAmount = windowTx.amount;
       issued = true;
+      // 실제 가격이 표시가보다 싸면 차액을 부분취소해 빌링키 경로(실가격 청구)와 맞춘다. best-effort.
+      const actual = chargeAmount(pricePoint);
+      if (actual < windowTx.amount) {
+        try {
+          await getPaymentProvider().cancel({
+            txId: windowTx.txId,
+            amount: windowTx.amount - actual,
+            reason: "표시가와 실제 가격 차액 환불",
+          });
+          await prisma.numberRental.update({ where: { id: rental.id }, data: { payAmount: actual } });
+          payAmount = actual;
+        } catch (e) {
+          console.error(`[sms/number] 차액 부분취소 실패(표시가 유지) tx=${windowTx.txId}:`, e);
+        }
+      }
     } else if (payMethod === "CARD") {
       try {
         const r = await approveForRental({
@@ -255,7 +280,7 @@ export async function POST(req: Request) {
           .catch(() => {});
         return NextResponse.json({
           error: "pay_failed",
-          message: `카드 승인에 실패했습니다 (${cardAmountFor(pricePoint).toLocaleString("ko-KR")}원). 카드 한도·유효기간을 확인하거나 다른 카드를 등록해 주세요.`,
+          message: `카드 승인에 실패했습니다 (${chargeAmount(pricePoint).toLocaleString("ko-KR")}원). 카드 한도·유효기간을 확인하거나 다른 카드를 등록해 주세요.`,
         });
       }
     }

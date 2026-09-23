@@ -65,6 +65,8 @@ export default function OrderForm({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [windowOpen, setWindowOpen] = useState(false);
+  /** 결제창 주문번호. PG 는 결제창을 연 orderId·금액으로 결제키를 대조하므로 열기 전에 만들어 둔다. */
+  const [windowOrderId, setWindowOrderId] = useState("");
 
   const canPay = agree && !busy && options.find((o) => o.v === method)?.ok;
 
@@ -97,6 +99,7 @@ export default function OrderForm({
   function pay() {
     if (!canPay) return;
     if (method === "WINDOW") {
+      setWindowOrderId(`W${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
       setWindowOpen(true); // 결제창 → 결제 완료 시 onPaid
       return;
     }
@@ -201,10 +204,11 @@ export default function OrderForm({
         <PaymentWindow
           productName={productName}
           amountWon={amountWon}
+          orderId={windowOrderId}
           onClose={() => setWindowOpen(false)}
           onPaid={(token) => {
             setWindowOpen(false);
-            void issue({ pay: "window", windowToken: token });
+            void issue({ pay: "window", windowToken: token, windowOrderId });
           }}
         />
       )}

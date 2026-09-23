@@ -21,11 +21,14 @@ const METHODS = [
 export default function PaymentWindow({
   productName,
   amountWon,
+  orderId,
   onClose,
   onPaid,
 }: {
   productName: string;
   amountWon: number;
+  /** 결제창을 연 주문번호 — 서버 승인(confirm) 때 같은 값을 PG 에 보낸다 */
+  orderId: string;
   onClose: () => void;
   onPaid: (token: string) => void;
 }) {
@@ -78,6 +81,10 @@ export default function PaymentWindow({
             <div className="mt-1 flex justify-between gap-3">
               <dt className="text-zinc-500">상품명</dt>
               <dd className="truncate font-medium">{productName}</dd>
+            </div>
+            <div className="mt-1 flex justify-between gap-3">
+              <dt className="text-zinc-500">주문번호</dt>
+              <dd className="font-num truncate text-xs text-zinc-500">{orderId}</dd>
             </div>
             <div className="mt-2 flex justify-between gap-3 border-t border-zinc-200 pt-2">
               <dt className="font-semibold">결제금액</dt>

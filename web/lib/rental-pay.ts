@@ -11,11 +11,6 @@ import { chargeAmount, countryLabel, serviceLabel } from "./config";
  * 승인은 발급이 성공한 뒤에만 하므로 "번호 없음"인 국가에서는 결제가 아예 일어나지 않는다.
  */
 
-/** 인증 1건의 카드 결제 금액(원). 포인트 가격에 충전 수수료율을 그대로 적용해 두 경로 가격을 맞춘다. */
-export function cardAmountFor(pricePoint: number): number {
-  return chargeAmount(pricePoint);
-}
-
 export function orderNameFor(country: string, service: string): string {
   return `${serviceLabel(service)} / ${countryLabel(country)} 인증 1건`;
 }
@@ -33,7 +28,7 @@ export async function approveForRental(input: {
   service: string;
 }): Promise<{ amount: number; txId: string }> {
   const provider = getPaymentProvider();
-  const amount = cardAmountFor(input.pricePoint);
+  const amount = chargeAmount(input.pricePoint);
   const res = await provider.approve({
     billingKey: input.billingKey,
     orderId: `R${input.rentalId}`, // 발급건당 1회 — 같은 orderId 재승인은 PG 멱등키로 막힌다
@@ -41,10 +36,22 @@ export async function approveForRental(input: {
     orderName: orderNameFor(input.country, input.service),
     customerId: `U${input.userId}`,
   });
-  await prisma.numberRental.update({
-    where: { id: input.rentalId },
-    data: { payMethod: "CARD", payAmount: amount, payTxId: res.txId, payStatus: "APPROVED" },
-  });
+  try {
+    await prisma.numberRental.update({
+      where: { id: input.rentalId },
+      data: { payMethod: "CARD", payAmount: amount, payTxId: res.txId, payStatus: "APPROVED" },
+    });
+  } catch (e) {
+    // 돈은 나갔는데 기록을 못 했다 → 승인을 되돌린다. 그것마저 실패하면 txId 를 반드시 남긴다
+    // (기록이 없으면 voidRentalPayment 도 이 거래를 모른다).
+    console.error(`[pay] ★ 승인 기록 실패 rental#${input.rentalId} tx=${res.txId} — 취소 시도`, e);
+    try {
+      await provider.cancel({ txId: res.txId, reason: "발급건 기록 실패(자동 취소)" });
+    } catch (e2) {
+      console.error(`[pay] ★★ 승인취소도 실패 — 수동 취소 필요 tx=${res.txId} amount=${amount}`, e2);
+    }
+    throw e;
+  }
   return { amount, txId: res.txId };
 }
 

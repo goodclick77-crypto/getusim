@@ -76,11 +76,12 @@ export async function settleReceived(
 }
 
 async function markExpired(id: number) {
-  await prisma.numberRental
+  const upd = await prisma.numberRental
     .updateMany({ where: { id, status: "PENDING" }, data: { status: "EXPIRED" } })
-    .catch(() => {});
-  // 카드 건이면 승인취소(미수신 → 무과금). 포인트 건은 아무 일도 없다.
-  await voidRentalPayment(id, "인증코드 미수신(시간 초과)");
+    .catch(() => ({ count: 0 }));
+  // 카드 건이면 승인취소(미수신 → 무과금). PENDING→EXPIRED 전이를 실제로 한 경우에만 —
+  // 0건이면 그 사이 코드가 도착해 RECEIVED 가 된 것이라 취소하면 매출을 환불해 버린다.
+  if (upd.count === 1) await voidRentalPayment(id, "인증코드 미수신(시간 초과)");
 }
 
 /**

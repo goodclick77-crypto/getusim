@@ -63,12 +63,14 @@ export async function POST(req: Request) {
   try {
     await fivesim.ban(rental.fivesimId);
   } catch {}
-  await prisma.numberRental.updateMany({
+  const upd = await prisma.numberRental.updateMany({
     where: { id: rental.id, status: "PENDING" },
     data: { status: "CANCELED" },
   });
   // 카드 건이면 승인취소 → 회원은 돈을 내지 않는다.
-  await voidRentalPayment(rental.id, "인증코드 미수신(밴)");
+  // ★ PENDING→CANCELED 전이를 실제로 한 경우에만. 0건이면 그 사이 코드 수신(RECEIVED) 처리가
+  //   끝난 것이라 결제를 취소하면 매출을 환불해 버린다.
+  if (upd.count === 1) await voidRentalPayment(rental.id, "인증코드 미수신(밴)");
   const after = await prisma.numberRental.findUnique({
     where: { id: rental.id },
     select: { payMethod: true, payStatus: true },

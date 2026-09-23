@@ -293,7 +293,15 @@ export function serviceLabel(value: string): string {
 /** 서비스 목록 (value=5sim product, slug=simpleicons 로고, label=한글)
  *  레거시 채널 드롭다운(naver·google·instagram·facebook·twitter·discord) +
  *  실사용 핵심(telegram·whatsapp)만 노출. 추가는 여기에. */
-export const SERVICES: { value: string; slug: string; label: string }[] = [
+/**
+ * 국내 서비스(카카오톡·네이버·라인) 노출 여부.
+ * PG 심사에서는 "국내 앱을 해외 번호로 우회 인증"으로 읽힐 수 있어, 심사 기간에는
+ * NEXT_PUBLIC_HIDE_DOMESTIC_SERVICES=1 로 목록·상품에서 뺀다(빌드 시 인라인되므로 재배포 필요).
+ */
+const HIDE_DOMESTIC = process.env.NEXT_PUBLIC_HIDE_DOMESTIC_SERVICES === "1";
+const DOMESTIC_SERVICES = new Set(["kakaotalk", "naver", "line"]);
+
+const ALL_SERVICES: { value: string; slug: string; label: string }[] = [
   { value: "kakaotalk", slug: "kakaotalk", label: "카카오톡" },
   { value: "naver", slug: "naver", label: "네이버" },
   { value: "line", slug: "line", label: "라인" },
@@ -324,3 +332,7 @@ export const SERVICES: { value: string; slug: string; label: string }[] = [
   { value: "roblox", slug: "roblox", label: "로블록스" }, // 3개국
   { value: "twitch", slug: "twitch", label: "트위치" }, // 4개국
 ];
+
+export const SERVICES = HIDE_DOMESTIC
+  ? ALL_SERVICES.filter((s) => !DOMESTIC_SERVICES.has(s.value))
+  : ALL_SERVICES;

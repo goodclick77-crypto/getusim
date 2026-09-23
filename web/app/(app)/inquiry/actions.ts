@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { notifyAdmin } from "@/lib/notify";
+import { chargeAmount } from "@/lib/config";
 
 const CAT_LABEL: Record<string, string> = {
   USAGE: "사용문의",
@@ -55,7 +56,7 @@ export async function createInquiry(formData: FormData) {
     `새 ${head}: ${title}`,
     `회원: ${user.name || user.loginId}\n분류: ${head}\n제목: ${title}` +
       (category === "REFUND"
-        ? `\n환불 포인트: ${refundPoint?.toLocaleString("ko-KR")}P\n환불정보: ${refundInfo}`
+        ? `\n환불 포인트: ${refundPoint?.toLocaleString("ko-KR")}P (${chargeAmount(refundPoint ?? 0).toLocaleString("ko-KR")}원)\n환불정보: ${refundInfo}`
         : "") +
       `\n\n${content}`,
   );

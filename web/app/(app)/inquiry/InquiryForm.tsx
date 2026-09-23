@@ -58,17 +58,13 @@ export default function InquiryForm({
           {canRefund ? (
             <>
               <div className="rounded-lg bg-white px-3.5 py-3">
-                <p className="text-xs text-zinc-500">환불 신청 포인트 (전액)</p>
+                <p className="text-xs text-zinc-500">환불 신청 금액 (보유 잔액 전액)</p>
                 <p className="font-num text-2xl font-bold text-zinc-900">
-                  {currentPoint.toLocaleString("ko-KR")} P
-                </p>
-                <p className="font-num mt-1 text-sm font-semibold text-emerald-700">
-                  환불 금액 {refundWon.toLocaleString("ko-KR")}원{" "}
-                  <span className="text-xs font-normal text-zinc-500">(부가세 포함)</span>
+                  {refundWon.toLocaleString("ko-KR")}원
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">
-                  환불은 <b>보유 포인트 전액</b>으로만 신청됩니다. 승인되면 위 포인트가
-                  차감되고 환불 금액이 입금됩니다.
+                  환불은 <b>보유 잔액 전액</b>으로만 신청됩니다. 승인되면 잔액이 0원이 되고
+                  위 금액이 계좌로 입금됩니다.
                 </p>
               </div>
               <textarea
@@ -82,7 +78,7 @@ export default function InquiryForm({
             </>
           ) : (
             <p className="rounded-lg bg-white px-3.5 py-3 text-sm text-zinc-500">
-              환불 가능한 포인트가 없습니다. (보유 0P)
+              환불 가능한 잔액이 없습니다. (보유 0원)
             </p>
           )}
         </div>

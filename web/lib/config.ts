@@ -18,6 +18,20 @@ export function chargeAmount(point: number): number {
 }
 
 /**
+ * 내부 포인트 → 회원에게 보여줄 원 금액.
+ * 시스템은 이미 1P 를 1.1원에 팔고 1.1원으로 환불하므로(chargeAmount), 화면도 같은 환율로
+ * 보여줘야 "낸 돈 = 잔액"이 맞는다. 1P=1원으로 보여주면 잔액이 10% 줄어 보인다.
+ * DB·API 는 계속 P 단위(정산 기준 단위), 표시만 원. 관리자 화면은 P 를 그대로 본다.
+ */
+export function pointToWon(point: number): number {
+  return chargeAmount(point);
+}
+/** 회원 화면용 "7,700원" */
+export function wonOf(point: number): string {
+  return `${pointToWon(point).toLocaleString("ko-KR")}원`;
+}
+
+/**
  * 입금 자동매칭 유효기간(일).
  * 이 기간이 지난 입금대기 주문은 ① 웹훅 매칭 대상에서 빠지고 ② 자동 취소되며
  * ③ 중복신청 차단 대상에서도 빠진다 — 셋이 어긋나면 죽은 주문이 새 신청을 막거나,

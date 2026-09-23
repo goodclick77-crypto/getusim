@@ -1,4 +1,8 @@
+import { pointToWon } from "./config";
+
 export const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
+/** 회원 화면용 잔액 표시: 내부 포인트를 원으로 환산해 "7,700원". 관리자 화면은 pt() 로 P 를 본다. */
+export const bal = (n: number) => won(pointToWon(n));
 
 /** 국제 전화번호 보기 좋게: +14685005762 → +1 468 500 5762 */
 export function phoneFmt(raw: string | null | undefined): string {

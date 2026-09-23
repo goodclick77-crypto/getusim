@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { pt, ymdhm } from "@/lib/format";
+import { bal, ymdhm } from "@/lib/format";
 import Reveal from "@/components/Reveal";
 import Tilt from "@/components/Tilt";
 import RentalLabel from "@/components/RentalLabel";
@@ -33,15 +33,15 @@ export default async function DashboardPage() {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      {/* 보유 포인트 (벤토 대형 박스) */}
+      {/* 보유 잔액 (벤토 대형 박스) */}
       <Reveal className="sm:col-span-3">
         <Tilt max={5} className="h-full">
           <section className="glass-dark flex h-full flex-col justify-between rounded-3xl p-6 text-white sm:flex-row sm:items-center">
             <div>
               <p className="flex items-center gap-2 text-sm text-zinc-400">
-                <i className="fa-solid fa-wallet text-emerald-400" aria-hidden /> 보유 포인트
+                <i className="fa-solid fa-wallet text-emerald-400" aria-hidden /> 보유 잔액
               </p>
-              <p className="mt-2 font-num text-4xl font-bold">{pt(user.point)}</p>
+              <p className="mt-2 font-num text-4xl font-bold">{bal(user.point)}</p>
             </div>
             <div className="mt-6 flex flex-wrap gap-2 sm:mt-0">
               <Link
@@ -54,7 +54,7 @@ export default async function DashboardPage() {
                 href="/charge"
                 className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
               >
-                <i className="fa-solid fa-coins" aria-hidden /> 포인트 충전
+                <i className="fa-solid fa-coins" aria-hidden /> 잔액 충전
               </Link>
             </div>
           </section>
@@ -89,12 +89,12 @@ export default async function DashboardPage() {
         </section>
       </Reveal>
 
-      {/* 포인트 내역 */}
+      {/* 잔액 내역 */}
       <Reveal delay={160} className="sm:col-span-2">
         <section className="glass h-full rounded-3xl p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-bold">
-              <i className="fa-solid fa-receipt text-emerald-600" aria-hidden /> 포인트 내역
+              <i className="fa-solid fa-receipt text-emerald-600" aria-hidden /> 잔액 내역
             </h2>
             <Link href="/history" className="text-sm text-emerald-600 hover:underline">
               전체보기
@@ -107,14 +107,14 @@ export default async function DashboardPage() {
               {points.map((p) => (
                 <li key={p.id} className="flex items-center justify-between py-2.5 text-sm">
                   <div>
-                    <p>{p.reason || "포인트 변동"}</p>
+                    <p>{p.reason || "잔액 변동"}</p>
                     <p className="font-num text-xs text-zinc-400">{ymdhm(p.createdAt)}</p>
                   </div>
                   <span
                     className={`font-num font-semibold ${p.amount >= 0 ? "text-emerald-600" : "text-red-500"}`}
                   >
                     {p.amount >= 0 ? "+" : ""}
-                    {pt(p.amount)}
+                    {bal(p.amount)}
                   </span>
                 </li>
               ))}

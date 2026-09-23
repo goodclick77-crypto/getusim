@@ -65,7 +65,7 @@ export default function ChargeForm({
           >
             <span className="font-num">+{u.toLocaleString("ko-KR")}</span>회
             <span className="font-num mt-0.5 block text-[11px] font-normal text-zinc-400">
-              {(u * unitPoint).toLocaleString("ko-KR")}P
+              {Math.round(u * unitPoint * feeRate).toLocaleString("ko-KR")}원
             </span>
           </button>
         ))}
@@ -77,9 +77,6 @@ export default function ChargeForm({
           <span className="text-sm text-zinc-500">인증 횟수</span>
           <span className="font-num text-lg font-bold text-emerald-700">
             {count.toLocaleString("ko-KR")}회
-            <span className="ml-1.5 text-sm font-medium text-emerald-600/80">
-              ({point.toLocaleString("ko-KR")}P)
-            </span>
           </span>
         </div>
         <div className="mt-1.5 flex items-center justify-between border-t border-emerald-200/70 pt-1.5">
@@ -99,8 +96,8 @@ export default function ChargeForm({
       </div>
       <p className="text-xs leading-relaxed text-zinc-500">
         <i className="fa-solid fa-circle-info mr-1" aria-hidden />
-        기본 요금(1회 {unitPoint.toLocaleString("ko-KR")}P) 기준 횟수예요. 일부 국가·서비스는 1회에
-        더 차감될 수 있고, 인증코드를 받지 못한 건은 차감되지 않아요.
+        기본 요금(1회 {Math.round(unitPoint * feeRate).toLocaleString("ko-KR")}원) 기준 횟수예요. 일부
+        국가·서비스는 1회에 더 차감될 수 있고, 인증코드를 받지 못한 건은 차감되지 않아요.
       </p>
 
       <input type="hidden" name="point" value={point} />

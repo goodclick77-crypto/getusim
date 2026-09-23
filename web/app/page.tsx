@@ -10,7 +10,7 @@ const STATS = [
   { icon: "fa-earth-americas", value: "150여 개국", label: "지원 국가" },
   { icon: "fa-grip", value: "16종", label: "지원 서비스" },
   { icon: "fa-bolt", value: "실시간", label: "SMS 수신" },
-  { icon: "fa-shield-halved", value: "안전결제", label: "포인트 충전" },
+  { icon: "fa-shield-halved", value: "안전결제", label: "건별 결제" },
 ];
 
 const FLAGS = ["kr", "us", "gb", "jp", "ru", "cn", "fr", "br", "ca", "vn"];
@@ -80,7 +80,7 @@ export default async function Home() {
             </Reveal>
             <Reveal delay={160}>
               <p className="mt-6 max-w-md text-lg leading-relaxed text-zinc-600">
-                포인트를 충전하고 원하는 서비스의 인증번호를 즉시 수신하세요. 복잡한
+                인증 1건 단위로 결제하고 원하는 서비스의 인증번호를 즉시 수신하세요. 복잡한
                 절차 없이 클릭 한 번이면 됩니다.
               </p>
             </Reveal>
@@ -206,9 +206,9 @@ export default async function Home() {
                       </span>
                     ))}
                   </div>
-                  <h3 className="mt-5 text-lg font-bold">합리적인 포인트</h3>
+                  <h3 className="mt-5 text-lg font-bold">합리적인 요금</h3>
                   <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">
-                    수신에 성공했을 때만 차감됩니다. 필요한 만큼만 충전하세요.
+                    수신에 성공했을 때만 요금이 나갑니다. 필요한 만큼만 결제하세요.
                   </p>
                 </article>
               </Tilt>

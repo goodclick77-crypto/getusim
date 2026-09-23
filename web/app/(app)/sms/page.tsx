@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { pt, won, ymdhm, phoneFmt } from "@/lib/format";
+import { bal, won, ymdhm, phoneFmt } from "@/lib/format";
 import { cardPaymentAvailable } from "@/lib/payments";
 import NumberAuth from "./NumberAuth";
 import RentalLabel from "@/components/RentalLabel";
@@ -71,7 +71,7 @@ export default async function SmsPage() {
                   {r.phoneNumber ? phoneFmt(r.phoneNumber) : "-"} · {ymdhm(r.createdAt)}
                   {r.smsCode
                     ? ` · 코드 ${r.smsCode} · ${
-                        r.payMethod === "CARD" ? `카드 ${won(r.payAmount)}` : `-${pt(r.pricePoint)}`
+                        r.payMethod === "CARD" ? `카드 ${won(r.payAmount)}` : `-${bal(r.pricePoint)}`
                       }`
                     : r.payMethod === "CARD" && r.payStatus === "CANCELED"
                       ? ` · 카드 ${won(r.payAmount)} 승인취소됨`

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { pt, ymdhm, phoneFmt } from "@/lib/format";
+import { bal, ymdhm, phoneFmt } from "@/lib/format";
 import RentalLabel from "@/components/RentalLabel";
 import CopyButton from "@/components/CopyButton";
 
@@ -48,7 +48,7 @@ export default async function HistoryPage({
       </h1>
 
       <nav className="flex gap-2">
-        <Tab href="/history?tab=point" active={tab === "point"} label={`포인트 내역 (${pointTotal})`} />
+        <Tab href="/history?tab=point" active={tab === "point"} label={`잔액 내역 (${pointTotal})`} />
         <Tab href="/history?tab=rental" active={tab === "rental"} label={`인증 내역 (${rentalTotal})`} />
       </nav>
 
@@ -59,12 +59,12 @@ export default async function HistoryPage({
           {points.map((p) => (
             <li key={p.id} className="flex items-center justify-between px-4 py-3 text-sm">
               <div>
-                <p>{p.reason || "포인트 변동"}</p>
+                <p>{p.reason || "잔액 변동"}</p>
                 <p className="font-num text-xs text-zinc-400">{ymdhm(p.createdAt)}</p>
               </div>
               <span className={`font-num font-semibold ${p.amount >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                 {p.amount >= 0 ? "+" : ""}
-                {pt(p.amount)}
+                {bal(p.amount)}
               </span>
             </li>
           ))}

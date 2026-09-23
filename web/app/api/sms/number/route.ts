@@ -5,7 +5,7 @@ import { fivesim, FiveSimError } from "@/lib/fivesim";
 import { getUsdKrw } from "@/lib/fx";
 import { notifyAdmin } from "@/lib/notify";
 import { markUnavailable, meansNoPhones } from "@/lib/unavailable";
-import { countryLabel, serviceLabel } from "@/lib/config";
+import { countryLabel, serviceLabel, wonOf } from "@/lib/config";
 import { getPaymentProvider } from "@/lib/payments";
 import { approveForRental, cardAmountFor } from "@/lib/rental-pay";
 import {
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         error: "need",
         needPoint: SMS_MIN_POINT,
-        message: `포인트가 부족합니다 (최소 ${SMS_MIN_POINT.toLocaleString("ko-KR")}P 필요, 보유 ${user.point.toLocaleString("ko-KR")}P)`,
+        message: `잔액이 부족합니다 (최소 ${wonOf(SMS_MIN_POINT)} 필요, 보유 ${wonOf(user.point)})`,
       });
     }
 
@@ -91,8 +91,8 @@ export async function POST(req: Request) {
     if (payMethod === "POINT" && available < needAmount) {
       const msg =
         reserved > 0
-          ? `포인트가 부족합니다 (필요 ${needAmount.toLocaleString("ko-KR")}P, 사용가능 ${available.toLocaleString("ko-KR")}P · 진행중 번호 ${reserved.toLocaleString("ko-KR")}P 예약중)`
-          : `이 서비스는 ${needAmount.toLocaleString("ko-KR")}P가 필요합니다 (보유 ${user.point.toLocaleString("ko-KR")}P)`;
+          ? `잔액이 부족합니다 (필요 ${wonOf(needAmount)}, 사용가능 ${wonOf(available)} · 진행중 번호 ${wonOf(reserved)} 예약중)`
+          : `이 서비스는 ${wonOf(needAmount)}이 필요합니다 (보유 ${wonOf(user.point)})`;
       return NextResponse.json({ error: "need", needPoint: needAmount, message: msg });
     }
 
@@ -150,7 +150,7 @@ export async function POST(req: Request) {
       } catch {}
       console.error("[sms/number] 표시가격 초과:", country, service, `${pricePoint}P > ${cap}P`);
       return NextResponse.json({
-        message: `가격이 변동되었습니다 (${pricePoint.toLocaleString("ko-KR")}P). 다시 시도해 주세요.`,
+        message: `가격이 변동되었습니다 (${wonOf(pricePoint)}). 다시 시도해 주세요.`,
       });
     }
 
@@ -162,7 +162,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         error: "need",
         needPoint: pricePoint,
-        message: `이 서비스는 ${pricePoint.toLocaleString("ko-KR")}P가 필요합니다 (보유 ${user.point.toLocaleString("ko-KR")}P)`,
+        message: `이 서비스는 ${wonOf(pricePoint)}이 필요합니다 (보유 ${wonOf(user.point)})`,
       });
     }
 

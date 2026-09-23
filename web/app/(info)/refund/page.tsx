@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { COMPANY } from "@/lib/company";
-import { CHARGE_FEE_RATE, SMS_WAIT_MS } from "@/lib/config";
+import { SMS_WAIT_MS } from "@/lib/config";
 
 export const metadata: Metadata = { title: "환불규정 — GetUsim" };
 
@@ -14,7 +14,6 @@ export const metadata: Metadata = { title: "환불규정 — GetUsim" };
  * PG 심사에서도 이 페이지를 본다.
  */
 const WAIT_MIN = Math.round(SMS_WAIT_MS / 60000);
-const FEE_PCT = Math.round((CHARGE_FEE_RATE - 1) * 100);
 
 const SECTIONS: { icon: string; h: string; body: React.ReactNode[] }[] = [
   {
@@ -22,7 +21,7 @@ const SECTIONS: { icon: string; h: string; body: React.ReactNode[] }[] = [
     h: "1. 인증 이용 건의 환불",
     body: [
       <>
-        번호 발급은 무료이며, <b>인증코드가 정상 수신된 경우에만</b> 해당 건의 요금(포인트)이
+        번호 발급은 무료이며, <b>인증코드가 정상 수신된 경우에만</b> 해당 건의 요금이
         차감됩니다.
       </>,
       <>
@@ -41,16 +40,13 @@ const SECTIONS: { icon: string; h: string; body: React.ReactNode[] }[] = [
   },
   {
     icon: "fa-coins",
-    h: "2. 미사용 포인트의 환불",
+    h: "2. 미사용 잔액의 환불",
     body: [
       <>
-        충전 후 사용하지 않은 포인트는 <b>보유 포인트 전액</b>에 한해 환불을 신청할 수 있습니다.
+        충전 후 사용하지 않은 잔액은 <b>보유 잔액 전액</b>에 한해 환불을 신청할 수 있습니다.
         (부분 환불은 받지 않습니다)
       </>,
-      <>
-        환불 금액은 미사용 포인트를 충전 당시 금액 기준으로 환산한 금액이며, 충전 시 부과된
-        수수료({FEE_PCT}%)는 결제대행·송금 비용으로 이미 사용되어 환불 금액에 포함되지 않습니다.
-      </>,
+      <>환불 금액은 화면에 표시된 보유 잔액 전액이며, 별도 수수료를 공제하지 않습니다.</>,
       <>
         신청 방법: 로그인 후{" "}
         <Link href="/inquiry" className="text-emerald-700 underline underline-offset-2">
@@ -61,9 +57,9 @@ const SECTIONS: { icon: string; h: string; body: React.ReactNode[] }[] = [
       </>,
       <>
         처리 기간: 신청 확인 후 <b>영업일 기준 3일 이내</b>에 신청하신 계좌로 송금됩니다. 승인 시
-        해당 포인트는 즉시 차감됩니다.
+        잔액은 즉시 0원으로 차감됩니다.
       </>,
-      <>관리자가 임의로 지급한 이벤트·보상 포인트는 환불 대상에서 제외됩니다.</>,
+      <>관리자가 임의로 지급한 이벤트·보상 금액은 환불 대상에서 제외됩니다.</>,
     ],
   },
   {
@@ -86,11 +82,11 @@ const SECTIONS: { icon: string; h: string; body: React.ReactNode[] }[] = [
     h: "4. 기타",
     body: [
       <>
-        회원 탈퇴 전 미사용 포인트 환불을 먼저 신청해 주세요. 탈퇴 후에는 포인트가 소멸되어
+        회원 탈퇴 전 미사용 잔액 환불을 먼저 신청해 주세요. 탈퇴 후에는 잔액이 소멸되어
         환불이 불가능합니다.
       </>,
       <>
-        서비스를 불법적인 용도로 사용하여 이용이 제한된 회원의 포인트는 환불되지 않을 수
+        서비스를 불법적인 용도로 사용하여 이용이 제한된 회원의 잔액은 환불되지 않을 수
         있습니다.
       </>,
       <>본 규정에 정하지 않은 사항은 이용약관 및 관계 법령에 따릅니다.</>,

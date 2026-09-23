@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { won, pt, ymdhm } from "@/lib/format";
+import { won, bal, ymdhm } from "@/lib/format";
 import { CHARGE_COUNT_UNITS, CHARGE_FEE_RATE, SMS_BASE_POINT } from "@/lib/config";
 import { BANK_INFO, bankImageSize } from "@/lib/deposit-account";
 import { createChargeRequest, cancelChargeRequest } from "./actions";
@@ -81,7 +81,7 @@ export default async function ChargePage({
   return (
     <div className="space-y-6">
       <h1 className="flex items-center gap-2 text-xl font-bold">
-        <i className="fa-solid fa-coins text-emerald-600" aria-hidden /> 포인트 충전
+        <i className="fa-solid fa-coins text-emerald-600" aria-hidden /> 잔액 충전
       </h1>
 
       {sp.ok && (
@@ -93,7 +93,7 @@ export default async function ChargePage({
           <i className="fa-solid fa-circle-check mt-0.5 text-emerald-600" aria-hidden />
           <span>
             <b>충전 신청이 완료되었습니다.</b> 같은 신청이 중복되지 않도록 버튼을 다시 누르지
-            마시고, 아래 계좌로 입금해 주시면 확인 후 포인트가 지급됩니다.
+            마시고, 아래 계좌로 입금해 주시면 확인 후 잔액이 충전됩니다.
           </span>
         </p>
       )}
@@ -187,13 +187,13 @@ export default async function ChargePage({
                   <li key={`c-${it.id}`} className="glass flex items-center gap-3 rounded-2xl p-4">
                     <div className="min-w-0 flex-1">
                       <p className="font-num text-base font-bold">
-                        {pt(it.chargePoint)}{" "}
+                        {bal(it.chargePoint)}{" "}
                         <span className="text-sm font-normal text-zinc-400">
-                          충전 · 약 {Math.floor(it.chargePoint / SMS_BASE_POINT).toLocaleString("ko-KR")}회
+                          충전 · 인증 {Math.floor(it.chargePoint / SMS_BASE_POINT).toLocaleString("ko-KR")}회분
                         </span>
                       </p>
                       <p className="font-num mt-0.5 text-xs text-zinc-400">
-                        입금액 {won(it.amount)} · {ymdhm(it.createdAt)}
+                        {ymdhm(it.createdAt)}
                       </p>
                     </div>
                     <span
@@ -220,7 +220,7 @@ export default async function ChargePage({
                   <li key={`r-${it.id}`} className="glass flex items-center gap-3 rounded-2xl p-4">
                     <div className="min-w-0 flex-1">
                       <p className="font-num text-base font-bold text-red-500">
-                        {pt(it.amount)}{" "}
+                        {bal(it.amount)}{" "}
                         <span className="text-sm font-normal text-zinc-400">환불</span>
                       </p>
                       <p className="font-num mt-0.5 text-xs text-zinc-400">{ymdhm(it.createdAt)}</p>
@@ -240,7 +240,7 @@ export default async function ChargePage({
                       className={`font-num text-base font-bold ${plus ? "text-emerald-600" : "text-red-500"}`}
                     >
                       {plus ? "+" : ""}
-                      {pt(it.amount)}{" "}
+                      {bal(it.amount)}{" "}
                       <span className="text-sm font-normal text-zinc-400">
                         {plus ? "지급" : "차감"}
                       </span>

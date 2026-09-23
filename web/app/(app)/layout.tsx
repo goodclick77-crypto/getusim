@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { pt } from "@/lib/format";
+import { bal } from "@/lib/format";
 import MobileNav from "@/components/MobileNav";
 import NavLinks from "@/components/NavLinks";
 import Footer from "@/components/Footer";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const NAV = [
   { href: "/dashboard", label: "대시보드", icon: "fa-gauge" },
   { href: "/sms", label: "SMS 인증", icon: "fa-comment-sms" },
-  { href: "/charge", label: "포인트 충전", icon: "fa-coins" },
+  { href: "/charge", label: "잔액 충전", icon: "fa-coins" },
   { href: "/notice", label: "공지사항", icon: "fa-bullhorn" },
   { href: "/faq", label: "FAQ", icon: "fa-circle-question" },
   { href: "/inquiry", label: "1:1 문의", icon: "fa-headset" },
@@ -41,10 +41,10 @@ export default async function AppLayout({
             <Link
               href="/charge"
               className="rounded-xl bg-emerald-600/10 px-3 py-1.5 font-semibold text-emerald-700 hover:bg-emerald-600/15"
-              title="포인트 충전"
+              title="잔액 충전"
             >
               <i className="fa-solid fa-coins mr-1.5" aria-hidden />
-              <span className="font-num">{pt(user.point)}</span>
+              <span className="font-num">{bal(user.point)}</span>
             </Link>
             {user.role === "ADMIN" && (
               <Link

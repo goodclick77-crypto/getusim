@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { COUNTRIES, SERVICES, SMS_BASE_POINT, chargeAmount } from "@/lib/config";
+import { COUNTRIES, SERVICES, SMS_BASE_POINT, chargeAmount, wonOf } from "@/lib/config";
 import { phoneFmt } from "@/lib/format";
 import ImageSelect from "@/components/ImageSelect";
 import CopyButton from "@/components/CopyButton";
@@ -234,8 +234,7 @@ function CompareTable({
                         {sel && <i className="fa-solid fa-check shrink-0 text-emerald-600" aria-hidden />}
                       </span>
                       <span className="font-num shrink-0 text-base font-bold">
-                        {r.price.toLocaleString("ko-KR")}
-                        <span className="text-xs font-normal text-zinc-400">P</span>
+                        {wonOf(r.price)}
                       </span>
                     </div>
                     {/* 2줄: 수신률 — 재고는 표시하지 않는다.
@@ -521,7 +520,7 @@ export default function NumberAuth({ initialPoint, card, cardAvailable }: Props)
     // 결제 가능 여부를 먼저 확인 — 포인트가 모자라고 카드도 없으면 요청 자체를 하지 않는다.
     if (payMethod === "POINT" && !pointEnough) {
       setStatus(
-        `포인트가 부족합니다 (${need.toLocaleString("ko-KR")}P 필요, 보유 ${point.toLocaleString("ko-KR")}P)`,
+        `잔액이 부족합니다 (${wonOf(need)} 필요, 보유 ${wonOf(point)})`,
       );
       setNeedCharge(true);
       return;
@@ -571,7 +570,7 @@ export default function NumberAuth({ initialPoint, card, cardAvailable }: Props)
         data.error === "00"
           ? "현재 이용 가능한 번호가 없습니다. 목록을 새로 불러왔어요."
           : data.error === "need"
-            ? data.message || "포인트가 부족합니다"
+            ? data.message || "잔액이 부족합니다"
             : data.message || data.error || "번호 발급 실패",
       );
       setRunning(false);
@@ -715,14 +714,12 @@ export default function NumberAuth({ initialPoint, card, cardAvailable }: Props)
     <div className="space-y-5">
       <div className="glass-dark rounded-2xl p-5 text-white">
         <p className="flex items-center gap-2 text-sm text-zinc-400">
-          <i className="fa-solid fa-wallet text-emerald-400" aria-hidden /> 보유 포인트
+          <i className="fa-solid fa-wallet text-emerald-400" aria-hidden /> 보유 잔액
         </p>
-        <p className="font-num mt-1 text-2xl font-bold">
-          {point.toLocaleString("ko-KR")}P
-        </p>
+        <p className="font-num mt-1 text-2xl font-bold">{wonOf(point)}</p>
         <p className="mt-1 text-xs text-zinc-400">
-          인증코드 수신 성공 시 차감 (번호 발급은 무료) · 서비스별 가격 상이, 최소{" "}
-          {SMS_BASE_POINT.toLocaleString("ko-KR")}P
+          인증코드 수신 성공 시 차감 (번호 발급은 무료) · 서비스별 가격 상이, 1건{" "}
+          {wonOf(SMS_BASE_POINT)}부터
         </p>
         {cardAvailable && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-sm">
@@ -733,7 +730,7 @@ export default function NumberAuth({ initialPoint, card, cardAvailable }: Props)
                   결제 카드 <b className="font-num text-white">{cardLabel}</b>
                 </>
               ) : (
-                "결제 카드 없음 · 등록하면 포인트 없이 건별 결제할 수 있어요"
+                "결제 카드 없음 · 등록하면 충전 없이 건별 결제할 수 있어요"
               )}
             </span>
             {cardLabel ? (
@@ -902,14 +899,10 @@ export default function NumberAuth({ initialPoint, card, cardAvailable }: Props)
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="font-num text-xl font-bold text-emerald-700">
-                    {payMethod === "CARD"
-                      ? `${needWon.toLocaleString("ko-KR")}원`
-                      : `${need.toLocaleString("ko-KR")}P`}
+                    {needWon.toLocaleString("ko-KR")}원
                   </p>
                   <p className="font-num text-[11px] text-zinc-400">
-                    {payMethod === "CARD"
-                      ? `= ${need.toLocaleString("ko-KR")}P 상당`
-                      : `카드 결제 시 ${needWon.toLocaleString("ko-KR")}원`}
+                    {payMethod === "CARD" ? "카드로 결제" : "잔액에서 차감"}
                   </p>
                 </div>
               </div>
@@ -921,8 +914,8 @@ export default function NumberAuth({ initialPoint, card, cardAvailable }: Props)
                     [
                       {
                         v: "POINT",
-                        label: "포인트",
-                        sub: pointEnough ? `보유 ${point.toLocaleString("ko-KR")}P` : "포인트 부족",
+                        label: "잔액",
+                        sub: pointEnough ? `보유 ${wonOf(point)}` : "잔액 부족",
                         ok: pointEnough,
                         icon: "fa-coins",
                       },
@@ -981,7 +974,7 @@ export default function NumberAuth({ initialPoint, card, cardAvailable }: Props)
                     <i className="fa-solid fa-mobile-screen-button" aria-hidden />
                     {payMethod === "CARD"
                       ? `${needWon.toLocaleString("ko-KR")}원 결제하고 번호 받기`
-                      : `${need.toLocaleString("ko-KR")}P로 번호 받기`}
+                      : `잔액 ${needWon.toLocaleString("ko-KR")}원으로 번호 받기`}
                   </button>
                 )}
                 {!payReady && payMethod === "POINT" && (
@@ -989,7 +982,7 @@ export default function NumberAuth({ initialPoint, card, cardAvailable }: Props)
                     href="/charge"
                     className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
                   >
-                    <i className="fa-solid fa-bolt text-indigo-500" aria-hidden /> 포인트 충전
+                    <i className="fa-solid fa-bolt text-indigo-500" aria-hidden /> 잔액 충전
                   </Link>
                 )}
               </div>
@@ -1074,7 +1067,7 @@ export default function NumberAuth({ initialPoint, card, cardAvailable }: Props)
                     </>
                   ) : (
                     <>
-                      포인트 {paid.amount.toLocaleString("ko-KR")}P{" "}
+                      잔액 {wonOf(paid.amount)}{" "}
                       <span className="text-xs text-zinc-400">{code ? "· 차감됨" : "· 수신 시 차감"}</span>
                     </>
                   )}
@@ -1100,7 +1093,7 @@ export default function NumberAuth({ initialPoint, card, cardAvailable }: Props)
 
       <p className="rounded-lg bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-700">
         번호를 받은 뒤 문자가 오지 않으면 꼭 “밴넘버”를 눌러주세요. 밴넘버를 누르지 않고 그냥
-        창을 닫으면, 이후 인증문자가 도착했을 때 포인트가 차감될 수 있습니다. 인증번호 수신
+        창을 닫으면, 이후 인증문자가 도착했을 때 요금이 차감될 수 있습니다. 인증번호 수신
         후에는 환불이 불가능하며, 합법적인 용도로만 사용하셔야 합니다.
       </p>
 

@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/session";
-import { ymd, pt } from "@/lib/format";
+import { ymd, bal } from "@/lib/format";
 import { updateProfile, withdrawAccount } from "./actions";
 import ConfirmButton from "@/components/ConfirmButton";
 import Reveal from "@/components/Reveal";
 
 const WITHDRAW_ERRORS: Record<string, string> = {
   pw: "비밀번호가 일치하지 않습니다.",
-  agree: "잔여 포인트 소멸에 동의해야 탈퇴할 수 있습니다.",
+  agree: "잔여 잔액 소멸에 동의해야 탈퇴할 수 있습니다.",
   active: "진행 중인 번호가 있어 탈퇴할 수 없습니다. 번호 만료·완료 후 다시 시도해주세요.",
 };
 
@@ -105,10 +105,10 @@ export default async function AccountPage({
             {user.point > 0 && (
               <details className="mb-3 rounded-xl border border-black/10 bg-black/[0.015] px-3 py-2">
                 <summary className="cursor-pointer select-none text-xs text-zinc-500">
-                  탈퇴 시 잔여 포인트 처리 안내
+                  탈퇴 시 잔여 금액 처리 안내
                 </summary>
                 <div className="mt-2 space-y-1 text-xs text-zinc-500">
-                  <p>보유 포인트 {pt(user.point)}는 탈퇴 시 소멸되며 복구되지 않습니다.</p>
+                  <p>보유 잔액 {bal(user.point)}은 탈퇴 시 소멸되며 복구되지 않습니다.</p>
                   <p>
                     환불을 원하시면 탈퇴 전{" "}
                     <Link href="/inquiry" className="font-medium text-emerald-700 underline">
@@ -136,12 +136,12 @@ export default async function AccountPage({
               {user.point > 0 && (
                 <label className="flex items-start gap-2 text-xs text-zinc-600">
                   <input type="checkbox" name="agreePointLoss" required className="mt-0.5" />
-                  <span>보유 포인트 {pt(user.point)}가 소멸되는 것에 동의합니다.</span>
+                  <span>보유 잔액 {bal(user.point)}이 소멸되는 것에 동의합니다.</span>
                 </label>
               )}
 
               <ConfirmButton
-                message={`정말 탈퇴하시겠어요?${user.point > 0 ? ` 보유 포인트 ${pt(user.point)}가 소멸되며,` : ""} 같은 아이디로 다시 로그인할 수 없습니다.`}
+                message={`정말 탈퇴하시겠어요?${user.point > 0 ? ` 보유 잔액 ${bal(user.point)}이 소멸되며,` : ""} 같은 아이디로 다시 로그인할 수 없습니다.`}
                 className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3 font-semibold text-white transition hover:bg-red-500"
               >
                 <i className="fa-solid fa-user-slash" aria-hidden /> 회원 탈퇴

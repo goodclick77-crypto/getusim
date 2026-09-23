@@ -1,13 +1,13 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { ymdhm, pt } from "@/lib/format";
+import { ymdhm, bal } from "@/lib/format";
 import { chargeAmount } from "@/lib/config";
 import InquiryForm from "./InquiryForm";
 import Reveal from "@/components/Reveal";
 
 const ERRORS: Record<string, string> = {
   empty: "문의 내용을 입력하세요.",
-  refund: "환불 계좌 정보를 입력하세요. (환불 가능 포인트가 있어야 합니다)",
+  refund: "환불 계좌 정보를 입력하세요. (환불 가능한 잔액이 있어야 합니다)",
 };
 
 const CAT_LABEL: Record<string, string> = {
@@ -89,7 +89,7 @@ export default async function InquiryPage({
               <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-600">{q.content}</p>
               {q.category === "REFUND" && (
                 <p className="mt-2 text-xs text-zinc-500">
-                  환불 신청 {pt(q.refundPoint ?? 0)} (전액)
+                  환불 신청 {bal(q.refundPoint ?? 0)} (전액)
                   {q.refundedAt ? (
                     <span className="ml-1 font-medium text-emerald-600">· 환불 완료(차감됨)</span>
                   ) : (

@@ -44,7 +44,7 @@ export default async function PricesPage() {
           <i className="fa-solid fa-tags text-emerald-600" aria-hidden /> 실시간 가격
         </h1>
         <p className="mt-2 text-sm text-zinc-500">
-          국가·서비스별 실시간 수신률과 가격을 확인하세요. 회원가입 후 포인트를 충전하면 바로 번호를
+          국가·서비스별 실시간 수신률과 가격을 확인하세요. 회원가입 후 바로 번호를
           받을 수 있습니다.
         </p>
         <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">

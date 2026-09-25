@@ -3,6 +3,7 @@ import { registerUser, RegisterError } from "@/lib/auth-service";
 import { signSession, touchLastSeen, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { isHoneypotHit } from "@/lib/honeypot";
 
 function redirectTo(path: string) {
   return new NextResponse(null, { status: 303, headers: { Location: path } });
@@ -25,6 +26,11 @@ export async function POST(req: Request) {
     );
   }
   const form = await req.formData();
+  // 봇 함정 칸이 채워졌으면 가입시키지 않는다(사유는 알려주지 않음)
+  if (isHoneypotHit(form)) {
+    console.warn(`[register] honeypot hit ip=${clientIp(req)} loginId=${String(form.get("loginId") || "")}`);
+    return redirectTo(`/register?error=${encodeURIComponent("가입 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")}`);
+  }
   const input = {
     loginId: String(form.get("loginId") || ""),
     password: String(form.get("password") || ""),

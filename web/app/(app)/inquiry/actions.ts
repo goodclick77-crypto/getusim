@@ -8,6 +8,7 @@ import { notifyAdmin } from "@/lib/notify";
 import { headers } from "next/headers";
 import { rateLimit } from "@/lib/ratelimit";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { isHoneypotHit } from "@/lib/honeypot";
 
 const CONTENT_MAX = 3000;
 
@@ -19,6 +20,11 @@ const CAT_LABEL: Record<string, string> = {
 
 export async function createInquiry(formData: FormData) {
   const user = await requireUser();
+  // 봇 함정 칸이 채워졌으면 저장하지 않고 성공한 것처럼 돌려보낸다(봇이 우회 시도하지 않도록)
+  if (isHoneypotHit(formData)) {
+    console.warn(`[inquiry] honeypot hit user=${user.id} (${user.loginId})`);
+    redirect("/inquiry?ok=1");
+  }
   const raw = String(formData.get("category") || "USAGE");
   const category = CAT_LABEL[raw] ? raw : "USAGE";
   const content = String(formData.get("content") || "").trim();

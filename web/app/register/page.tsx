@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Turnstile from "@/components/Turnstile";
+import Honeypot from "@/components/Honeypot";
 import { turnstileSiteKey } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic";
@@ -85,6 +86,7 @@ export default async function RegisterPage({
             </span>
           </label>
 
+          <Honeypot />
           {siteKey && <Turnstile siteKey={siteKey} />}
 
           <button className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white transition hover:bg-emerald-500">

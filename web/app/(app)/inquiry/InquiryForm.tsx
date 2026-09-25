@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createInquiry } from "./actions";
 import Turnstile from "@/components/Turnstile";
+import Honeypot from "@/components/Honeypot";
 
 const CATS = [
   { v: "USAGE", label: "사용문의", icon: "fa-circle-question" },
@@ -92,6 +93,7 @@ export default function InquiryForm({
         </div>
       )}
 
+      <Honeypot />
       {siteKey && <Turnstile siteKey={siteKey} />}
 
       <button

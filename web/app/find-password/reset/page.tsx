@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 const ERRORS: Record<string, string> = {
-  short: "비밀번호는 6자 이상이어야 합니다.",
+  short: "비밀번호는 8자 이상이어야 합니다.",
   mismatch: "비밀번호가 일치하지 않습니다.",
 };
 
@@ -37,7 +37,7 @@ export default async function ResetPasswordPage({
             <input
               name="password"
               type="password"
-              placeholder="새 비밀번호 (6자 이상)"
+              placeholder="새 비밀번호 (8자 이상)"
               aria-label="새 비밀번호"
               className="w-full bg-transparent outline-none"
             />

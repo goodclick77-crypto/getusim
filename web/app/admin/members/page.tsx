@@ -11,10 +11,12 @@ const SORTS = [
   { key: "point_asc", label: "포인트 적은순" },
 ] as const;
 
+const PER = 100;
+
 export default async function AdminMembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; sort?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ q?: string; sort?: string; from?: string; to?: string; page?: string }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
@@ -23,6 +25,7 @@ export default async function AdminMembersPage({
   const to = (sp.to || "").trim();
   const sort = SORTS.some((s) => s.key === sp.sort) ? sp.sort! : "recent";
   const createdAt = dateRange(from, to); // 가입일 기준 기간
+  const reqPage = Math.max(1, Math.floor(Number(sp.page)) || 1);
 
   const where = {
     ...(q
@@ -49,11 +52,17 @@ export default async function AdminMembersPage({
     prisma.user.findMany({
       where,
       orderBy,
-      take: 100,
+      skip: (reqPage - 1) * PER,
+      take: PER,
       include: { _count: { select: { inquiries: true, chargeOrders: true } } },
     }),
     prisma.user.count({ where }),
   ]);
+  const lastPage = Math.max(1, Math.ceil(total / PER));
+  const page = Math.min(reqPage, lastPage);
+  // 페이지 이동 시 검색·정렬·기간 조건 유지
+  const carry = `sort=${sort}${q ? `&q=${encodeURIComponent(q)}` : ""}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`;
+  const pageHref = (n: number) => `/admin/members?${carry}&page=${n}`;
 
   return (
     <div className="space-y-5">
@@ -129,7 +138,9 @@ export default async function AdminMembersPage({
         </nav>
         <p className="font-num text-sm text-zinc-500">
           {q ? `"${q}" 검색결과 ` : "전체 "}
-          {total.toLocaleString("ko-KR")}명 {total > 100 && "(100명 표시)"}
+          {total.toLocaleString("ko-KR")}명
+          {lastPage > 1 &&
+            ` (${((page - 1) * PER + 1).toLocaleString("ko-KR")}~${Math.min(page * PER, total).toLocaleString("ko-KR")}번째)`}
         </p>
       </div>
 
@@ -184,6 +195,52 @@ export default async function AdminMembersPage({
           <p className="px-4 py-8 text-center text-sm text-zinc-500">검색 결과가 없습니다.</p>
         )}
       </div>
+
+      {lastPage > 1 && (
+        <nav className="flex flex-wrap items-center justify-center gap-2" aria-label="페이지">
+          {page > 1 && (
+            <>
+              <Link href={pageHref(1)} className="glass rounded-lg px-3 py-1.5 text-sm hover:bg-white/70">
+                처음
+              </Link>
+              <Link href={pageHref(page - 1)} className="glass rounded-lg px-3 py-1.5 text-sm hover:bg-white/70">
+                이전
+              </Link>
+            </>
+          )}
+          <span className="font-num text-sm text-zinc-500">
+            {page} / {lastPage}
+          </span>
+          {page < lastPage && (
+            <>
+              <Link href={pageHref(page + 1)} className="glass rounded-lg px-3 py-1.5 text-sm hover:bg-white/70">
+                다음
+              </Link>
+              <Link href={pageHref(lastPage)} className="glass rounded-lg px-3 py-1.5 text-sm hover:bg-white/70">
+                마지막
+              </Link>
+            </>
+          )}
+          <form action="/admin/members" method="GET" className="flex items-center gap-1">
+            <input type="hidden" name="sort" value={sort} />
+            {q && <input type="hidden" name="q" value={q} />}
+            {from && <input type="hidden" name="from" value={from} />}
+            {to && <input type="hidden" name="to" value={to} />}
+            <input
+              type="number"
+              name="page"
+              min={1}
+              max={lastPage}
+              defaultValue={page}
+              aria-label="이동할 페이지"
+              className="glass font-num w-20 rounded-lg px-2 py-1.5 text-sm outline-none"
+            />
+            <button className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm text-white hover:bg-zinc-700">
+              이동
+            </button>
+          </form>
+        </nav>
+      )}
     </div>
   );
 }

@@ -20,7 +20,7 @@ export default async function RegisterPage({
 
   const FIELDS = [
     { name: "loginId", placeholder: "아이디 (영문/숫자 3~20자)", type: "text", icon: "fa-user", def: sp.loginId, required: true },
-    { name: "password", placeholder: "비밀번호 (6자 이상)", type: "password", icon: "fa-lock", def: "", required: true },
+    { name: "password", placeholder: "비밀번호 (8자 이상)", type: "password", icon: "fa-lock", def: "", required: true },
     { name: "passwordConfirm", placeholder: "비밀번호 확인", type: "password", icon: "fa-lock", def: "", required: true },
     { name: "name", placeholder: "이름", type: "text", icon: "fa-id-card", def: sp.name, required: true },
     { name: "email", placeholder: "이메일 (아이디·비밀번호 찾기에 사용)", type: "email", icon: "fa-envelope", def: sp.email, required: true },

@@ -38,8 +38,8 @@ export async function registerUser(input: {
   const loginId = input.loginId.trim();
   if (!/^[a-zA-Z0-9_]{3,20}$/.test(loginId))
     throw new RegisterError("아이디는 영문/숫자 3~20자여야 합니다.");
-  if (input.password.length < 6)
-    throw new RegisterError("비밀번호는 6자 이상이어야 합니다.");
+  if (input.password.length < 8)
+    throw new RegisterError("비밀번호는 8자 이상이어야 합니다.");
 
   // 이메일 필수 — 아이디/비밀번호 찾기(계정 복구)의 유일한 수단
   const email = input.email.trim();

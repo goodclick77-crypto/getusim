@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   if (!uid) return redirectTo("/find-password?error=expired");
 
   const keep = `?t=${encodeURIComponent(token)}`;
-  if (password.length < 6) return redirectTo(`/find-password/reset${keep}&error=short`);
+  if (password.length < 8) return redirectTo(`/find-password/reset${keep}&error=short`);
   if (password !== passwordConfirm)
     return redirectTo(`/find-password/reset${keep}&error=mismatch`);
 

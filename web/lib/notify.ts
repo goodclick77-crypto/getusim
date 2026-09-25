@@ -106,6 +106,16 @@ export async function notifyAdmin(event: NotifyEvent, subject: string, body: str
   }
 }
 
+/** 보안 알림(관리자 로그인 등). 알림 설정과 무관하게 항상 발송. 실패는 무시. */
+export async function notifySecurity(subject: string, body: string) {
+  try {
+    if (!mailerConfigured()) return;
+    await deliver(`[보안] ${subject}`, body);
+  } catch (e) {
+    console.error("[notify:security]", e);
+  }
+}
+
 /** 특정 회원 주소로 메일 발송(아이디/비밀번호 찾기 등). 실패 시 throw. */
 export async function sendMail(to: string, subject: string, text: string) {
   if (!mailerConfigured()) {

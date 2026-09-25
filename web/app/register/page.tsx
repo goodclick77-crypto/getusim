@@ -1,4 +1,6 @@
 import Link from "next/link";
+import Turnstile from "@/components/Turnstile";
+import { turnstileSiteKey } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +15,7 @@ export default async function RegisterPage({
   }>;
 }) {
   const sp = await searchParams;
+  const siteKey = turnstileSiteKey();
 
   const FIELDS = [
     { name: "loginId", placeholder: "아이디 (영문/숫자 3~20자)", type: "text", icon: "fa-user", def: sp.loginId, required: true },
@@ -81,6 +84,8 @@ export default async function RegisterPage({
               에 동의합니다.
             </span>
           </label>
+
+          {siteKey && <Turnstile siteKey={siteKey} />}
 
           <button className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white transition hover:bg-emerald-500">
             가입하기

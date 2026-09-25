@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createInquiry } from "./actions";
+import Turnstile from "@/components/Turnstile";
 
 const CATS = [
   { v: "USAGE", label: "사용문의", icon: "fa-circle-question" },
@@ -12,9 +13,11 @@ const CATS = [
 export default function InquiryForm({
   currentPoint,
   refundWon,
+  siteKey,
 }: {
   currentPoint: number;
   refundWon: number;
+  siteKey: string | null;
 }) {
   const [category, setCategory] = useState<"USAGE" | "REFUND" | "OTHER">("USAGE");
   const refund = category === "REFUND";
@@ -47,6 +50,7 @@ export default function InquiryForm({
         required
         placeholder={refund ? "환불 사유를 적어주세요" : "문의 내용을 입력하세요"}
         rows={5}
+        maxLength={3000}
         aria-label="문의 내용"
         className="w-full rounded-xl border border-black/10 bg-white/60 px-3.5 py-3 outline-none focus:border-emerald-500"
       />
@@ -87,6 +91,8 @@ export default function InquiryForm({
           )}
         </div>
       )}
+
+      {siteKey && <Turnstile siteKey={siteKey} />}
 
       <button
         disabled={refund && !canRefund}

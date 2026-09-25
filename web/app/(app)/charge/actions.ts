@@ -12,6 +12,9 @@ import {
   normDepositName,
 } from "@/lib/config";
 import { notifyAdmin } from "@/lib/notify";
+import { rateLimit } from "@/lib/ratelimit";
+
+const DEPOSIT_NAME_MAX = 20;
 
 export async function createChargeRequest(formData: FormData) {
   const user = await requireUser();
@@ -27,6 +30,12 @@ export async function createChargeRequest(formData: FormData) {
     redirect("/charge?error=amount");
   }
   if (!depositName) redirect("/charge?error=deposit");
+  if (depositName.length > DEPOSIT_NAME_MAX) redirect("/charge?error=depositLong");
+
+  // 신청 도배 방지: 계정당 10분에 5건, 하루 20건
+  const okShort = rateLimit(`charge:${user.id}`, 5, 10 * 60 * 1000);
+  const okDay = rateLimit(`charge-day:${user.id}`, 20, 24 * 60 * 60 * 1000);
+  if (!okShort || !okDay) redirect("/charge?error=rate");
 
   const amount = chargeAmount(point);
 

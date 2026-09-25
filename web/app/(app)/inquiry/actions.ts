@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { notifyAdmin } from "@/lib/notify";
+import { headers } from "next/headers";
+import { rateLimit } from "@/lib/ratelimit";
+import { verifyTurnstile } from "@/lib/turnstile";
+
+const CONTENT_MAX = 3000;
 
 const CAT_LABEL: Record<string, string> = {
   USAGE: "사용문의",
@@ -18,11 +23,20 @@ export async function createInquiry(formData: FormData) {
   const category = CAT_LABEL[raw] ? raw : "USAGE";
   const content = String(formData.get("content") || "").trim();
   if (!content) redirect("/inquiry?error=empty");
+  if (content.length > CONTENT_MAX) redirect("/inquiry?error=long");
+
+  // 도배 방지: 계정당 10분에 5건, 하루 20건
+  const okShort = rateLimit(`inquiry:${user.id}`, 5, 10 * 60 * 1000);
+  const okDay = rateLimit(`inquiry-day:${user.id}`, 20, 24 * 60 * 60 * 1000);
+  if (!okShort || !okDay) redirect("/inquiry?error=rate");
+
+  const ip = ((await headers()).get("x-forwarded-for") || "").split(",")[0].trim();
+  if (!(await verifyTurnstile(formData, ip))) redirect("/inquiry?error=captcha");
 
   let refundPoint: number | null = null;
   let refundInfo: string | null = null;
   if (category === "REFUND") {
-    refundInfo = String(formData.get("refundInfo") || "").trim();
+    refundInfo = String(formData.get("refundInfo") || "").trim().slice(0, 500);
     // 환불은 보유 포인트 "전액"만 — 금액은 서버에서 결정(클라이언트 값 신뢰 안 함)
     refundPoint = user.point;
     if (!refundInfo || refundPoint <= 0) {

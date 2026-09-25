@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { registerUser, RegisterError } from "@/lib/auth-service";
 import { signSession, touchLastSeen, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 function redirectTo(path: string) {
   return new NextResponse(null, { status: 303, headers: { Location: path } });
@@ -44,6 +45,9 @@ export async function POST(req: Request) {
 
   if (input.password !== passwordConfirm) return back("비밀번호가 일치하지 않습니다.");
   if (!agree) return back("이용약관 및 개인정보처리방침에 동의해주세요.");
+  if (!(await verifyTurnstile(form, clientIp(req)))) {
+    return back("보안문자 확인에 실패했습니다. 다시 시도해주세요.");
+  }
 
   let userId: number;
   let role = "USER";

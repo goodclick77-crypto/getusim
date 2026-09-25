@@ -26,6 +26,8 @@ const ERROR_MSG: Record<string, string> = {
   dup: "같은 금액·입금자명의 충전 신청이 이미 입금대기 중입니다. 해당 신청 건으로 입금하시거나, 아래 내역에서 기존 신청을 취소한 뒤 다시 신청해 주세요.",
   amount: "충전 금액이 올바르지 않습니다. 다시 선택해 주세요.",
   deposit: "입금자명을 입력해 주세요.",
+  depositLong: "입금자명은 20자 이내로 입력해 주세요.",
+  rate: "충전 신청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.",
 };
 
 export default async function ChargePage({

@@ -4,10 +4,14 @@ import { ymdhm, pt } from "@/lib/format";
 import { chargeAmount } from "@/lib/config";
 import InquiryForm from "./InquiryForm";
 import Reveal from "@/components/Reveal";
+import { turnstileSiteKey } from "@/lib/turnstile";
 
 const ERRORS: Record<string, string> = {
   empty: "문의 내용을 입력하세요.",
   refund: "환불 계좌 정보를 입력하세요. (환불 가능 포인트가 있어야 합니다)",
+  long: "문의 내용은 3,000자 이내로 입력하세요.",
+  rate: "문의 등록이 너무 잦습니다. 잠시 후 다시 시도해주세요.",
+  captcha: "보안문자 확인에 실패했습니다. 다시 시도해주세요.",
 };
 
 const CAT_LABEL: Record<string, string> = {
@@ -52,7 +56,11 @@ export default async function InquiryPage({
       <Reveal>
         <section className="glass rounded-2xl p-5">
           <h2 className="mb-4 font-bold">문의하기</h2>
-          <InquiryForm currentPoint={user.point} refundWon={chargeAmount(user.point)} />
+          <InquiryForm
+            currentPoint={user.point}
+            refundWon={chargeAmount(user.point)}
+            siteKey={turnstileSiteKey()}
+          />
         </section>
       </Reveal>
 

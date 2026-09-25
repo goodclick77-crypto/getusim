@@ -90,6 +90,7 @@ export default function ChargeForm({
         <input
           id="depositName"
           name="depositName"
+          maxLength={20}
           placeholder="입금하실 분의 이름"
           defaultValue={defaultName}
           aria-label="입금자명"

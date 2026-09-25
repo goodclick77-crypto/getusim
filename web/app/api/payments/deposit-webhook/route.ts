@@ -62,6 +62,7 @@ export async function POST(req: Request) {
     //   · 동일 금액·입금자명 주문이 여러 건이어도 입금 1건당 1건만 지급(중복 지급 없음 — txKey 멱등).
     //   · 지급 성공 시 completeCharge 가 방금 만든 입금로그를 matched 로 연결한다.
     let matched = false;
+    let ambiguous = false;
     if (parsed && parsed.amount > 0 && parsed.name) {
       const since = new Date(Date.now() - DEPOSIT_MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000);
       const candidates = await prisma.chargeOrder.findMany({
@@ -76,7 +77,11 @@ export async function POST(req: Request) {
       const hits = candidates.filter(
         (o) => normDepositName(o.depositName) === normDepositName(parsed.name),
       );
-      if (hits.length >= 1) {
+      // 입금자명 선점 방지: 같은 금액·입금자명 대기 주문이 서로 다른 회원에게 있으면
+      // 누가 실제 입금자인지 알 수 없다. FIFO로 주면 남의 이름을 미리 걸어둔 사람이 가로챌 수
+      // 있으므로 자동지급하지 않고 관리자 수동확인으로 넘긴다.
+      ambiguous = new Set(hits.map((o) => o.userId)).size > 1;
+      if (hits.length >= 1 && !ambiguous) {
         matched = await completeCharge(hits[0].id, parsed.amount, true);
       }
     }
@@ -89,6 +94,12 @@ export async function POST(req: Request) {
           "deposit",
           `입금 자동확인 ${won}원`,
           `입금자명: ${parsed.name}\n금액: ${won}원\n→ 충전 자동지급 완료`,
+        );
+      } else if (ambiguous) {
+        await notifyAdmin(
+          "deposit",
+          `입금 자동지급 보류 ${won}원 (수동확인 필요)`,
+          `입금자명: ${parsed.name}\n금액: ${won}원\n같은 금액·입금자명의 충전 신청이 여러 회원에게 있어 자동지급하지 않았습니다. 관리자 > 입금 확인에서 실제 입금자를 확인 후 처리하세요.`,
         );
       } else {
         await notifyAdmin(

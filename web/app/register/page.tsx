@@ -2,6 +2,8 @@ import Link from "next/link";
 import Turnstile from "@/components/Turnstile";
 import Honeypot from "@/components/Honeypot";
 import { turnstileSiteKey } from "@/lib/turnstile";
+import EmailVerifyField from "@/components/EmailVerifyField";
+import { emailVerifyEnabled } from "@/lib/email-verify";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +25,6 @@ export default async function RegisterPage({
     { name: "password", placeholder: "비밀번호 (8자 이상)", type: "password", icon: "fa-lock", def: "", required: true },
     { name: "passwordConfirm", placeholder: "비밀번호 확인", type: "password", icon: "fa-lock", def: "", required: true },
     { name: "name", placeholder: "이름", type: "text", icon: "fa-id-card", def: sp.name, required: true },
-    { name: "email", placeholder: "이메일 (아이디·비밀번호 찾기에 사용)", type: "email", icon: "fa-envelope", def: sp.email, required: true },
   ];
 
   return (
@@ -62,6 +63,7 @@ export default async function RegisterPage({
               />
             </label>
           ))}
+          <EmailVerifyField defaultEmail={sp.email} enabled={emailVerifyEnabled()} />
 
           <p className="flex items-start gap-1.5 px-1 text-xs text-zinc-500">
             <i className="fa-solid fa-circle-info mt-0.5 shrink-0 text-zinc-400" aria-hidden />

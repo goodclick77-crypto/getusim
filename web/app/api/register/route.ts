@@ -4,6 +4,7 @@ import { signSession, touchLastSeen, SESSION_COOKIE, sessionCookieOptions } from
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { isHoneypotHit } from "@/lib/honeypot";
+import { checkCode, clearCode, emailProblem, emailVerifyEnabled } from "@/lib/email-verify";
 
 function redirectTo(path: string) {
   return new NextResponse(null, { status: 303, headers: { Location: path } });
@@ -54,6 +55,12 @@ export async function POST(req: Request) {
   if (!(await verifyTurnstile(form, clientIp(req)))) {
     return back("보안문자 확인에 실패했습니다. 다시 시도해주세요.");
   }
+  const badEmail = emailProblem(input.email);
+  if (badEmail) return back(badEmail);
+  // 이메일 인증번호 확인(발송 수단 미설정이면 건너뜀)
+  if (emailVerifyEnabled() && !checkCode(input.email, String(form.get("emailCode") || ""))) {
+    return back("이메일 인증번호가 올바르지 않거나 만료되었습니다. 인증번호를 다시 받아주세요.");
+  }
 
   let userId: number;
   let role = "USER";
@@ -61,6 +68,7 @@ export async function POST(req: Request) {
     const user = await registerUser(input);
     userId = user.id;
     role = user.role;
+    clearCode(input.email);
   } catch (e) {
     if (e instanceof RegisterError) return back(e.message);
     throw e;

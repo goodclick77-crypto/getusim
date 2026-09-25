@@ -1,4 +1,6 @@
 import Link from "next/link";
+import Turnstile from "@/components/Turnstile";
+import { turnstileSiteKey } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic";
 
@@ -6,14 +8,18 @@ const ERRORS: Record<string, string> = {
   empty: "아이디와 비밀번호를 입력하세요.",
   invalid: "아이디 또는 비밀번호가 올바르지 않습니다.",
   rate: "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.",
+  captcha: "보안문자 확인에 실패했습니다. 다시 시도해주세요.",
+  mail: "관리자 인증번호 발송에 실패했습니다. 잠시 후 다시 시도해주세요.",
+  expired: "인증 시간이 지났습니다. 다시 로그인해주세요.",
 };
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; id?: string; reset?: string }>;
+  searchParams: Promise<{ error?: string; id?: string; reset?: string; m?: string }>;
 }) {
-  const { error, id, reset } = await searchParams;
+  const { error, id, reset, m } = await searchParams;
+  const siteKey = turnstileSiteKey();
   return (
     <main id="main" className="flex flex-1 items-center justify-center px-5 py-16">
       <div className="glass w-full max-w-sm rounded-3xl p-8">
@@ -35,7 +41,9 @@ export default async function LoginPage({
             className="mt-3 flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600"
           >
             <i className="fa-solid fa-circle-exclamation" aria-hidden />
-            {ERRORS[error] ?? "로그인에 실패했습니다."}
+            {error === "locked"
+              ? `비밀번호를 여러 번 틀려 이 아이디의 로그인이 잠겼습니다. ${Number(m) || 15}분 뒤 다시 시도해주세요. (비밀번호가 기억나지 않으면 비밀번호 찾기를 이용하세요)`
+              : (ERRORS[error] ?? "로그인에 실패했습니다.")}
           </p>
         )}
         <form action="/api/login" method="POST" className="mt-5 space-y-3">
@@ -61,6 +69,7 @@ export default async function LoginPage({
               className="w-full bg-transparent outline-none"
             />
           </label>
+          {siteKey && <Turnstile siteKey={siteKey} />}
           <button className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white transition hover:bg-emerald-500">
             로그인
           </button>

@@ -23,7 +23,8 @@ export async function POST(req: Request) {
     orderBy: { createdAt: "asc" },
   });
 
-  if (users.length > 0) {
+  // 같은 이메일로는 10분에 1통(IP를 바꿔가며 메일 폭탄 방지). 응답은 동일하게 유지.
+  if (users.length > 0 && rateLimit(`findid:email:${email.toLowerCase()}`, 1, 10 * 60 * 1000)) {
     try {
       const list = users
         .map(

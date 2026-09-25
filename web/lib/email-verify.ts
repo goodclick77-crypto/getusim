@@ -45,9 +45,9 @@ export function emailProblem(email: string): string | null {
 }
 
 /** 새 인증번호를 만들어 보관하고 반환(기존 번호는 무효). */
-export function issueCode(email: string): string {
+export function issueCode(email: string, ttlMs = TTL_MS): string {
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
-  codes.set(norm(email), { hash: sha(code), exp: Date.now() + TTL_MS, tries: 0 });
+  codes.set(norm(email), { hash: sha(code), exp: Date.now() + ttlMs, tries: 0 });
   // 만료된 항목 정리
   const now = Date.now();
   for (const [k, v] of codes) if (v.exp < now) codes.delete(k);

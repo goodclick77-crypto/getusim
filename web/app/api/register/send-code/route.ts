@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   try {
     await sendMail(
       email,
-      "[GetUsim] 회원가입 인증번호",
+      "회원가입 인증번호",
       `GetUsim 회원가입 인증번호는 ${code} 입니다.\n10분 안에 가입 화면에 입력해주세요.\n\n본인이 요청하지 않았다면 이 메일은 무시하셔도 됩니다.`,
     );
   } catch (e) {

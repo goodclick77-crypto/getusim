@@ -29,7 +29,8 @@ export async function POST(req: Request) {
   });
 
   // 계정 존재 여부를 노출하지 않기 위해, 일치 여부와 무관하게 동일한 응답을 반환한다.
-  if (user && user.email) {
+  // 같은 이메일로는 10분에 1통(IP를 바꿔가며 메일 폭탄 방지). 응답은 동일하게 유지.
+  if (user && user.email && rateLimit(`findpw:email:${email.toLowerCase()}`, 1, 10 * 60 * 1000)) {
     try {
       const token = await signResetToken(user.id);
       // Railway 프록시 뒤에서도 공개 도메인으로 링크 생성

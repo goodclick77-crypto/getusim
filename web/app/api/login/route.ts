@@ -1,28 +1,15 @@
 import { NextResponse } from "next/server";
 import { authenticate } from "@/lib/auth-service";
 import { prisma } from "@/lib/prisma";
-import { signSession, SESSION_COOKIE, sessionCookieOptions } from "@/lib/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
-import { notifySecurity } from "@/lib/notify";
-
-function kst(d: Date) {
-  return d.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
-}
+import { mailerConfigured, notifySecurity, sendMail } from "@/lib/notify";
+import { finishLogin, kst } from "@/lib/login-finish";
+import { verifyTurnstile } from "@/lib/turnstile";
+import { clearFails, lockedMinutes, recordFail, startAdminChallenge } from "@/lib/login-guard";
 
 // 에러는 303 리다이렉트(쿠키 불필요)
 function redirectTo(path: string) {
   return new NextResponse(null, { status: 303, headers: { Location: path } });
-}
-
-// 성공: 쿠키는 반드시 200 응답에 실어 세팅(브라우저가 3xx 응답의 Set-Cookie를
-// 저장하지 않는 환경 대응) 후, 페이지에서 이동.
-function setCookieAndGo(token: string, path: string) {
-  const res = new NextResponse(
-    `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${path}"></head><body style="font-family:sans-serif;padding:2rem">로그인 중…<script>location.replace(${JSON.stringify(path)})</script></body></html>`,
-    { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } },
-  );
-  res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
-  return res;
 }
 
 export async function POST(req: Request) {
@@ -37,11 +24,20 @@ export async function POST(req: Request) {
   const keep = `&id=${encodeURIComponent(loginId)}`;
   if (!loginId || !password) return redirectTo(`/login?error=empty${keep}`);
 
+  if (!(await verifyTurnstile(form, clientIp(req)))) {
+    return redirectTo(`/login?error=captcha${keep}`);
+  }
+
+  // 계정 잠금(같은 아이디 5회 실패 → 15분). 잠긴 동안은 비밀번호를 확인하지 않는다.
+  const locked = lockedMinutes(loginId);
+  if (locked) return redirectTo(`/login?error=locked&m=${locked}${keep}`);
+
   const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
   const ua = (req.headers.get("user-agent") || "").slice(0, 200);
 
   const user = await authenticate(loginId, password);
   if (!user) {
+    const nowLocked = recordFail(loginId);
     // 관리자 아이디로 로그인 실패 → 보안 알림 (메일 폭탄 방지: 10분에 1통)
     const target = await prisma.user
       .findUnique({ where: { loginId }, select: { role: true } })
@@ -59,30 +55,37 @@ IP: ${ip || "알 수 없음"}
 본인이 아니라면 비밀번호를 변경하세요. (10분 내 추가 실패는 따로 알리지 않습니다)`,
       );
     }
+    if (nowLocked) return redirectTo(`/login?error=locked&m=15${keep}`);
     return redirectTo(`/login?error=invalid${keep}`);
   }
+  clearFails(loginId);
 
-  // 관리자 로그인 성공 → 보안 알림 (본인이 아니면 즉시 비밀번호 변경하도록)
-  if (user.role === "ADMIN") {
-    const sameIp = !!ip && ip === user.lastLoginIp;
-    await notifySecurity(
-      `관리자 로그인 (${user.loginId})${sameIp ? "" : " — 새 IP"}`,
-      `관리자 계정으로 로그인했습니다.
+  // 관리자 2단계: 비밀번호 통과 후 이메일 인증번호를 한 번 더 확인(/login/verify).
+  // 발송 수단이 없으면 관리자가 잠겨버리지 않도록 건너뛴다.
+  if (user.role === "ADMIN" && mailerConfigured()) {
+    // 보안 알림을 받는 관리자 주소 우선(평소 확인하는 메일함), 없으면 계정 이메일
+    const to = process.env.ADMIN_EMAIL || user.email || "";
+    if (to) {
+      const { id, code } = startAdminChallenge(user.id);
+      try {
+        await sendMail(
+          to,
+          "관리자 로그인 인증번호",
+          `관리자 로그인 인증번호는 ${code} 입니다. (5분간 유효)
 
-아이디: ${user.loginId}
-IP: ${ip || "알 수 없음"}${sameIp ? " (지난 로그인과 같음)" : ` (지난 로그인: ${user.lastLoginIp || "기록 없음"})`}
+IP: ${ip || "알 수 없음"}
 시각: ${kst(new Date())}
 브라우저: ${ua}
 
-본인이 아니라면 즉시 비밀번호를 변경하세요.`,
-    );
+본인이 로그인한 것이 아니라면 비밀번호가 유출된 것입니다. 즉시 비밀번호를 변경하세요.`,
+        );
+      } catch (e) {
+        console.error("[login] admin 2fa mail failed:", e);
+        return redirectTo(`/login?error=mail${keep}`);
+      }
+      return redirectTo(`/login/verify?c=${id}`);
+    }
   }
 
-  // 최근 접속 기록 (실패해도 로그인은 진행)
-  await prisma.user
-    .update({ where: { id: user.id }, data: { lastLoginAt: new Date(), lastLoginIp: ip } })
-    .catch(() => {});
-
-  const token = await signSession(user.id, user.role);
-  return setCookieAndGo(token, "/dashboard");
+  return finishLogin(user, ip, ua);
 }

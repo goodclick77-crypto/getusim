@@ -33,6 +33,17 @@ export async function adjustMemberPoint(formData: FormData) {
   redirect(`/admin/members/${userId}?ok=1`);
 }
 
+/** 관리자 메모 저장 (관리자 화면에서만 보임) */
+export async function saveMemo(formData: FormData) {
+  await requireAdmin();
+  const userId = Number(formData.get("userId"));
+  if (!userId) redirect("/admin/members");
+  const memo = String(formData.get("memo") || "").trim().slice(0, 5000);
+  await prisma.user.update({ where: { id: userId }, data: { memo: memo || null } });
+  revalidatePath(`/admin/members/${userId}`);
+  redirect(`/admin/members/${userId}?ok=memo`);
+}
+
 /** 이용정지(탈퇴처리) / 해제 토글 */
 export async function toggleBlock(formData: FormData) {
   await requireAdmin();

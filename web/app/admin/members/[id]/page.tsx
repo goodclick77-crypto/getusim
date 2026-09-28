@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { pt, won, ymd, ymdhm } from "@/lib/format";
-import { adjustMemberPoint, toggleBlock } from "../actions";
+import { adjustMemberPoint, saveMemo, toggleBlock } from "../actions";
 import ConfirmButton from "@/components/ConfirmButton";
 import PointApplyButton from "@/components/PointApplyButton";
 import RentalLabel from "@/components/RentalLabel";
@@ -90,7 +90,7 @@ export default async function MemberDetail({
 
       {sp.ok && (
         <p role="status" className="glass rounded-2xl px-4 py-3 text-sm text-emerald-700">
-          포인트가 조정되었습니다.
+          {sp.ok === "memo" ? "메모가 저장되었습니다." : "포인트가 조정되었습니다."}
         </p>
       )}
       {sp.error && (
@@ -159,6 +159,29 @@ export default async function MemberDetail({
           </form>
         </section>
       </div>
+
+      {/* 관리자 메모 — 회원에게는 보이지 않음 */}
+      <section className="glass rounded-2xl p-5">
+        <h2 className="mb-3 flex items-center gap-2 font-bold">
+          <i className="fa-solid fa-note-sticky text-emerald-600" aria-hidden /> 관리자 메모
+          <span className="text-xs font-normal text-zinc-400">회원에게 보이지 않음</span>
+        </h2>
+        <form action={saveMemo} className="space-y-3">
+          <input type="hidden" name="userId" value={user.id} />
+          <textarea
+            name="memo"
+            defaultValue={user.memo ?? ""}
+            rows={4}
+            maxLength={5000}
+            placeholder="예: 일회용 메일 가입으로 정지, 입금자명 다름 등"
+            aria-label="관리자 메모"
+            className="w-full rounded-xl border border-black/10 bg-white/60 px-3.5 py-3 text-sm outline-none focus:border-emerald-400"
+          />
+          <button className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500">
+            메모 저장
+          </button>
+        </form>
+      </section>
 
       {/* 포인트 내역 */}
       <section className="glass rounded-2xl p-5">

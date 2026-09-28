@@ -57,8 +57,33 @@ function gmailTransport() {
   return transporter;
 }
 
-/** 실제 발송. 실패 시 throw. to 미지정 시 관리자 주소로. */
+// 발송 상태(관리자 화면 경고용). 메일이 안 되는 상황은 메일로 알릴 수 없으므로 화면에 띄운다.
+// 인메모리라 재배포 시 초기화 — 초기화 뒤 첫 발송 결과부터 다시 반영된다.
+let lastOkAt: Date | null = null;
+let lastFail: { at: Date; message: string } | null = null;
+
+export function mailHealth() {
+  return {
+    configured: mailerConfigured(),
+    provider: mailerProvider(),
+    lastOkAt,
+    // 마지막 실패 뒤로 성공한 적이 없을 때만 "현재 실패 중"으로 본다
+    failing: lastFail && (!lastOkAt || lastFail.at > lastOkAt) ? lastFail : null,
+  };
+}
+
 async function deliver(subject: string, text: string, toAddr?: string) {
+  try {
+    await deliverRaw(subject, text, toAddr);
+    lastOkAt = new Date();
+  } catch (e) {
+    lastFail = { at: new Date(), message: (e as Error).message.slice(0, 300) };
+    throw e;
+  }
+}
+
+/** 실제 발송. 실패 시 throw. to 미지정 시 관리자 주소로. */
+async function deliverRaw(subject: string, text: string, toAddr?: string) {
   const to = toAddr || recipient();
   if (!to) throw new Error("받는 주소가 설정되지 않았습니다.");
   const fullSubject = `[GetUsim] ${subject}`;

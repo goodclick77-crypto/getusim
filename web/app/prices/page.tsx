@@ -49,7 +49,7 @@ export default async function PricesPage() {
         </p>
         <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
           <i className="fa-solid fa-arrows-rotate" aria-hidden />
-          가격·재고·수신률은 환율에 따라 실시간으로 변동됩니다.
+          가격·수신률은 환율과 수신 상황에 따라 실시간으로 변동됩니다.
         </p>
 
         <div className="mt-6">

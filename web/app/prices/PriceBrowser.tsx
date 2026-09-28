@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { COUNTRIES, SERVICES } from "@/lib/config";
 import ImageSelect from "@/components/ImageSelect";
 
-type Row = { value: string; label: string; img: string; rate: number; stock: number; price: number };
+// 재고는 표시하지 않는다 — 5sim 재고(count)가 실제 구매 가능 여부와 맞지 않아 API가 보내지 않음(sms/NumberAuth.tsx 참고)
+type Row = { value: string; label: string; img: string; rate: number; price: number };
 
 function rateColor(rate: number) {
   return rate >= 50
@@ -31,12 +32,11 @@ export default function PriceBrowser() {
         .then((j) => {
           if (!alive) return;
           setRows(
-            (j.services || []).map((s: { value: string; label: string; slug: string; rate?: number; stock?: number; price?: number }) => ({
+            (j.services || []).map((s: { value: string; label: string; slug: string; rate?: number; price?: number }) => ({
               value: s.value,
               label: s.label,
               img: `https://cdn.simpleicons.org/${s.slug}`,
               rate: s.rate ?? 0,
-              stock: s.stock ?? 0,
               price: s.price ?? 0,
             })),
           );
@@ -56,12 +56,11 @@ export default function PriceBrowser() {
         .then((j) => {
           if (!alive) return;
           setRows(
-            (j.countries || []).map((c: { value: string; label: string; iso: string; rate?: number; stock?: number; price?: number }) => ({
+            (j.countries || []).map((c: { value: string; label: string; iso: string; rate?: number; price?: number }) => ({
               value: c.value,
               label: c.label,
               img: `https://flagcdn.com/w40/${c.iso}.png`,
               rate: c.rate ?? 0,
-              stock: c.stock ?? 0,
               price: c.price ?? 0,
             })),
           );
@@ -170,7 +169,6 @@ export default function PriceBrowser() {
                     <span className={`rounded px-1.5 py-0.5 font-semibold ${rateColor(r.rate)}`}>
                       수신률 {r.rate}%
                     </span>
-                    <span className="text-zinc-400">재고 {r.stock.toLocaleString("ko-KR")}</span>
                   </div>
                 </li>
               ))}

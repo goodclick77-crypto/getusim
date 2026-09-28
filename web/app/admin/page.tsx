@@ -66,7 +66,7 @@ export default async function AdminPage({
       href: "/admin/blocks",
       icon: "fa-shield-halved",
       label: "차단 내역",
-      desc: "일회용 메일·봇·로그인 잠금·정지 기록",
+      desc: "보안 차단·정지 기록 · 계좌 확인 후 미입금",
       badge: 0,
     },
     {

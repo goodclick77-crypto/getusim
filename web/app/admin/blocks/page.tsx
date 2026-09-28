@@ -10,6 +10,13 @@ export const dynamic = "force-dynamic";
 const PAGE_SIZE = 100;
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 60 * 60 * 1000);
+const hoursSince = (d: Date) => Math.floor((Date.now() - d.getTime()) / 3600000);
+
+// 차단이 아닌 기록(관리자 조치·계좌 확인)은 차단 통계에서 뺀다
+const NON_BLOCK = ["ADMIN", "ACCOUNT"];
+// 차단 기록 탭의 필터 선택지 — 계좌 확인은 별도 탭이라 제외
+const KIND_OPTS = Object.fromEntries(Object.entries(BLOCK_KIND).filter(([k]) => k !== "ACCOUNT"));
+const REASON_OPTS = Object.fromEntries(Object.entries(BLOCK_REASON).filter(([k]) => k !== "ACCOUNT_VIEW"));
 
 // 사유별 배지 색 — 공격 성격이 강할수록 진하게
 const REASON_BADGE: Record<string, string> = {
@@ -28,20 +35,21 @@ const REASON_BADGE: Record<string, string> = {
 export default async function AdminBlocksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; kind?: string; reason?: string; from?: string; to?: string; page?: string }>;
+  searchParams: Promise<{ tab?: string; q?: string; kind?: string; reason?: string; from?: string; to?: string; page?: string }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
+  if (sp.tab === "unpaid") return <UnpaidTab />;
   const q = (sp.q || "").trim();
-  const kind = BLOCK_KIND[sp.kind || ""] ? sp.kind! : "";
-  const reason = BLOCK_REASON[sp.reason || ""] ? sp.reason! : "";
+  const kind = KIND_OPTS[sp.kind || ""] ? sp.kind! : "";
+  const reason = REASON_OPTS[sp.reason || ""] ? sp.reason! : "";
   const from = (sp.from || "").trim();
   const to = (sp.to || "").trim();
   const page = Math.max(1, Number(sp.page) || 1);
   const range = dateRange(from, to);
 
   const where: Prisma.BlockLogWhereInput = {
-    ...(kind && { kind }),
+    kind: kind || { not: "ACCOUNT" }, // 계좌 확인 기록은 별도 탭에서만
     ...(reason && { reason }),
     ...(range && { createdAt: range }),
     ...(q && {
@@ -64,11 +72,11 @@ export default async function AdminBlocksPage({
       take: PAGE_SIZE,
     }),
     prisma.blockLog.count({ where }),
-    prisma.blockLog.count({ where: { createdAt: { gte: day }, kind: { not: "ADMIN" } } }),
-    prisma.blockLog.count({ where: { createdAt: { gte: week }, kind: { not: "ADMIN" } } }),
+    prisma.blockLog.count({ where: { createdAt: { gte: day }, kind: { notIn: NON_BLOCK } } }),
+    prisma.blockLog.count({ where: { createdAt: { gte: week }, kind: { notIn: NON_BLOCK } } }),
     prisma.blockLog.groupBy({
       by: ["ip"],
-      where: { createdAt: { gte: week }, kind: { not: "ADMIN" }, ip: { not: "" } },
+      where: { createdAt: { gte: week }, kind: { notIn: NON_BLOCK }, ip: { not: "" } },
       _count: { _all: true },
       orderBy: { _count: { ip: "desc" } },
       take: 5,
@@ -112,6 +120,8 @@ export default async function AdminBlocksPage({
           ← 관리자 홈
         </Link>
       </div>
+
+      <Tabs current="blocks" />
 
       <section aria-label="차단 통계" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat icon="fa-clock" label="24시간 차단" value={`${last24h.toLocaleString("ko-KR")}건`} />
@@ -175,7 +185,7 @@ export default async function AdminBlocksPage({
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <select name="kind" defaultValue={kind} aria-label="구분" className="glass rounded-lg px-2 py-1.5 outline-none">
             <option value="">구분 전체</option>
-            {Object.entries(BLOCK_KIND).map(([k, v]) => (
+            {Object.entries(KIND_OPTS).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
               </option>
@@ -183,7 +193,7 @@ export default async function AdminBlocksPage({
           </select>
           <select name="reason" defaultValue={reason} aria-label="사유" className="glass rounded-lg px-2 py-1.5 outline-none">
             <option value="">사유 전체</option>
-            {Object.entries(BLOCK_REASON).map(([k, v]) => (
+            {Object.entries(REASON_OPTS).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
               </option>
@@ -297,6 +307,202 @@ export default async function AdminBlocksPage({
           )}
         </nav>
       )}
+    </div>
+  );
+}
+
+function Tabs({ current }: { current: "blocks" | "unpaid" }) {
+  const tab = (key: "blocks" | "unpaid", href: string, icon: string, label: string) => (
+    <Link
+      href={href}
+      aria-current={current === key ? "page" : undefined}
+      className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition ${
+        current === key ? "bg-zinc-900 text-white" : "bg-black/5 text-zinc-600 hover:bg-black/10"
+      }`}
+    >
+      <i className={`fa-solid ${icon}`} aria-hidden /> {label}
+    </Link>
+  );
+  return (
+    <nav aria-label="차단 내역 구분" className="flex gap-2">
+      {tab("blocks", "/admin/blocks", "fa-ban", "차단 기록")}
+      {tab("unpaid", "/admin/blocks?tab=unpaid", "fa-building-columns", "계좌 확인 후 미입금")}
+    </nav>
+  );
+}
+
+const UNPAID_DAYS = 30;
+
+/** 계좌번호를 본 뒤(첫 확인 이후) 충전완료가 한 건도 없는 회원 — 통장묶기 사전 탐색 추적용 */
+async function UnpaidTab() {
+  const since = hoursAgo(UNPAID_DAYS * 24);
+  const views = await prisma.blockLog.groupBy({
+    by: ["userId"],
+    where: { reason: "ACCOUNT_VIEW", userId: { not: null }, createdAt: { gte: since } },
+    _min: { createdAt: true },
+    _max: { createdAt: true },
+    _count: { _all: true },
+  });
+  const ids = views.map((v) => v.userId!);
+  const [users, completed, pending, lastViews] = await Promise.all([
+        prisma.user.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, loginId: true, name: true, email: true, createdAt: true, leftAt: true },
+        }),
+        prisma.chargeOrder.findMany({
+          where: { userId: { in: ids }, status: "COMPLETED" },
+          select: { userId: true, paidAt: true, createdAt: true },
+        }),
+        prisma.chargeOrder.findMany({
+          where: { userId: { in: ids }, createdAt: { gte: since }, status: { not: "COMPLETED" } },
+          select: { userId: true, depositName: true, amount: true, status: true },
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.blockLog.findMany({
+          where: { reason: "ACCOUNT_VIEW", userId: { in: ids } },
+          orderBy: { createdAt: "desc" },
+          distinct: ["userId"],
+          select: { userId: true, ip: true },
+        }),
+      ]);
+
+  const userById = new Map(users.map((u) => [u.id, u]));
+  const ipById = new Map(lastViews.map((l) => [l.userId!, l.ip]));
+  const rows = views
+    .map((v) => {
+      const first = v._min.createdAt!;
+      const paidAfter = completed.some(
+        (c) => c.userId === v.userId && (c.paidAt ?? c.createdAt) >= first,
+      );
+      return {
+        user: userById.get(v.userId!),
+        userId: v.userId!,
+        first,
+        last: v._max.createdAt!,
+        count: v._count._all,
+        paidAfter,
+        prevPaid: completed.filter((c) => c.userId === v.userId && (c.paidAt ?? c.createdAt) < first).length,
+        orders: pending.filter((o) => o.userId === v.userId),
+        ip: ipById.get(v.userId!) || "",
+        hours: hoursSince(v._max.createdAt!),
+      };
+    })
+    .filter((r) => !r.paidAfter)
+    .sort((a, b) => b.last.getTime() - a.last.getTime());
+
+  const over24 = rows.filter((r) => r.hours >= 24).length;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-bold">
+            <i className="fa-solid fa-shield-halved text-emerald-600" aria-hidden /> 차단 내역
+          </h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            최근 {UNPAID_DAYS}일 동안 입금 계좌를 확인하고 그 뒤로 충전완료가 없는 회원입니다.
+          </p>
+        </div>
+        <Link href="/admin" className="shrink-0 text-sm text-zinc-500 hover:text-zinc-900">
+          ← 관리자 홈
+        </Link>
+      </div>
+
+      <Tabs current="unpaid" />
+
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Stat icon="fa-eye" label="계좌 확인 후 미입금" value={`${rows.length}명`} />
+        <Stat icon="fa-hourglass-end" label="24시간 넘게 미입금" value={`${over24}명`} />
+        <Stat icon="fa-user-plus" label="충전 이력 없는 회원" value={`${rows.filter((r) => r.prevPaid === 0).length}명`} />
+      </section>
+
+      <p className="text-xs text-zinc-500">
+        방금 확인한 회원은 아직 입금 전일 수 있습니다. 24시간이 지나도 입금이 없고, 충전 이력도 없는 신규 가입자를 눈여겨보세요.
+      </p>
+
+      <div className="glass overflow-hidden rounded-2xl">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[860px] text-sm">
+            <thead>
+              <tr className="border-b border-black/5 text-xs text-zinc-500">
+                <th className="px-4 py-2.5 text-left font-semibold">회원</th>
+                <th className="px-4 py-2.5 text-left font-semibold">계좌 확인</th>
+                <th className="px-4 py-2.5 text-left font-semibold">미입금 경과</th>
+                <th className="px-4 py-2.5 text-left font-semibold">충전 신청(미완료)</th>
+                <th className="px-4 py-2.5 text-left font-semibold">이전 충전</th>
+                <th className="px-4 py-2.5 text-left font-semibold">IP</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.userId} className="border-b border-black/5 align-top last:border-0 hover:bg-black/[0.02]">
+                  <td className="px-4 py-2.5">
+                    <Link href={`/admin/members/${r.userId}`} className="block font-medium text-emerald-700 hover:underline">
+                      {r.user?.loginId ?? `#${r.userId}`}
+                    </Link>
+                    <span className="block break-all text-xs text-zinc-500">
+                      {r.user?.name || "-"} · {r.user?.email || "-"}
+                    </span>
+                    <span className="block text-xs text-zinc-400">
+                      가입 {r.user ? ymdhm(r.user.createdAt) : "삭제됨"}
+                      {r.user?.leftAt && <span className="ml-1 text-red-500">정지</span>}
+                    </span>
+                  </td>
+                  <td className="font-num whitespace-nowrap px-4 py-2.5 text-zinc-600">
+                    {ymdhm(r.last)}
+                    <span className="block text-xs text-zinc-400">
+                      {r.count}회{r.count > 1 ? ` · 처음 ${ymdhm(r.first)}` : ""}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5">
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-xs font-medium ${
+                        r.hours >= 24 ? "bg-red-100 text-red-600" : "bg-zinc-100 text-zinc-600"
+                      }`}
+                    >
+                      {r.hours >= 24 ? `${Math.floor(r.hours / 24)}일` : `${r.hours}시간`}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs text-zinc-600">
+                    {r.orders.length === 0
+                      ? "없음"
+                      : r.orders.slice(0, 3).map((o, i) => (
+                          <span key={i} className="block">
+                            {o.depositName} · {o.amount.toLocaleString("ko-KR")}원 ·{" "}
+                            {o.status === "PENDING" ? "입금대기" : "취소"}
+                          </span>
+                        ))}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-xs">
+                    {r.prevPaid > 0 ? (
+                      <span className="text-zinc-500">{r.prevPaid}건</span>
+                    ) : (
+                      <span className="font-medium text-amber-700">없음</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {r.ip ? (
+                      <Link
+                        href={`/admin/blocks?q=${encodeURIComponent(r.ip)}`}
+                        className="font-num text-zinc-600 hover:text-emerald-700 hover:underline"
+                      >
+                        {r.ip}
+                      </Link>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {rows.length === 0 && (
+          <p className="px-4 py-8 text-center text-sm text-zinc-500">
+            계좌를 확인하고 입금하지 않은 회원이 없습니다. (계좌 확인 기록은 이 기능 배포 이후부터 쌓입니다)
+          </p>
+        )}
+      </div>
     </div>
   );
 }

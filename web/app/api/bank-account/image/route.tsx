@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { getCurrentUser } from "@/lib/session";
+import { logBlock } from "@/lib/block-log";
 import { BANK_INFO, BANK_IMG_FONT, BANK_IMG_SCALE, bankImageSize } from "@/lib/deposit-account";
 
 // 무통장입금 계좌번호를 PNG로 그려서 내려준다(로그인 사용자 전용).
@@ -32,6 +33,7 @@ function loadMontserrat() {
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return new Response(null, { status: 401 });
+  await logBlock({ kind: "ACCOUNT", reason: "ACCOUNT_VIEW", detail: "계좌 확인하기", loginId: user.loginId, email: user.email, userId: user.id });
 
   const account = BANK_INFO.account;
   const { width, height } = bankImageSize(account);
@@ -62,7 +64,8 @@ export async function GET() {
       height: height * BANK_IMG_SCALE,
       fonts: font ? [{ name: "Montserrat", data: font, weight: 700, style: "normal" }] : undefined,
       headers: {
-        "Cache-Control": "private, max-age=600",
+        // 볼 때마다 서버를 거쳐야 확인 기록이 남는다
+        "Cache-Control": "private, no-store",
         "X-Robots-Tag": "noindex",
       },
     },

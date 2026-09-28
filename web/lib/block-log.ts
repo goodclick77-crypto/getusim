@@ -15,6 +15,7 @@ export const BLOCK_KIND: Record<string, string> = {
   FIND_ID: "아이디 찾기",
   FIND_PW: "비밀번호 찾기",
   ADMIN: "관리자 조치",
+  ACCOUNT: "입금 계좌",
 };
 
 export const BLOCK_REASON: Record<string, string> = {
@@ -28,6 +29,7 @@ export const BLOCK_REASON: Record<string, string> = {
   SUSPEND: "이용정지",
   UNSUSPEND: "이용정지 해제",
   DELETE: "계정 삭제",
+  ACCOUNT_VIEW: "계좌번호 확인", // 차단은 아니지만 통장묶기 대비 추적용 — 차단 내역의 별도 탭에서만 보인다
 };
 
 type Entry = {

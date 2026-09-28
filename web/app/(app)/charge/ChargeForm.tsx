@@ -51,7 +51,7 @@ export default function ChargeForm({
             +{u.toLocaleString("ko-KR")}P
             {/* 포인트 숫자만 보고 부가세를 빼고 입금하는 경우가 있어 실제 입금액을 같이 보여준다 */}
             <span className="mt-0.5 text-[11px] font-medium text-red-600">
-              {Math.round(u * feeRate).toLocaleString("ko-KR")}원 입금
+              {Math.round(u * feeRate).toLocaleString("ko-KR")}원
             </span>
           </button>
         ))}

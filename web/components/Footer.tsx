@@ -16,17 +16,15 @@ export default function Footer() {
             <p className="font-mont text-lg font-extrabold tracking-tight text-zinc-800">
               GetUsim
             </p>
-            <address className="mt-3 space-y-0.5 text-xs not-italic leading-relaxed text-zinc-500">
-              <p>겟유심 | 대표자 : 엄전혜</p>
-              <p>사업자등록번호 : 843-08-01310</p>
-              <p>주소 : 경기도 양주시 고읍남로39번길 48</p>
-              <p>
-                E-mail :{" "}
-                <a href="mailto:admin@getusim.com" className="hover:text-zinc-700">
-                  admin@getusim.com
-                </a>
-              </p>
-            </address>
+            {/* 사업자 정보는 크롤링·사칭 방지를 위해 이미지로만 표시(app/api/footer-info) */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/api/footer-info?part=info"
+              alt="사업자 정보"
+              width={300}
+              height={80}
+              className="mt-3 h-auto max-w-full"
+            />
           </div>
           <nav aria-label="하단 메뉴" className="flex flex-col gap-2 sm:items-end">
             {LINKS.map((l) => (
@@ -36,9 +34,10 @@ export default function Footer() {
             ))}
           </nav>
         </div>
-        <p className="font-num mt-8 border-t border-black/5 pt-6 text-xs text-zinc-400">
-          © {new Date().getFullYear()} GetUsim. All rights reserved.
-        </p>
+        <div className="mt-8 border-t border-black/5 pt-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/api/footer-info?part=copy" alt="© GetUsim" width={260} height={20} className="h-auto max-w-full" />
+        </div>
       </div>
     </footer>
   );

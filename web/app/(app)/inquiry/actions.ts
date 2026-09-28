@@ -9,6 +9,7 @@ import { headers } from "next/headers";
 import { rateLimit } from "@/lib/ratelimit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { isHoneypotHit } from "@/lib/honeypot";
+import { logBlock } from "@/lib/block-log";
 
 const CONTENT_MAX = 3000;
 
@@ -23,6 +24,13 @@ export async function createInquiry(formData: FormData) {
   // 봇 함정 칸이 채워졌으면 저장하지 않고 성공한 것처럼 돌려보낸다(봇이 우회 시도하지 않도록)
   if (isHoneypotHit(formData)) {
     console.warn(`[inquiry] honeypot hit user=${user.id} (${user.loginId})`);
+    await logBlock({
+      kind: "INQUIRY",
+      reason: "HONEYPOT",
+      detail: "숨김 칸이 채워진 문의(저장 안 함, 사용자에겐 접수된 것처럼 표시)",
+      loginId: user.loginId,
+      userId: user.id,
+    });
     redirect("/inquiry?ok=1");
   }
   const raw = String(formData.get("category") || "USAGE");
@@ -34,10 +42,22 @@ export async function createInquiry(formData: FormData) {
   // 도배 방지: 계정당 10분에 5건, 하루 20건
   const okShort = rateLimit(`inquiry:${user.id}`, 5, 10 * 60 * 1000);
   const okDay = rateLimit(`inquiry-day:${user.id}`, 20, 24 * 60 * 60 * 1000);
-  if (!okShort || !okDay) redirect("/inquiry?error=rate");
+  const who = { loginId: user.loginId, userId: user.id };
+  if (!okShort || !okDay) {
+    await logBlock({
+      kind: "INQUIRY",
+      reason: "RATE_LIMIT",
+      detail: !okShort ? "계정당 10분 5건 초과" : "계정당 하루 20건 초과",
+      ...who,
+    });
+    redirect("/inquiry?error=rate");
+  }
 
   const ip = ((await headers()).get("x-forwarded-for") || "").split(",")[0].trim();
-  if (!(await verifyTurnstile(formData, ip))) redirect("/inquiry?error=captcha");
+  if (!(await verifyTurnstile(formData, ip))) {
+    await logBlock({ kind: "INQUIRY", reason: "CAPTCHA", ...who });
+    redirect("/inquiry?error=captcha");
+  }
 
   let refundPoint: number | null = null;
   let refundInfo: string | null = null;

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { signResetToken } from "@/lib/session";
 import { sendMail } from "@/lib/notify";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
+import { logBlock } from "@/lib/block-log";
 
 function redirectTo(path: string) {
   return new NextResponse(null, { status: 303, headers: { Location: path } });
@@ -12,6 +13,7 @@ function redirectTo(path: string) {
 // (정보만 맞으면 즉시 링크 노출하던 방식 → 이메일 소유 증명 방식으로 변경)
 export async function POST(req: Request) {
   if (!rateLimit(`findpw:${clientIp(req)}`, 5, 10 * 60 * 1000)) {
+    await logBlock({ kind: "FIND_PW", reason: "RATE_LIMIT", detail: "IP당 10분 5회 초과" });
     return redirectTo("/find-password?error=rate");
   }
 

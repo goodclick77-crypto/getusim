@@ -13,6 +13,7 @@ import {
 } from "@/lib/config";
 import { notifyAdmin } from "@/lib/notify";
 import { rateLimit } from "@/lib/ratelimit";
+import { logBlock } from "@/lib/block-log";
 
 const DEPOSIT_NAME_MAX = 20;
 
@@ -35,7 +36,16 @@ export async function createChargeRequest(formData: FormData) {
   // 신청 도배 방지: 계정당 10분에 5건, 하루 20건
   const okShort = rateLimit(`charge:${user.id}`, 5, 10 * 60 * 1000);
   const okDay = rateLimit(`charge-day:${user.id}`, 20, 24 * 60 * 60 * 1000);
-  if (!okShort || !okDay) redirect("/charge?error=rate");
+  if (!okShort || !okDay) {
+    await logBlock({
+      kind: "CHARGE",
+      reason: "RATE_LIMIT",
+      detail: `${!okShort ? "계정당 10분 5건 초과" : "계정당 하루 20건 초과"} (입금자명 ${depositName}, ${point.toLocaleString("ko-KR")}P)`,
+      loginId: user.loginId,
+      userId: user.id,
+    });
+    redirect("/charge?error=rate");
+  }
 
   const amount = chargeAmount(point);
 

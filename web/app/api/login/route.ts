@@ -6,6 +6,7 @@ import { mailerConfigured, notifySecurity, sendMail } from "@/lib/notify";
 import { finishLogin, kst } from "@/lib/login-finish";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { clearFails, lockedMinutes, recordFail, startAdminChallenge } from "@/lib/login-guard";
+import { logBlock } from "@/lib/block-log";
 
 // 에러는 303 리다이렉트(쿠키 불필요)
 function redirectTo(path: string) {
@@ -15,6 +16,7 @@ function redirectTo(path: string) {
 export async function POST(req: Request) {
   // 무차별 로그인 시도 제한: IP당 5분에 10회
   if (!rateLimit(`login:${clientIp(req)}`, 10, 5 * 60 * 1000)) {
+    await logBlock({ kind: "LOGIN", reason: "RATE_LIMIT", detail: "IP당 5분 10회 초과(무차별 대입 의심)" });
     return redirectTo("/login?error=rate");
   }
   const form = await req.formData();
@@ -25,12 +27,16 @@ export async function POST(req: Request) {
   if (!loginId || !password) return redirectTo(`/login?error=empty${keep}`);
 
   if (!(await verifyTurnstile(form, clientIp(req)))) {
+    await logBlock({ kind: "LOGIN", reason: "CAPTCHA", loginId });
     return redirectTo(`/login?error=captcha${keep}`);
   }
 
   // 계정 잠금(같은 아이디 5회 실패 → 15분). 잠긴 동안은 비밀번호를 확인하지 않는다.
   const locked = lockedMinutes(loginId);
-  if (locked) return redirectTo(`/login?error=locked&m=${locked}${keep}`);
+  if (locked) {
+    await logBlock({ kind: "LOGIN", reason: "ACCOUNT_LOCKED", detail: `잠금 ${locked}분 남음`, loginId });
+    return redirectTo(`/login?error=locked&m=${locked}${keep}`);
+  }
 
   const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
   const ua = (req.headers.get("user-agent") || "").slice(0, 200);
@@ -55,7 +61,15 @@ IP: ${ip || "알 수 없음"}
 본인이 아니라면 비밀번호를 변경하세요. (10분 내 추가 실패는 따로 알리지 않습니다)`,
       );
     }
-    if (nowLocked) return redirectTo(`/login?error=locked&m=15${keep}`);
+    if (nowLocked) {
+      await logBlock({
+        kind: "LOGIN",
+        reason: "LOCK_TRIGGERED",
+        detail: `비밀번호 5회 실패 → 15분 잠금${target?.role === "ADMIN" ? " (관리자 계정)" : target ? "" : " (없는 아이디)"}`,
+        loginId,
+      });
+      return redirectTo(`/login?error=locked&m=15${keep}`);
+    }
     return redirectTo(`/login?error=invalid${keep}`);
   }
   clearFails(loginId);

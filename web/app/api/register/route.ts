@@ -5,6 +5,7 @@ import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { isHoneypotHit } from "@/lib/honeypot";
 import { checkCode, clearCode, emailProblem, emailVerifyEnabled } from "@/lib/email-verify";
+import { logBlock } from "@/lib/block-log";
 
 function redirectTo(path: string) {
   return new NextResponse(null, { status: 303, headers: { Location: path } });
@@ -22,6 +23,7 @@ function setCookieAndGo(token: string, path: string) {
 export async function POST(req: Request) {
   // 가입 스팸 제한: IP당 10분에 5회
   if (!rateLimit(`register:${clientIp(req)}`, 5, 10 * 60 * 1000)) {
+    await logBlock({ kind: "SIGNUP", reason: "RATE_LIMIT", detail: "IP당 10분 5회 초과" });
     return redirectTo(
       `/register?error=${encodeURIComponent("가입 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.")}`,
     );
@@ -30,6 +32,13 @@ export async function POST(req: Request) {
   // 봇 함정 칸이 채워졌으면 가입시키지 않는다(사유는 알려주지 않음)
   if (isHoneypotHit(form)) {
     console.warn(`[register] honeypot hit ip=${clientIp(req)} loginId=${String(form.get("loginId") || "")}`);
+    await logBlock({
+      kind: "SIGNUP",
+      reason: "HONEYPOT",
+      detail: "숨김 칸이 채워진 가입 요청(자동화 도구 추정)",
+      loginId: String(form.get("loginId") || ""),
+      email: String(form.get("email") || ""),
+    });
     return redirectTo(`/register?error=${encodeURIComponent("가입 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.")}`);
   }
   const input = {
@@ -52,13 +61,24 @@ export async function POST(req: Request) {
 
   if (input.password !== passwordConfirm) return back("비밀번호가 일치하지 않습니다.");
   if (!agree) return back("이용약관 및 개인정보처리방침에 동의해주세요.");
+  const who = { loginId: input.loginId, email: input.email };
   if (!(await verifyTurnstile(form, clientIp(req)))) {
+    await logBlock({ kind: "SIGNUP", reason: "CAPTCHA", ...who });
     return back("보안문자 확인에 실패했습니다. 다시 시도해주세요.");
   }
   const badEmail = emailProblem(input.email);
-  if (badEmail) return back(badEmail);
+  if (badEmail) {
+    await logBlock({
+      kind: "SIGNUP",
+      reason: "BLOCKED_EMAIL",
+      detail: `도메인 ${input.email.split("@")[1] || "?"} — ${badEmail}`,
+      ...who,
+    });
+    return back(badEmail);
+  }
   // 이메일 인증번호 확인(발송 수단 미설정이면 건너뜀)
   if (emailVerifyEnabled() && !checkCode(input.email, String(form.get("emailCode") || ""))) {
+    await logBlock({ kind: "SIGNUP", reason: "BAD_CODE", detail: "이메일 인증번호 불일치/만료", ...who });
     return back("이메일 인증번호가 올바르지 않거나 만료되었습니다. 인증번호를 다시 받아주세요.");
   }
 

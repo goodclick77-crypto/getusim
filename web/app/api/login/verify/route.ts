@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { adminChallengeAlive, finishAdminChallenge } from "@/lib/login-guard";
 import { finishLogin } from "@/lib/login-finish";
+import { logBlock } from "@/lib/block-log";
 
 function redirectTo(path: string) {
   return new NextResponse(null, { status: 303, headers: { Location: path } });
@@ -11,6 +12,7 @@ function redirectTo(path: string) {
 // 관리자 2단계: 이메일 인증번호 확인 후 로그인 완료
 export async function POST(req: Request) {
   if (!rateLimit(`login-verify:${clientIp(req)}`, 10, 5 * 60 * 1000)) {
+    await logBlock({ kind: "ADMIN_2FA", reason: "RATE_LIMIT", detail: "IP당 5분 10회 초과" });
     return redirectTo("/login?error=rate");
   }
   const form = await req.formData();
@@ -19,6 +21,11 @@ export async function POST(req: Request) {
 
   const userId = finishAdminChallenge(c, code);
   if (!userId) {
+    await logBlock({
+      kind: "ADMIN_2FA",
+      reason: "BAD_CODE",
+      detail: "관리자 로그인 인증번호 불일치/만료 — 비밀번호는 맞은 상태",
+    });
     return redirectTo(adminChallengeAlive(c) ? `/login/verify?c=${encodeURIComponent(c)}&error=invalid` : "/login?error=expired");
   }
 

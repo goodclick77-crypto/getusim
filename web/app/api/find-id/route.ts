@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/notify";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
+import { logBlock } from "@/lib/block-log";
 
 function redirectTo(path: string) {
   return new NextResponse(null, { status: 303, headers: { Location: path } });
@@ -10,6 +11,7 @@ function redirectTo(path: string) {
 // 이메일로 가입된 아이디를 그 이메일로 발송. (계정 존재 노출 방지: 항상 동일 응답)
 export async function POST(req: Request) {
   if (!rateLimit(`findid:${clientIp(req)}`, 5, 10 * 60 * 1000)) {
+    await logBlock({ kind: "FIND_ID", reason: "RATE_LIMIT", detail: "IP당 10분 5회 초과" });
     return redirectTo("/find-id?error=rate");
   }
 

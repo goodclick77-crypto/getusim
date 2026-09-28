@@ -257,6 +257,25 @@ model ReplyTemplate {
   @@map("reply_template")
 }
 
+// 보안 차단 기록 — 가입/로그인/문의 등에서 막힌 시도와 관리자 정지·해제. 관리자 > 차단 내역에서 조회.
+model BlockLog {
+  id        Int      @id @default(autoincrement())
+  kind      String                                     // 어디서: SIGNUP | SEND_CODE | LOGIN | ADMIN_2FA | INQUIRY | CHARGE | FIND_ID | FIND_PW | ADMIN
+  reason    String                                     // 왜: BLOCKED_EMAIL | HONEYPOT | CAPTCHA | RATE_LIMIT | ACCOUNT_LOCKED | LOCK_TRIGGERED | BAD_CODE | SUSPEND | UNSUSPEND | DELETE
+  detail    String   @default("") @db.Text             // 사람이 읽는 상세(막힌 도메인, 제한 규칙 등)
+  email     String   @default("")
+  loginId   String   @default("") @map("login_id")
+  userId    Int?     @map("user_id")                   // 로그인한 회원/대상 회원(삭제돼도 기록은 남도록 관계 없음)
+  ip        String   @default("")
+  userAgent String   @default("") @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([ip])
+  @@index([email])
+  @@map("block_log")
+}
+
 enum RentalStatus {
   PENDING  // 번호 발급, SMS 대기
   RECEIVED // SMS 수신 완료

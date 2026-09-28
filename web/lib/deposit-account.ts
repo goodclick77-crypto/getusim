@@ -10,9 +10,9 @@ import "server-only";
  * server-only 라서 클라이언트 컴포넌트에서 import 하면 빌드가 실패한다 — 의도된 안전장치.
  */
 export const BANK_INFO = {
-  bank: process.env.DEPOSIT_BANK || "농협은행",
-  account: process.env.DEPOSIT_ACCOUNT || "301-0158-0663-91",
-  holder: process.env.DEPOSIT_HOLDER || "엄전혜(위인터내셔널)",
+  bank: process.env.DEPOSIT_BANK || "국민은행",
+  account: process.env.DEPOSIT_ACCOUNT || "68170100081766",
+  holder: process.env.DEPOSIT_HOLDER || "엄전혜(엄구라이프)",
 };
 
 /**

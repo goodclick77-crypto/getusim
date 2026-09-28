@@ -46,9 +46,13 @@ export default function ChargeForm({
             type="button"
             key={u}
             onClick={() => setPoint((p) => p + u)}
-            className="font-num rounded-xl border border-black/10 bg-white/60 py-3 text-sm font-semibold transition hover:border-emerald-400 hover:bg-emerald-50 active:scale-95"
+            className="font-num flex flex-col items-center rounded-xl border border-black/10 bg-white/60 py-2.5 text-sm font-semibold transition hover:border-emerald-400 hover:bg-emerald-50 active:scale-95"
           >
             +{u.toLocaleString("ko-KR")}P
+            {/* 포인트 숫자만 보고 부가세를 빼고 입금하는 경우가 있어 실제 입금액을 같이 보여준다 */}
+            <span className="mt-0.5 text-[11px] font-medium text-red-600">
+              {Math.round(u * feeRate).toLocaleString("ko-KR")}원 입금
+            </span>
           </button>
         ))}
       </div>
@@ -62,8 +66,11 @@ export default function ChargeForm({
           </span>
         </div>
         <div className="mt-1.5 flex items-center justify-between border-t border-emerald-200/70 pt-1.5">
-          <span className="text-sm text-zinc-500">입금하실 금액</span>
-          <span className="font-num text-xl font-bold">{amount.toLocaleString("ko-KR")}원</span>
+          <span className="text-sm font-semibold text-red-600">
+            입금하실 금액
+            <span className="ml-1.5 rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-bold text-white">VAT 포함</span>
+          </span>
+          <span className="font-num text-2xl font-extrabold text-red-600">{amount.toLocaleString("ko-KR")}원</span>
         </div>
         {point > 0 && (
           <button

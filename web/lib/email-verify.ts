@@ -33,7 +33,7 @@ const BLOCKED_DOMAINS = new Set([
   "mail.tm", "mail.gw", "inboxkitten.com", "burnermail.io", "33mail.com", "ncleap.com",
   "dropmail.me", "emlhub.com", "emltmp.com", "spymail.one",
   // 공개 목록에 없던 것 — 실제 가입 시도에서 발견
-  "omanarts.com", "ghostmail.live",
+  "omanarts.com", "ghostmail.live", "t.com",
 ]);
 const BLOCKED_TLDS = [".test", ".invalid", ".example", ".localhost", ".local"];
 

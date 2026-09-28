@@ -1,5 +1,7 @@
 import "server-only";
 import { createHash, randomInt } from "crypto";
+import disposableDomains from "disposable-email-domains";
+import disposableWildcard from "disposable-email-domains/wildcard.json";
 import { mailerConfigured } from "./notify";
 
 // 회원가입 이메일 인증번호(6자리).
@@ -30,15 +32,32 @@ const BLOCKED_DOMAINS = new Set([
   "spamgourmet.com", "mailcatch.com", "moakt.com", "tmail.ws", "tmpmail.org", "tmpmail.net",
   "mail.tm", "mail.gw", "inboxkitten.com", "burnermail.io", "33mail.com", "ncleap.com",
   "dropmail.me", "emlhub.com", "emltmp.com", "spymail.one",
+  // 공개 목록에 없던 것 — 실제 가입 시도에서 발견
+  "omanarts.com", "ghostmail.live",
 ]);
 const BLOCKED_TLDS = [".test", ".invalid", ".example", ".localhost", ".local"];
+
+// 공개 일회용 메일 목록(disposable-email-domains, 약 12만 개) + 서브도메인 전체 차단 목록
+const DISPOSABLE = new Set<string>(disposableDomains);
+const DISPOSABLE_WILDCARD = new Set<string>(disposableWildcard);
+
+/** abc.mailinator.com → mailinator.com 처럼 상위 도메인까지 거슬러 올라가며 검사 */
+function isBlockedDomain(domain: string): boolean {
+  if (BLOCKED_TLDS.some((t) => domain.endsWith(t))) return true;
+  const parts = domain.split(".");
+  for (let i = 0; i < parts.length - 1; i++) {
+    const d = parts.slice(i).join(".");
+    if (BLOCKED_DOMAINS.has(d) || DISPOSABLE.has(d) || DISPOSABLE_WILDCARD.has(d)) return true;
+  }
+  return false;
+}
 
 /** 가입에 쓸 수 없는 이메일이면 사유 문자열, 괜찮으면 null. */
 export function emailProblem(email: string): string | null {
   const e = norm(email);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return "이메일을 정확히 입력해주세요.";
   const domain = e.split("@")[1];
-  if (BLOCKED_DOMAINS.has(domain) || BLOCKED_TLDS.some((t) => domain.endsWith(t))) {
+  if (isBlockedDomain(domain)) {
     return "사용할 수 없는 이메일입니다. 평소 쓰는 이메일(네이버·Gmail 등)을 입력해주세요.";
   }
   return null;

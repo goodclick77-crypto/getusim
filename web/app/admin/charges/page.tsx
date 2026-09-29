@@ -523,7 +523,8 @@ function DateGroup({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-base font-bold">
-                    {o.method === "CARD" && !o.depositName ? "카드결제" : o.depositName || "(입금자명 없음)"}
+                    {/* 카드 결제는 입금자명이 없다 → 회원 이름(결제 방식은 오른쪽 "카드" 배지) */}
+                    {o.method === "CARD" ? o.user.name || o.user.loginId : o.depositName || "(입금자명 없음)"}
                   </span>
                   {pending && (
                     <span className="shrink-0 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
@@ -539,7 +540,8 @@ function DateGroup({
                     {o.user.loginId}
                   </Link>
                   {/* 입금자명이 회원 이름과 다르면 타인 명의 입금일 수 있어 그때만 덧붙인다 */}
-                  {o.user.name &&
+                  {o.method !== "CARD" &&
+                    o.user.name &&
                     normDepositName(o.user.name) !== normDepositName(o.depositName) && (
                       <span className="text-zinc-500"> (회원명 {o.user.name})</span>
                     )}{" "}

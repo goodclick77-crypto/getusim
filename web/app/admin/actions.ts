@@ -7,7 +7,15 @@ import { prisma } from "@/lib/prisma";
 import { completeCharge, expireStaleChargeOrders } from "@/lib/charge";
 import { expireStaleRentals } from "@/lib/rentals";
 import { adjustPoint, InsufficientPointError } from "@/lib/points";
-import { refundableCardOrders, refundCardOrder, refundSplit, resolvePendingRefund } from "@/lib/card-refund";
+import {
+  REFUND_CARD,
+  REFUND_POINT,
+  hasPendingRental,
+  refundableCardOrders,
+  refundCardOrder,
+  refundSplit,
+  resolvePendingRefund,
+} from "@/lib/card-refund";
 import { chargeAmount } from "@/lib/config";
 
 /**
@@ -301,6 +309,8 @@ export async function approveRefund(formData: FormData) {
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { point: true } });
   if (!user || user.point < total) redirect("/admin/inquiries?error=insufficient");
+  // 문자 대기 중 번호가 있으면 그 번호의 예약 포인트까지 환불돼 무료 수신이 된다 → 끝난 뒤 승인
+  if (await hasPendingRental(userId)) redirect("/admin/inquiries?error=rental");
 
   // 처리표시 선점(동시/중복 승인 방지). 이미 처리됐으면 중단.
   const claim = await prisma.inquiry.updateMany({
@@ -323,8 +333,8 @@ export async function approveRefund(formData: FormData) {
     const r = await refundCardOrder(o.id, {
       want: cardLeft,
       log: (p) => ({
-        reason: `포인트 환불 — 카드 결제 취소 ${p.amount.toLocaleString("ko-KR")}원 (충전 #${o.id})`,
-        relType: "refund",
+        reason: `카드취소 환불 ${p.amount.toLocaleString("ko-KR")}원 (충전 #${o.id})`,
+        relType: REFUND_CARD,
         relId: id,
       }),
     });
@@ -347,8 +357,8 @@ export async function approveRefund(formData: FormData) {
       await adjustPoint({
         userId,
         amount: -left,
-        reason: `포인트 환불 — 계좌 송금 ${chargeAmount(left).toLocaleString("ko-KR")}원`,
-        relType: "refund",
+        reason: `포인트 환불 — 계좌 입금 ${chargeAmount(left).toLocaleString("ko-KR")}원`,
+        relType: REFUND_POINT,
         relId: id,
       });
     } catch (e) {

@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/session";
+import { CARD_REFUND_TYPES, REFUND_POINT } from "@/lib/card-refund";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymdhm } from "@/lib/format";
 import { CHARGE_POINT_UNITS, CHARGE_FEE_RATE } from "@/lib/config";
@@ -45,7 +46,7 @@ export default async function ChargePage({
     }),
     // 환불(카드 결제 취소 포함) + 관리자 수동 지급/차감
     prisma.pointLog.findMany({
-      where: { userId: user.id, relType: { in: ["refund", "charge_refund", "admin"] } },
+      where: { userId: user.id, relType: { in: [REFUND_POINT, ...CARD_REFUND_TYPES, "admin"] } },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
@@ -54,7 +55,7 @@ export default async function ChargePage({
   // 충전(ChargeOrder) + 환불/관리자조정(PointLog)을 한 내역으로 병합(날짜순)
   type Item =
     | { kind: "charge"; id: number; createdAt: Date; chargePoint: number; amount: number; status: string; card: boolean }
-    | { kind: "refund"; id: number; createdAt: Date; amount: number }
+    | { kind: "refund"; id: number; createdAt: Date; amount: number; card: boolean }
     | { kind: "adjust"; id: number; createdAt: Date; amount: number; reason: string };
   const items: Item[] = [
     ...orders.map((o) => ({
@@ -68,8 +69,15 @@ export default async function ChargePage({
     })),
     ...logs.map((l) =>
       // 환불 실패 복구(+) 같은 드문 건은 사유와 함께 조정 내역으로 보인다
-      (l.relType === "refund" || l.relType === "charge_refund") && l.amount < 0
-        ? { kind: "refund" as const, id: l.id, createdAt: l.createdAt, amount: l.amount }
+      (l.relType === REFUND_POINT || CARD_REFUND_TYPES.includes(l.relType)) && l.amount < 0
+        ? {
+            kind: "refund" as const,
+            id: l.id,
+            createdAt: l.createdAt,
+            amount: l.amount,
+            // 카드 결제 취소로 돌려준 환불 vs 보유 포인트를 계좌로 돌려준 환불
+            card: CARD_REFUND_TYPES.includes(l.relType),
+          }
         : {
             kind: "adjust" as const,
             id: l.id,
@@ -214,13 +222,21 @@ export default async function ChargePage({
                     <div className="min-w-0 flex-1">
                       <p className="font-num text-base font-bold text-red-500">
                         {pt(it.amount)}{" "}
-                        <span className="text-sm font-normal text-zinc-400">환불</span>
+                        <span className="text-sm font-normal text-zinc-400">
+                          {it.card ? "카드 결제 취소" : "계좌 입금"}
+                        </span>
                       </p>
                       <p className="font-num mt-0.5 text-xs text-zinc-400">{ymdhm(it.createdAt)}</p>
                     </div>
-                    <span className="shrink-0 rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                      환불
-                    </span>
+                    {it.card ? (
+                      <span className="flex shrink-0 items-center gap-1 rounded-md bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                        <i className="fa-solid fa-credit-card" aria-hidden /> 카드취소 환불
+                      </span>
+                    ) : (
+                      <span className="flex shrink-0 items-center gap-1 rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                        <i className="fa-solid fa-coins" aria-hidden /> 포인트 환불
+                      </span>
+                    )}
                   </li>
                 );
               }

@@ -43,6 +43,10 @@ const STATUS_LABEL: Record<string, string> = {
 const REFUND_MSG: Record<string, { ok: boolean; text: string }> = {
   ok: { ok: true, text: "카드 결제를 취소하고 충전 포인트를 회수했습니다." },
   insufficient: { ok: false, text: "회원의 보유 포인트가 없어 환불할 금액이 없습니다." },
+  rental: {
+    ok: false,
+    text: "회원에게 문자를 기다리는 번호가 있어 환불하지 않았습니다(환불하면 그 번호를 무료로 받게 됨). 몇 분 뒤 다시 시도해 주세요.",
+  },
   pg_unknown: {
     ok: false,
     text: "결제사 응답을 받지 못해 취소 여부를 알 수 없습니다. 아래 '환불 확인 필요'에서 결제사 관리자 확인 후 정리해 주세요.",
@@ -520,7 +524,7 @@ function CardRefund({
   return (
     <>
       {done.amount > 0 && (
-        <span className="font-num whitespace-nowrap text-[11px] text-red-500">부분환불 {won(done.amount)}</span>
+        <span className="font-num whitespace-nowrap text-[11px] text-red-500">카드취소 {won(done.amount)}</span>
       )}
       {plan.point > 0 ? (
         <CardRefundForm
@@ -670,7 +674,7 @@ function DateGroup({
                       <>
                         <span className="flex items-center gap-1 whitespace-nowrap rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">
                           <i className="fa-solid fa-credit-card" aria-hidden />{" "}
-                          {o.status === "CANCELED" && isRefunded(o.legacyData) ? "환불됨" : "카드"}
+                          {o.status === "CANCELED" && isRefunded(o.legacyData) ? "카드취소 환불" : "카드"}
                         </span>
                         {o.status === "COMPLETED" && o.charged && o.pg === getPaymentProvider().name && (
                           <CardRefund o={o} />

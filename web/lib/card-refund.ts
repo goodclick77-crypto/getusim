@@ -11,6 +11,17 @@ import { chargeAmount } from "./config";
  * 카드 충전 환불(결제사 승인취소) 공용 처리 — 관리자 충전내역 환불 버튼과 회원 환불신청 승인이 같이 쓴다.
  */
 
+/**
+ * 환불 포인트로그 종류. 화면에서 "카드취소 환불"(결제 취소로 돌려줌)과 "포인트 환불"(계좌 입금)을 구분하는 기준.
+ *  - REFUND_POINT: 환불신청 중 계좌로 보내는 몫(기존 포인트 환불과 같은 종류)
+ *  - REFUND_CARD: 환불신청 중 카드 결제 취소로 돌려준 몫
+ *  - CHARGE_REFUND: 관리자가 충전내역에서 직접 한 카드 환불
+ */
+export const REFUND_POINT = "refund";
+export const REFUND_CARD = "refund_card";
+export const CHARGE_REFUND = "charge_refund";
+export const CARD_REFUND_TYPES = [REFUND_CARD, CHARGE_REFUND];
+
 type Plan = { point: number; amount: number; full: boolean };
 
 /**
@@ -20,7 +31,7 @@ type Plan = { point: number; amount: number; full: boolean };
 export type CardRefundResult =
   | ({ ok: true } & Plan)
   | ({ ok: false; error: "pg_fail" | "pg_unknown" } & Plan)
-  | { ok: false; error: "invalid" | "insufficient" };
+  | { ok: false; error: "invalid" | "insufficient" | "rental" };
 
 /** 결제사 응답이 불명확해 관리자 확인을 기다리는 환불(legacyData.refundPending) */
 export type PendingRefund = Plan & { at: string; error: string };
@@ -29,6 +40,15 @@ export function pendingRefundOf(legacyData: unknown): PendingRefund | null {
   const d = (legacyData ?? {}) as Record<string, unknown>;
   const p = d.refundPending as PendingRefund | undefined;
   return p && typeof p === "object" && Number(p.point) > 0 ? p : null;
+}
+
+/**
+ * 문자 대기 중(PENDING)인 번호가 있는지. 번호 발급은 진행 중 번호 가격만큼 포인트를 예약해 두는데,
+ * 그 사이 환불로 포인트를 빼면 코드가 도착해도 차감할 포인트가 없어 무료 수신(원가 손실)이 된다 → 환불을 막는다.
+ * 만료시각이 지난 건도 스케줄러가 정산(늦게 온 코드 차감)하기 전까지는 포함한다(보통 몇 분 안에 정리됨).
+ */
+export async function hasPendingRental(userId: number): Promise<boolean> {
+  return (await prisma.numberRental.count({ where: { userId, status: "PENDING" } })) > 0;
 }
 
 /** 현재 결제사로 결제한, 아직 환불할 게 남은 카드 충전완료 건 — 최근 충전부터(먼저 충전한 포인트부터 썼다고 본다) */
@@ -84,6 +104,8 @@ export async function refundCardOrder(
 ): Promise<CardRefundResult> {
   let plan: Plan;
   let order: { userId: number; pgTno: string };
+  const owner = await prisma.chargeOrder.findUnique({ where: { id }, select: { userId: true } });
+  if (owner && (await hasPendingRental(owner.userId))) return { ok: false, error: "rental" };
   try {
     ({ plan, order } = await prisma.$transaction(async (tx) => {
       // 같은 주문 동시 환불 방지(행 잠금) 후 최신 상태로 다시 읽는다
@@ -106,8 +128,8 @@ export async function refundCardOrder(
       if (p.point <= 0 || p.amount <= 0) throw new InsufficientPointError();
 
       const log = opts.log?.(p) ?? {
-        reason: p.full ? "카드 충전 환불(결제 취소)" : "카드 충전 부분환불(결제 부분취소)",
-        relType: "charge_refund",
+        reason: `${p.full ? "카드취소 환불" : "카드취소 부분환불"} ${p.amount.toLocaleString("ko-KR")}원`,
+        relType: CHARGE_REFUND,
         relId: o.id,
       };
       // 잔액이 그 사이 줄었으면 InsufficientPointError → 트랜잭션 롤백
@@ -196,8 +218,8 @@ async function revertRefund(id: number, userId: number, plan: Plan) {
       {
         userId,
         amount: plan.point,
-        reason: "카드 환불 실패로 포인트 복구",
-        relType: "charge_refund",
+        reason: "카드취소 실패로 포인트 복구",
+        relType: CHARGE_REFUND,
         relId: id,
       },
       tx,
@@ -221,4 +243,31 @@ export async function resolvePendingRefund(id: number, canceled: boolean): Promi
   delete data.refundPending;
   await prisma.chargeOrder.update({ where: { id }, data: { legacyData: data as Prisma.InputJsonObject } });
   return true;
+}
+
+/**
+ * 승인된 환불신청의 실제 처리 내역(포인트로그 기준): 카드취소 환불분 / 포인트 환불(계좌 입금)분.
+ * 카드분 금액은 로그 사유에 적어 둔 원 단위 금액("카드취소 환불 3,300원 …")을 쓴다.
+ */
+export async function refundResults(inquiryIds: number[]) {
+  const map = new Map<number, { cardPoint: number; cardWon: number; bankPoint: number; bankWon: number }>();
+  if (!inquiryIds.length) return map;
+  const logs = await prisma.pointLog.findMany({
+    where: { relType: { in: [REFUND_POINT, REFUND_CARD] }, relId: { in: inquiryIds.map(String) }, amount: { lt: 0 } },
+    select: { relType: true, relId: true, amount: true, reason: true },
+  });
+  for (const l of logs) {
+    const id = Number(l.relId);
+    const r = map.get(id) ?? { cardPoint: 0, cardWon: 0, bankPoint: 0, bankWon: 0 };
+    const point = -l.amount;
+    if (l.relType === REFUND_CARD) {
+      r.cardPoint += point;
+      r.cardWon += Number(/([\d,]+)원/.exec(l.reason)?.[1].replace(/,/g, "")) || chargeAmount(point);
+    } else {
+      r.bankPoint += point;
+      r.bankWon += chargeAmount(point);
+    }
+    map.set(id, r);
+  }
+  return map;
 }

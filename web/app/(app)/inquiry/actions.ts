@@ -1,6 +1,6 @@
 "use server";
 
-import { refundSplit } from "@/lib/card-refund";
+import { hasPendingRental, refundSplit } from "@/lib/card-refund";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/session";
@@ -66,6 +66,7 @@ export async function createInquiry(formData: FormData) {
     refundInfo = String(formData.get("refundInfo") || "").trim().slice(0, 500);
     // 환불은 보유 포인트 "전액"만 — 금액은 서버에서 결정(클라이언트 값 신뢰 안 함)
     refundPoint = user.point;
+    if (await hasPendingRental(user.id)) redirect("/inquiry?error=rental");
     // 카드로 충전한 포인트는 카드 결제 취소로 돌려주므로, 계좌 정보는 계좌 송금분이 있을 때만 필요
     const split = refundPoint > 0 ? await refundSplit(user.id, refundPoint) : null;
     if (refundPoint <= 0 || (!refundInfo && (split?.bankPoint ?? 0) > 0)) {

@@ -73,8 +73,14 @@ export default function PaypleWindow({
           PCD_RST_URL: "/api/payments/payple/result",
           callbackFunction: (res: PaypleResult) => {
             const rst = res.PCD_PAY_RST || res.PCD_PAY_RESULT;
-            if (rst === "success" && res.PCD_AUTH_KEY && res.PCD_PAY_REQKEY) {
-              onPaid(JSON.stringify({ authKey: res.PCD_AUTH_KEY, reqKey: res.PCD_PAY_REQKEY }));
+            if (rst === "success" && res.PCD_AUTH_KEY && res.PCD_PAY_REQKEY && res.PCD_PAY_COFURL) {
+              onPaid(
+                JSON.stringify({
+                  authKey: res.PCD_AUTH_KEY,
+                  reqKey: res.PCD_PAY_REQKEY,
+                  cofUrl: res.PCD_PAY_COFURL, // 최종 승인 요청 주소(서버가 페이플 도메인인지 검사)
+                }),
+              );
             } else if (rst === "close") {
               onClose();
             } else {

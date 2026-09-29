@@ -28,12 +28,26 @@ import {
  */
 const LIVE = (process.env.PAYPLE_MODE || "test").toLowerCase() === "live";
 const CPAY = LIVE ? "https://cpay.payple.kr" : "https://democpay.payple.kr";
-// 승인 URL 은 결과값의 PCD_PAY_COFURL 로도 오지만, 브라우저를 거친 값이라 변조될 수 있다
-// (요청에 custKey 가 실리므로 엉뚱한 곳으로 보내면 키가 샌다). 고정 호스트만 쓴다.
-const APPROVE_URL = `${LIVE ? "https://api-v2.payple.kr" : "https://demo-api-v2.payple.kr"}/api/v1/payments/cards/approval/confirm`;
 
 /** 결제창 토큰: 브라우저 콜백이 넘긴 인증 결과 */
-type WindowToken = { authKey: string; reqKey: string };
+type WindowToken = { authKey: string; reqKey: string; cofUrl: string };
+
+/**
+ * 승인 요청 주소는 계정마다 달라 결제창 결과의 PCD_PAY_COFURL 을 써야 한다(고정 주소는 AUTH0008).
+ * 다만 브라우저를 거친 값이라 변조될 수 있고, 요청에 custKey 가 실리므로 페이플 도메인(https)만 허용한다.
+ */
+function safeCofUrl(raw: string): string {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new Error(`[pay:payple] 승인 주소 형식 오류: ${raw}`);
+  }
+  if (u.protocol !== "https:" || !(u.hostname === "payple.kr" || u.hostname.endsWith(".payple.kr"))) {
+    throw new Error(`[pay:payple] 허용되지 않은 승인 주소: ${raw}`);
+  }
+  return u.toString();
+}
 
 /**
  * 우리 쪽 txId 형식: "주문번호|결제일(YYYYMMDD)|금액".
@@ -110,12 +124,13 @@ export class PayplePaymentProvider implements PaymentProvider {
     } catch {
       throw new Error("[pay:payple] 결제창 토큰 형식 오류");
     }
-    if (!tok?.authKey || !tok?.reqKey) throw new Error("[pay:payple] 결제창 토큰 누락");
+    if (!tok?.authKey || !tok?.reqKey || !tok?.cofUrl) throw new Error("[pay:payple] 결제창 토큰 누락");
 
-    const r = await this.post(APPROVE_URL, {
+    const r = await this.post(safeCofUrl(tok.cofUrl), {
       PCD_CST_ID: this.cstId,
       PCD_CUST_KEY: this.custKey,
       PCD_AUTH_KEY: tok.authKey,
+      PCD_PAYER_ID: "",
       PCD_PAY_REQKEY: tok.reqKey,
     });
     if (r.PCD_PAY_CODE !== "PCCF0000") {

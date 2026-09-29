@@ -7,12 +7,14 @@ import {
   cancelCharge,
   restoreCharge,
   refundCardCharge,
+  resolveCardRefund,
   matchDeposit,
   dismissDeposit,
   deleteDeposit,
 } from "../actions";
 import { normDepositName } from "@/lib/config";
 import { cardRefundOf, cardRefundPlan } from "@/lib/charge";
+import { pendingRefundOf } from "@/lib/card-refund";
 import ConfirmButton from "@/components/ConfirmButton";
 import { getPaymentProvider } from "@/lib/payments";
 import CardRefundForm from "./CardRefundForm";
@@ -41,6 +43,10 @@ const STATUS_LABEL: Record<string, string> = {
 const REFUND_MSG: Record<string, { ok: boolean; text: string }> = {
   ok: { ok: true, text: "카드 결제를 취소하고 충전 포인트를 회수했습니다." },
   insufficient: { ok: false, text: "회원의 보유 포인트가 없어 환불할 금액이 없습니다." },
+  pg_unknown: {
+    ok: false,
+    text: "결제사 응답을 받지 못해 취소 여부를 알 수 없습니다. 아래 '환불 확인 필요'에서 결제사 관리자 확인 후 정리해 주세요.",
+  },
   pg_fail: { ok: false, text: "결제사 취소에 실패해 포인트와 주문을 원래대로 되돌렸습니다. 잠시 후 다시 시도하거나 결제사 관리자에서 확인해 주세요." },
   invalid: { ok: false, text: "환불할 수 없는 건입니다(이미 처리됐거나 카드 충전완료 건이 아님)." },
 };
@@ -102,6 +108,17 @@ export default async function AdminChargesPage({
   };
 
   const since = new Date(Date.now() - DEPOSIT_MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+  // 결제사 응답이 불명확해 확인을 기다리는 카드 환불(탭·검색과 무관하게 항상 표시)
+  const pendingIds = await prisma.$queryRaw<{ id: number }[]>`
+    SELECT id FROM charge_order WHERE legacy_data ? 'refundPending' ORDER BY id DESC LIMIT 50`;
+  const pendingRefunds = pendingIds.length
+    ? await prisma.chargeOrder.findMany({
+        where: { id: { in: pendingIds.map((r) => r.id) } },
+        include: { user: { select: { loginId: true, name: true } } },
+        orderBy: { id: "desc" },
+      })
+    : [];
 
   const [orders, count, unmatchedDeposits, recentMatched, unmatchedCount, matchCandidates] =
     await Promise.all([
@@ -200,6 +217,56 @@ export default async function AdminChargesPage({
         >
           {refundMsg.text}
         </p>
+      )}
+
+      {pendingRefunds.length > 0 && (
+        <section className="rounded-2xl border border-red-200 bg-red-50/60 p-4">
+          <h2 className="flex items-center gap-1.5 text-sm font-bold text-red-600">
+            <i className="fa-solid fa-triangle-exclamation" aria-hidden /> 환불 확인 필요 {pendingRefunds.length}건
+          </h2>
+          <p className="mt-1 text-xs text-zinc-600">
+            카드 취소 요청의 결과를 받지 못했습니다(포인트는 회수된 상태). 결제사 관리자에서 해당 거래가 취소됐는지 확인한
+            뒤 정리해 주세요.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {pendingRefunds.map((o) => {
+              const p = pendingRefundOf(o.legacyData)!;
+              return (
+                <li key={o.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-num">
+                      <b>{o.user.name || o.user.loginId}</b> · 충전 #{o.id} · 취소 요청{" "}
+                      <b className="text-red-600">{won(p.amount)}</b> ({pt(p.point)} 회수됨)
+                    </p>
+                    <p className="font-num truncate text-xs text-zinc-400">
+                      거래번호 {o.pgTno} · {ymdhm(new Date(p.at))}
+                    </p>
+                  </div>
+                  <form action={resolveCardRefund}>
+                    <input type="hidden" name="id" value={o.id} />
+                    <input type="hidden" name="canceled" value="1" />
+                    <ConfirmButton
+                      message={`결제사 관리자에서 ${won(p.amount)} 취소가 확인됐나요? 확인됨으로 정리합니다(포인트는 회수된 상태 유지).`}
+                      className="whitespace-nowrap rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
+                    >
+                      취소 확인됨
+                    </ConfirmButton>
+                  </form>
+                  <form action={resolveCardRefund}>
+                    <input type="hidden" name="id" value={o.id} />
+                    <input type="hidden" name="canceled" value="0" />
+                    <ConfirmButton
+                      message={`결제사에서 취소되지 않은 게 확실한가요? 회수한 ${pt(p.point)}를 회원에게 되돌리고 환불 기록을 지웁니다.`}
+                      className="whitespace-nowrap rounded-lg border border-black/10 px-2.5 py-1 text-xs text-zinc-600 hover:bg-black/5"
+                    >
+                      취소 안 됨 · 포인트 복구
+                    </ConfirmButton>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
 
       <form action="/admin/charges" method="GET" className="space-y-2">

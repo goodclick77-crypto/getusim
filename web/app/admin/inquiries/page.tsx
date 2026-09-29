@@ -66,6 +66,7 @@ export default async function AdminInquiriesPage({
     card?: string;
     bank?: string;
     cardFail?: string;
+    unknown?: string;
     bankFail?: string;
   }>;
 }) {
@@ -165,10 +166,19 @@ export default async function AdminInquiriesPage({
           )}
         </p>
       )}
-      {sp.ok === "refund" && (Number(sp.cardFail) > 0 || Number(sp.bankFail) > 0) && (
+      {sp.ok === "refund" && (Number(sp.cardFail) > 0 || Number(sp.unknown) > 0 || Number(sp.bankFail) > 0) && (
         <p role="alert" className="glass rounded-2xl px-4 py-3 text-sm text-red-600">
           {Number(sp.cardFail) > 0 && (
-            <>카드 결제 취소 {sp.cardFail}건이 실패해 그만큼은 계좌 송금분으로 넘겼습니다. </>
+            <>
+              카드 결제 취소가 거절된 {pt(Number(sp.cardFail))}는 처리하지 않았습니다(회원 포인트에 남음) — 입금 확인
+              화면에서 해당 충전 건을 다시 환불하거나 회원과 확인해 주세요.{" "}
+            </>
+          )}
+          {Number(sp.unknown) > 0 && (
+            <>
+              카드 취소 {sp.unknown}건은 결제사 응답을 받지 못했습니다 — 입금 확인 화면의 &apos;환불 확인 필요&apos;에서
+              정리해 주세요.{" "}
+            </>
           )}
           {Number(sp.bankFail) > 0 && (
             <>

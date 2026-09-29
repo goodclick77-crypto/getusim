@@ -2,7 +2,8 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { adjustPoint, InsufficientPointError } from "./points";
-import { getPaymentProvider } from "./payments";
+import { getPaymentProvider, PaymentDeclinedError } from "./payments";
+import { notifyAdmin } from "./notify";
 import { cardRefundOf, cardRefundPlan } from "./charge";
 import { chargeAmount } from "./config";
 
@@ -10,9 +11,25 @@ import { chargeAmount } from "./config";
  * 카드 충전 환불(결제사 승인취소) 공용 처리 — 관리자 충전내역 환불 버튼과 회원 환불신청 승인이 같이 쓴다.
  */
 
+type Plan = { point: number; amount: number; full: boolean };
+
+/**
+ * ok: 환불 완료 / pg_fail: 결제사가 거절 → 포인트·기록 원복 /
+ * pg_unknown: 결제사 응답 불명(실제 취소됐을 수 있음) → 원복하지 않고 "확인 필요"로 표시, 관리자가 결제사에서 확인 후 정리
+ */
 export type CardRefundResult =
-  | { ok: true; point: number; amount: number; full: boolean }
-  | { ok: false; error: "invalid" | "insufficient" | "pg_fail" };
+  | ({ ok: true } & Plan)
+  | ({ ok: false; error: "pg_fail" | "pg_unknown" } & Plan)
+  | { ok: false; error: "invalid" | "insufficient" };
+
+/** 결제사 응답이 불명확해 관리자 확인을 기다리는 환불(legacyData.refundPending) */
+export type PendingRefund = Plan & { at: string; error: string };
+
+export function pendingRefundOf(legacyData: unknown): PendingRefund | null {
+  const d = (legacyData ?? {}) as Record<string, unknown>;
+  const p = d.refundPending as PendingRefund | undefined;
+  return p && typeof p === "object" && Number(p.point) > 0 ? p : null;
+}
 
 /** 현재 결제사로 결제한, 아직 환불할 게 남은 카드 충전완료 건 — 최근 충전부터(먼저 충전한 포인트부터 썼다고 본다) */
 export async function refundableCardOrders(userId: number) {
@@ -28,7 +45,10 @@ export async function refundableCardOrders(userId: number) {
     orderBy: { createdAt: "desc" },
     select: { id: true, amount: true, chargePoint: true, legacyData: true },
   });
-  return orders.filter((o) => cardRefundOf(o.legacyData).point < o.chargePoint);
+  // 확인 필요 상태인 건은 정리될 때까지 추가 환불하지 않는다
+  return orders.filter(
+    (o) => cardRefundOf(o.legacyData).point < o.chargePoint && !pendingRefundOf(o.legacyData),
+  );
 }
 
 /**
@@ -62,7 +82,7 @@ export async function refundCardOrder(
     log?: (p: { point: number; amount: number; full: boolean }) => { reason: string; relType: string; relId: number };
   } = {},
 ): Promise<CardRefundResult> {
-  let plan: { point: number; amount: number; full: boolean };
+  let plan: Plan;
   let order: { userId: number; pgTno: string };
   try {
     ({ plan, order } = await prisma.$transaction(async (tx) => {
@@ -76,7 +96,8 @@ export async function refundCardOrder(
         o.status !== "COMPLETED" ||
         !o.charged ||
         !o.pgTno ||
-        o.pg !== getPaymentProvider().name
+        o.pg !== getPaymentProvider().name ||
+        pendingRefundOf(o.legacyData)
       ) {
         throw new Error("INVALID");
       }
@@ -119,37 +140,85 @@ export async function refundCardOrder(
       amount: plan.amount, // 마지막 환불이면 결제액의 나머지 전부
     });
   } catch (e) {
-    console.error(`[card-refund] 결제사 취소 실패 order#${id} tx=${order.pgTno} ${plan.amount}원:`, e);
-    // 되돌리기: 이번 환불분만큼 기록을 빼고 포인트 재지급, 전액 환불이었으면 완료 상태로 복구
-    await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM charge_order WHERE id = ${id} FOR UPDATE`;
-      const o = await tx.chargeOrder.findUnique({ where: { id } });
-      if (!o) return;
-      const cur = cardRefundOf(o.legacyData);
-      const data = { ...((o.legacyData ?? {}) as Record<string, unknown>) };
-      data.refundedPoint = Math.max(0, cur.point - plan.point);
-      data.refundedAmount = Math.max(0, cur.amount - plan.amount);
-      delete data.refundedAt;
-      await tx.chargeOrder.update({
-        where: { id },
-        data: {
-          ...(plan.full ? { status: "COMPLETED" as const, charged: true } : {}),
-          legacyData: data as Prisma.InputJsonObject,
-        },
+    if (!(e instanceof PaymentDeclinedError)) {
+      // 결제사에서 실제로 취소됐을 수도 있다 — 포인트를 되돌리면 "카드 환불 + 포인트 유지" 이중 환불이 된다.
+      // 회수 상태를 유지하고 확인 필요로 표시, 관리자가 결제사 관리자에서 확인 후 정리(resolvePendingRefund).
+      console.error(`[card-refund] ★ 결제사 취소 결과 불명 order#${id} tx=${order.pgTno} ${plan.amount}원:`, e);
+      const pending: PendingRefund = { ...plan, at: new Date().toISOString(), error: String(e).slice(0, 300) };
+      await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM charge_order WHERE id = ${id} FOR UPDATE`;
+        const o = await tx.chargeOrder.findUnique({ where: { id } });
+        if (!o) return;
+        await tx.chargeOrder.update({
+          where: { id },
+          data: {
+            legacyData: { ...((o.legacyData ?? {}) as Record<string, unknown>), refundPending: pending },
+          },
+        });
       });
-      await adjustPoint(
-        {
-          userId: order.userId,
-          amount: plan.point,
-          reason: "카드 환불 실패로 포인트 복구",
-          relType: "charge_refund",
-          relId: id,
-        },
-        tx,
-      );
-    });
-    return { ok: false, error: "pg_fail" };
+      await notifyAdmin(
+        "chargeRequest",
+        "카드 환불 확인 필요",
+        `충전 #${id} 카드 결제 ${plan.amount.toLocaleString("ko-KR")}원 취소 요청의 결과를 알 수 없습니다.\n` +
+          `거래번호: ${order.pgTno}\n` +
+          "결제사 관리자에서 취소 여부를 확인한 뒤 관리자 > 입금 확인에서 정리해 주세요.",
+      ).catch(() => {});
+      return { ok: false, error: "pg_unknown", ...plan };
+    }
+    console.error(`[card-refund] 결제사 취소 거절 order#${id} tx=${order.pgTno} ${plan.amount}원:`, e);
+    await revertRefund(id, order.userId, plan);
+    return { ok: false, error: "pg_fail", ...plan };
   }
 
   return { ok: true, ...plan };
+}
+
+/** 이번 환불분 되돌리기: 누적 환불 기록에서 빼고 포인트 재지급, 전액 환불이었으면 완료 상태로 복구 */
+async function revertRefund(id: number, userId: number, plan: Plan) {
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM charge_order WHERE id = ${id} FOR UPDATE`;
+    const o = await tx.chargeOrder.findUnique({ where: { id } });
+    if (!o) return;
+    const cur = cardRefundOf(o.legacyData);
+    const data = { ...((o.legacyData ?? {}) as Record<string, unknown>) };
+    data.refundedPoint = Math.max(0, cur.point - plan.point);
+    data.refundedAmount = Math.max(0, cur.amount - plan.amount);
+    delete data.refundedAt;
+    delete data.refundPending;
+    await tx.chargeOrder.update({
+      where: { id },
+      data: {
+        ...(plan.full ? { status: "COMPLETED" as const, charged: true } : {}),
+        legacyData: data as Prisma.InputJsonObject,
+      },
+    });
+    await adjustPoint(
+      {
+        userId,
+        amount: plan.point,
+        reason: "카드 환불 실패로 포인트 복구",
+        relType: "charge_refund",
+        relId: id,
+      },
+      tx,
+    );
+  });
+}
+
+/**
+ * 확인 필요 환불 정리(관리자가 결제사 관리자에서 확인한 뒤).
+ * canceled=true: 결제사에서 취소됨 → 표시만 지운다. false: 취소 안 됨 → 회수한 포인트·기록 원복.
+ */
+export async function resolvePendingRefund(id: number, canceled: boolean): Promise<boolean> {
+  const o = await prisma.chargeOrder.findUnique({ where: { id } });
+  const pending = o && pendingRefundOf(o.legacyData);
+  if (!o || !pending) return false;
+  if (!canceled) {
+    await revertRefund(id, o.userId, pending);
+    return true;
+  }
+  const data = { ...((o.legacyData ?? {}) as Record<string, unknown>) };
+  delete data.refundPending;
+  await prisma.chargeOrder.update({ where: { id }, data: { legacyData: data as Prisma.InputJsonObject } });
+  return true;
 }

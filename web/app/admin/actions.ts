@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { completeCharge, expireStaleChargeOrders } from "@/lib/charge";
 import { expireStaleRentals } from "@/lib/rentals";
 import { adjustPoint, InsufficientPointError } from "@/lib/points";
-import { refundableCardOrders, refundCardOrder } from "@/lib/card-refund";
+import { refundableCardOrders, refundCardOrder, refundSplit, resolvePendingRefund } from "@/lib/card-refund";
 import { chargeAmount } from "@/lib/config";
 
 /**
@@ -148,6 +148,18 @@ export async function refundCardCharge(formData: FormData) {
       ? "/admin/charges?status=CANCELED&refund=ok"
       : `/admin/charges?status=COMPLETED&refund=partial&rp=${r.point}&ra=${r.amount}`,
   );
+}
+
+/** 결제사 응답이 불명확했던 카드 환불 정리: canceled=1 이면 취소 확인(표시 삭제), 0 이면 포인트·기록 원복 */
+export async function resolveCardRefund(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const canceled = formData.get("canceled") === "1";
+  if (!Number.isInteger(id)) return;
+  await resolvePendingRefund(id, canceled);
+  revalidatePath("/admin");
+  revalidatePath("/admin/charges");
+  revalidatePath("/admin/sales");
 }
 
 /** 취소된 신청을 입금대기로 되돌림 (실수 취소 복구). 이미 지급된 건은 제외. */
@@ -297,29 +309,38 @@ export async function approveRefund(formData: FormData) {
   });
   if (claim.count === 0) redirect("/admin/inquiries?error=refund_invalid");
 
-  // 1) 카드 충전분: 결제사 취소
-  let left = total;
+  // 카드 충전분 / 계좌 송금분을 먼저 나눈다. 카드 취소가 실패한 몫을 계좌로 돌리면 카드 결제가 현금으로
+  // 빠져나가는 통로(카드깡)가 되므로, 실패분은 처리하지 않고 회원 포인트에 남긴다.
+  const split = await refundSplit(userId, total);
+
+  // 1) 카드 충전분: 결제사 취소(최근 충전부터)
+  let cardLeft = split.cardPoint;
   let cardWon = 0;
-  let cardFail = 0;
+  let cardFailPoint = 0; // 결제사 거절 → 포인트 원복됨(회원에게 남음)
+  let unknown = 0; // 결제사 응답 불명 → 확인 필요로 표시됨
   for (const o of await refundableCardOrders(userId)) {
-    if (left <= 0) break;
+    if (cardLeft <= 0) break;
     const r = await refundCardOrder(o.id, {
-      want: left,
+      want: cardLeft,
       log: (p) => ({
         reason: `포인트 환불 — 카드 결제 취소 ${p.amount.toLocaleString("ko-KR")}원 (충전 #${o.id})`,
         relType: "refund",
         relId: id,
       }),
     });
-    if (r.ok) {
-      left -= r.point;
+    if (r.ok || r.error === "pg_unknown") {
+      cardLeft -= r.point;
       cardWon += r.amount;
-    } else {
-      cardFail++; // 이 건은 계좌 송금분으로 넘어간다
+      if (!r.ok) unknown++;
+    } else if (r.error === "pg_fail") {
+      cardLeft -= r.point;
+      cardFailPoint += r.point;
     }
   }
+  cardFailPoint += Math.max(0, cardLeft); // 그 사이 사라진 카드 건 등으로 못 채운 몫도 처리하지 않음
 
-  // 2) 나머지: 계좌 송금 대상으로 포인트만 차감
+  // 2) 계좌 송금분: 포인트만 차감(실제 송금은 관리자가 별도로)
+  const left = split.bankPoint;
   let bankFail = false;
   if (left > 0) {
     try {
@@ -341,7 +362,8 @@ export async function approveRefund(formData: FormData) {
   revalidatePath(`/admin/members/${userId}`);
   redirect(
     `/admin/inquiries?ok=refund&card=${cardWon}&bank=${left > 0 && !bankFail ? chargeAmount(left) : 0}` +
-      (cardFail ? `&cardFail=${cardFail}` : "") +
+      (cardFailPoint ? `&cardFail=${cardFailPoint}` : "") +
+      (unknown ? `&unknown=${unknown}` : "") +
       (bankFail ? `&bankFail=${left}` : ""),
   );
 }

@@ -2,11 +2,10 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymdhm } from "@/lib/format";
 import { CHARGE_POINT_UNITS, CHARGE_FEE_RATE } from "@/lib/config";
-import { BANK_INFO, bankImageSize } from "@/lib/deposit-account";
+import { BANK_INFO } from "@/lib/deposit-account";
 import { createChargeRequest, cancelChargeRequest } from "./actions";
 import ChargeForm from "./ChargeForm";
 import Reveal from "@/components/Reveal";
-import AccountReveal from "./AccountReveal";
 import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -135,7 +134,9 @@ export default async function ChargePage({
             <div className="flex items-center justify-between gap-3 border-b border-black/5 bg-emerald-50/40 px-4 py-3">
               <dt className="shrink-0 text-sm text-zinc-500">계좌번호</dt>
               <dd className="flex min-w-0 items-center justify-end gap-2">
-                <AccountReveal width={bankImageSize().width} height={bankImageSize().height} />
+                {/* 입금 계좌 점검(충전 일시 중단) 중 — 재개 시 아래 AccountReveal 로 되돌린다.
+                    <AccountReveal width={bankImageSize().width} height={bankImageSize().height} /> */}
+                <span className="text-sm font-semibold text-red-600">현재 입금이 불가합니다</span>
               </dd>
             </div>
             <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">

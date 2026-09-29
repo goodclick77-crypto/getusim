@@ -128,7 +128,8 @@ export async function restoreCharge(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id"));
   const order = await prisma.chargeOrder.findUnique({ where: { id } });
-  if (order && !order.charged && order.status === "CANCELED") {
+  // 카드 충전 건은 결제 승인이 이미 취소된 것이라 되살리면 결제 없이 지급 대상이 된다 → 무통장만
+  if (order && !order.charged && order.status === "CANCELED" && order.method === "BANK_TRANSFER") {
     await prisma.chargeOrder.update({
       where: { id },
       data: { status: "PENDING" },

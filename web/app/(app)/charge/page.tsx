@@ -7,6 +7,7 @@ import { createChargeRequest, cancelChargeRequest } from "./actions";
 import ChargeForm from "./ChargeForm";
 import Reveal from "@/components/Reveal";
 import ConfirmButton from "@/components/ConfirmButton";
+import { cardPaymentAvailable, paymentWindowConfig } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function ChargePage({
 
   // 충전(ChargeOrder) + 환불/관리자조정(PointLog)을 한 내역으로 병합(날짜순)
   type Item =
-    | { kind: "charge"; id: number; createdAt: Date; chargePoint: number; amount: number; status: string }
+    | { kind: "charge"; id: number; createdAt: Date; chargePoint: number; amount: number; status: string; card: boolean }
     | { kind: "refund"; id: number; createdAt: Date; amount: number }
     | { kind: "adjust"; id: number; createdAt: Date; amount: number; reason: string };
   const items: Item[] = [
@@ -63,6 +64,7 @@ export default async function ChargePage({
       chargePoint: o.chargePoint,
       amount: o.amount,
       status: o.status,
+      card: o.method !== "BANK_TRANSFER",
     })),
     ...logs.map((l) =>
       l.relType === "refund"
@@ -78,6 +80,34 @@ export default async function ChargePage({
   ]
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, 20);
+
+  const bankInfo = (
+    <section className="rounded-2xl border border-black/10 bg-white/40 p-4">
+      <h3 className="flex items-center gap-2 text-sm font-bold">
+        <i className="fa-solid fa-building-columns text-emerald-600" aria-hidden /> 무통장 입금 계좌
+      </h3>
+      <dl className="mt-3 overflow-hidden rounded-xl border border-black/10">
+        <div className="flex items-center justify-between gap-3 border-b border-black/5 px-4 py-3 text-sm">
+          <dt className="text-zinc-500">은행</dt>
+          <dd className="font-medium">{BANK_INFO.bank}</dd>
+        </div>
+        {/* 충전 일시 중단 중에는 마지막 줄이라 border-b 를 뺐다 — 재개 시 border-b border-black/5 복구 */}
+        <div className="flex items-center justify-between gap-3 bg-emerald-50/40 px-4 py-3">
+          <dt className="shrink-0 text-sm text-zinc-500">계좌번호</dt>
+          <dd className="flex min-w-0 items-center justify-end gap-2">
+            {/* 입금 계좌 점검(충전 일시 중단) 중 — 재개 시 아래 AccountReveal 로 되돌린다.
+                <AccountReveal width={bankImageSize().width} height={bankImageSize().height} /> */}
+            <span className="text-sm font-semibold text-red-600">현재 입금이 불가합니다</span>
+          </dd>
+        </div>
+        {/* 충전 일시 중단 중 예금주 숨김 — 재개 시 복구
+        <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+          <dt className="text-zinc-500">예금주</dt>
+          <dd className="font-medium">{BANK_INFO.holder}</dd>
+        </div> */}
+      </dl>
+    </section>
+  );
 
   return (
     <div className="space-y-6">
@@ -121,34 +151,6 @@ export default async function ChargePage({
         </p>
       )}
 
-      <Reveal>
-        <section className="glass rounded-2xl p-5">
-          <h2 className="flex items-center gap-2 font-bold">
-            <i className="fa-solid fa-building-columns text-emerald-600" aria-hidden /> 무통장 입금 계좌
-          </h2>
-          <dl className="mt-3 overflow-hidden rounded-xl border border-black/10">
-            <div className="flex items-center justify-between gap-3 border-b border-black/5 px-4 py-3 text-sm">
-              <dt className="text-zinc-500">은행</dt>
-              <dd className="font-medium">{BANK_INFO.bank}</dd>
-            </div>
-            {/* 충전 일시 중단 중에는 마지막 줄이라 border-b 를 뺐다 — 재개 시 border-b border-black/5 복구 */}
-            <div className="flex items-center justify-between gap-3 bg-emerald-50/40 px-4 py-3">
-              <dt className="shrink-0 text-sm text-zinc-500">계좌번호</dt>
-              <dd className="flex min-w-0 items-center justify-end gap-2">
-                {/* 입금 계좌 점검(충전 일시 중단) 중 — 재개 시 아래 AccountReveal 로 되돌린다.
-                    <AccountReveal width={bankImageSize().width} height={bankImageSize().height} /> */}
-                <span className="text-sm font-semibold text-red-600">현재 입금이 불가합니다</span>
-              </dd>
-            </div>
-            {/* 충전 일시 중단 중 예금주 숨김 — 재개 시 복구
-            <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-              <dt className="text-zinc-500">예금주</dt>
-              <dd className="font-medium">{BANK_INFO.holder}</dd>
-            </div> */}
-          </dl>
-        </section>
-      </Reveal>
-
       <Reveal delay={80}>
         <section className="glass rounded-2xl p-5">
           <h2 className="mb-1 font-bold">충전 신청</h2>
@@ -160,6 +162,9 @@ export default async function ChargePage({
             units={CHARGE_POINT_UNITS}
             feeRate={CHARGE_FEE_RATE}
             defaultName={user.name}
+            cardAvailable={cardPaymentAvailable()}
+            windowConfig={paymentWindowConfig()}
+            bankInfo={bankInfo}
           />
         </section>
       </Reveal>
@@ -180,7 +185,7 @@ export default async function ChargePage({
                         <span className="text-sm font-normal text-zinc-400">충전</span>
                       </p>
                       <p className="font-num mt-0.5 text-xs text-zinc-400">
-                        입금액 {won(it.amount)} · {ymdhm(it.createdAt)}
+                        {it.card ? "카드결제" : "입금액"} {won(it.amount)} · {ymdhm(it.createdAt)}
                       </p>
                     </div>
                     <span

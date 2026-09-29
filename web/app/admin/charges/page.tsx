@@ -14,6 +14,8 @@ import {
 import { normDepositName } from "@/lib/config";
 import { cardRefundOf, cardRefundPlan } from "@/lib/charge";
 import ConfirmButton from "@/components/ConfirmButton";
+import { getPaymentProvider } from "@/lib/payments";
+import CardRefundForm from "./CardRefundForm";
 
 export const dynamic = "force-dynamic";
 
@@ -454,22 +456,16 @@ function CardRefund({
         <span className="font-num whitespace-nowrap text-[11px] text-red-500">부분환불 {won(done.amount)}</span>
       )}
       {plan.point > 0 ? (
-        <form action={refundCardCharge}>
-          <input type="hidden" name="id" value={o.id} />
-          <ConfirmButton
-            message={`${o.user.loginId} 회원의 카드 충전을 ${plan.full ? "전액" : "부분"} 환불할까요?
-
-포인트 ${pt(plan.point)} 회수 + 카드 결제 ${won(plan.amount)} 취소${
-              plan.full ? "" : `
-(충전 ${pt(o.chargePoint)} 중 회원이 이미 쓴 포인트는 환불하지 않습니다)`
-            }
-
-되돌릴 수 없습니다.`}
-            className="whitespace-nowrap rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
-          >
-            {plan.full ? "환불" : "부분환불"}
-          </ConfirmButton>
-        </form>
+        <CardRefundForm
+          action={refundCardCharge}
+          id={o.id}
+          loginId={o.user.loginId}
+          max={plan.point}
+          chargePoint={o.chargePoint}
+          amount={o.amount}
+          prevPoint={done.point}
+          prevAmount={done.amount}
+        />
       ) : (
         <span className="text-right text-[11px] leading-tight text-zinc-400">환불 가능 포인트 없음</span>
       )}
@@ -496,6 +492,7 @@ function DateGroup({
     status: string;
     autoConfirmed: boolean;
     charged: boolean;
+    pg: string;
     legacyData: unknown;
     createdAt: Date;
     userId: number;
@@ -606,7 +603,9 @@ function DateGroup({
                           <i className="fa-solid fa-credit-card" aria-hidden />{" "}
                           {o.status === "CANCELED" && isRefunded(o.legacyData) ? "환불됨" : "카드"}
                         </span>
-                        {o.status === "COMPLETED" && o.charged && <CardRefund o={o} />}
+                        {o.status === "COMPLETED" && o.charged && o.pg === getPaymentProvider().name && (
+                          <CardRefund o={o} />
+                        )}
                       </>
                     ) : o.autoConfirmed ? (
                       <span className="flex items-center gap-1 whitespace-nowrap rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-700">

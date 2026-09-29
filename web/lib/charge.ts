@@ -104,16 +104,19 @@ export function cardRefundOf(legacyData: unknown): CardRefund {
 }
 
 /**
- * 이번에 환불할 포인트·금액. 남은(미환불) 충전분과 회원 보유 포인트 중 작은 만큼 — 쓴 포인트는 환불하지 않는다.
+ * 이번에 환불할 포인트·금액. 최대치는 남은(미환불) 충전분과 회원 보유 포인트 중 작은 쪽 — 쓴 포인트는 환불하지 않는다.
+ * want(관리자가 입력한 포인트)가 있으면 최대치 안에서 그만큼만.
  * 금액은 누적 포인트 기준으로 계산해 반올림 오차가 쌓여도 합계가 결제액을 넘지 않게 하고,
  * 마지막 환불은 결제액의 나머지를 그대로 취소한다.
  */
 export function cardRefundPlan(
   order: { amount: number; chargePoint: number; legacyData: unknown },
   userPoint: number,
+  want?: number,
 ): CardRefund & { full: boolean } {
   const prev = cardRefundOf(order.legacyData);
-  const point = Math.max(0, Math.min(order.chargePoint - prev.point, userPoint));
+  const max = Math.max(0, Math.min(order.chargePoint - prev.point, userPoint));
+  const point = want && Number.isInteger(want) && want > 0 ? Math.min(want, max) : max;
   const full = prev.point + point >= order.chargePoint;
   const total = full ? order.amount : chargeAmount(prev.point + point);
   return { point, amount: Math.max(0, total - prev.amount), full };

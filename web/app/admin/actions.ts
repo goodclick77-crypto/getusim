@@ -136,6 +136,7 @@ export async function cancelCharge(formData: FormData) {
 export async function refundCardCharge(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id"));
+  const want = Number(formData.get("point")) || undefined; // 관리자가 입력한 환불 포인트(없으면 최대치)
   if (!Number.isInteger(id)) redirect("/admin/charges?status=COMPLETED&refund=invalid");
 
   let plan: { point: number; amount: number; full: boolean };
@@ -145,11 +146,19 @@ export async function refundCardCharge(formData: FormData) {
       // 같은 주문 동시 환불 방지(행 잠금) 후 최신 상태로 다시 읽는다
       await tx.$queryRaw`SELECT id FROM charge_order WHERE id = ${id} FOR UPDATE`;
       const o = await tx.chargeOrder.findUnique({ where: { id } });
-      if (!o || o.method !== "CARD" || o.status !== "COMPLETED" || !o.charged || !o.pgTno) {
+      // 현재 결제사로 결제한 건만 — 레거시(KCP 등) 카드 건은 이 결제사로 취소할 수 없다
+      if (
+        !o ||
+        o.method !== "CARD" ||
+        o.status !== "COMPLETED" ||
+        !o.charged ||
+        !o.pgTno ||
+        o.pg !== getPaymentProvider().name
+      ) {
         throw new Error("INVALID");
       }
       const u = await tx.user.findUnique({ where: { id: o.userId }, select: { point: true } });
-      const p = cardRefundPlan(o, u?.point ?? 0);
+      const p = cardRefundPlan(o, u?.point ?? 0, want);
       if (p.point <= 0 || p.amount <= 0) throw new InsufficientPointError();
 
       // 잔액이 그 사이 줄었으면 InsufficientPointError → 트랜잭션 롤백

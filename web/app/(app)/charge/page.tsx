@@ -131,7 +131,8 @@ export default async function ChargePage({
               <dt className="text-zinc-500">은행</dt>
               <dd className="font-medium">{BANK_INFO.bank}</dd>
             </div>
-            <div className="flex items-center justify-between gap-3 border-b border-black/5 bg-emerald-50/40 px-4 py-3">
+            {/* 충전 일시 중단 중에는 마지막 줄이라 border-b 를 뺐다 — 재개 시 border-b border-black/5 복구 */}
+            <div className="flex items-center justify-between gap-3 bg-emerald-50/40 px-4 py-3">
               <dt className="shrink-0 text-sm text-zinc-500">계좌번호</dt>
               <dd className="flex min-w-0 items-center justify-end gap-2">
                 {/* 입금 계좌 점검(충전 일시 중단) 중 — 재개 시 아래 AccountReveal 로 되돌린다.
@@ -139,10 +140,11 @@ export default async function ChargePage({
                 <span className="text-sm font-semibold text-red-600">현재 입금이 불가합니다</span>
               </dd>
             </div>
+            {/* 충전 일시 중단 중 예금주 숨김 — 재개 시 복구
             <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
               <dt className="text-zinc-500">예금주</dt>
               <dd className="font-medium">{BANK_INFO.holder}</dd>
-            </div>
+            </div> */}
           </dl>
         </section>
       </Reveal>

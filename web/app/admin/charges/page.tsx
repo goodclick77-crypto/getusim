@@ -6,6 +6,7 @@ import {
   confirmCharge,
   cancelCharge,
   restoreCharge,
+  refundCardCharge,
   matchDeposit,
   dismissDeposit,
   deleteDeposit,
@@ -33,6 +34,17 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELED: "취소",
 };
 
+/** 카드 충전 환불 결과 안내 (refundCardCharge 가 ?refund= 로 넘긴다) */
+const REFUND_MSG: Record<string, { ok: boolean; text: string }> = {
+  ok: { ok: true, text: "카드 결제를 취소하고 충전 포인트를 회수했습니다." },
+  insufficient: {
+    ok: false,
+    text: "회원이 충전 포인트를 이미 사용해 잔액이 부족합니다. 환불하지 않았습니다 — 필요하면 결제사 관리자에서 부분 취소 후 포인트를 직접 조정해 주세요.",
+  },
+  pg_fail: { ok: false, text: "결제사 취소에 실패해 포인트와 주문을 원래대로 되돌렸습니다. 잠시 후 다시 시도하거나 결제사 관리자에서 확인해 주세요." },
+  invalid: { ok: false, text: "환불할 수 없는 건입니다(이미 처리됐거나 카드 충전완료 건이 아님)." },
+};
+
 const PER = 60;
 /** 미매칭 입금에 수동 연결할 주문 후보를 찾는 기간(일).
  * 금액만으로 후보를 잡으므로 기간이 길수록 남의 주문이 대거 섞여 오선택 위험이 커진다.
@@ -42,7 +54,14 @@ const DEPOSIT_MATCH_WINDOW_DAYS = 7;
 export default async function AdminChargesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; page?: string; from?: string; to?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    q?: string;
+    page?: string;
+    from?: string;
+    to?: string;
+    refund?: string;
+  }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
@@ -51,6 +70,7 @@ export default async function AdminChargesPage({
   const from = (sp.from || "").trim();
   const to = (sp.to || "").trim();
   const page = Math.max(1, Number(sp.page) || 1);
+  const refundMsg = sp.refund ? REFUND_MSG[sp.refund] : undefined;
   const createdAt = dateRange(from, to);
   const carry = `${q ? `&q=${encodeURIComponent(q)}` : ""}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`;
 
@@ -161,6 +181,16 @@ export default async function AdminChargesPage({
           ← 관리자 홈
         </Link>
       </div>
+
+      {refundMsg && (
+        <p
+          className={`rounded-xl px-4 py-3 text-sm ${
+            refundMsg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+          }`}
+        >
+          {refundMsg.text}
+        </p>
+      )}
 
       <form action="/admin/charges" method="GET" className="space-y-2">
         <input type="hidden" name="status" value={status} />
@@ -396,6 +426,11 @@ export default async function AdminChargesPage({
   );
 }
 
+/** 관리자 환불(refundCardCharge)로 취소된 카드 건인지 — 충전 실패로 자동취소된 건과 구분 */
+function isRefunded(data: unknown): boolean {
+  return !!data && typeof data === "object" && "refundedAt" in data;
+}
+
 function DateGroup({
   date,
   list,
@@ -409,6 +444,8 @@ function DateGroup({
     method: string;
     status: string;
     autoConfirmed: boolean;
+    charged: boolean;
+    legacyData: unknown;
     createdAt: Date;
     userId: number;
     user: { loginId: string; name: string };
@@ -513,9 +550,25 @@ function DateGroup({
                       {STATUS_LABEL[o.status]}
                     </span>
                     {o.method === "CARD" ? (
-                      <span className="flex items-center gap-1 whitespace-nowrap rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">
-                        <i className="fa-solid fa-credit-card" aria-hidden /> 카드
-                      </span>
+                      <>
+                        <span className="flex items-center gap-1 whitespace-nowrap rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">
+                          <i className="fa-solid fa-credit-card" aria-hidden />{" "}
+                          {o.status === "CANCELED" && isRefunded(o.legacyData) ? "환불됨" : "카드"}
+                        </span>
+                        {o.status === "COMPLETED" && o.charged && (
+                          <form action={refundCardCharge}>
+                            <input type="hidden" name="id" value={o.id} />
+                            <ConfirmButton
+                              message={`${o.user.loginId} 회원의 카드 충전 ${won(o.amount)}을 환불할까요?
+
+충전된 ${pt(o.chargePoint)}를 회수하고 카드 결제를 취소합니다. 되돌릴 수 없습니다.`}
+                              className="whitespace-nowrap rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
+                            >
+                              환불
+                            </ConfirmButton>
+                          </form>
+                        )}
+                      </>
                     ) : o.autoConfirmed ? (
                       <span className="flex items-center gap-1 whitespace-nowrap rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-700">
                         <i className="fa-solid fa-bolt" aria-hidden /> 자동

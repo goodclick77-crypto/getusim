@@ -25,8 +25,8 @@ export default async function ProductsPage() {
           <i className="fa-solid fa-bag-shopping text-emerald-600" aria-hidden /> 상품
         </h1>
         <p className="mt-2 text-sm text-zinc-500">
-          인증 <b>1건 단위</b>로 판매합니다. 번호 발급은 무료이고, 인증코드가 실제로 도착했을 때만
-          결제가 확정됩니다. 코드를 받지 못하면 결제가 자동 취소됩니다.
+          인증 <b>1건 단위</b>로 충전한 잔액에서 차감됩니다. 번호 발급은 무료이고, 인증코드가 실제로
+          도착했을 때만 차감됩니다. 코드를 받지 못하면 차감되지 않습니다.
         </p>
 
         <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
@@ -80,8 +80,8 @@ export default async function ProductsPage() {
         <section className="mt-8 grid gap-3 sm:grid-cols-3">
           {[
             ["fa-gift", "번호 발급 무료", "번호를 받는 것만으로는 요금이 없습니다."],
-            ["fa-circle-check", "수신 성공 시에만 결제", "인증코드가 도착한 건만 결제가 확정됩니다."],
-            ["fa-rotate-left", "미수신 자동 취소", "3분 안에 코드가 없으면 결제가 자동 취소됩니다."],
+            ["fa-circle-check", "수신 성공 시에만 차감", "인증코드가 도착한 건만 잔액에서 차감됩니다."],
+            ["fa-rotate-left", "미수신 무과금", "3분 안에 코드가 없으면 자동 취소되고 차감되지 않습니다."],
           ].map(([icon, h, d]) => (
             <div key={h} className="glass rounded-2xl p-4">
               <p className="flex items-center gap-2 font-semibold">

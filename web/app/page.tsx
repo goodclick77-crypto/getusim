@@ -10,7 +10,7 @@ const STATS = [
   { icon: "fa-earth-americas", value: "150여 개국", label: "지원 국가" },
   { icon: "fa-grip", value: "16종", label: "지원 서비스" },
   { icon: "fa-bolt", value: "실시간", label: "SMS 수신" },
-  { icon: "fa-shield-halved", value: "안전결제", label: "건별 결제" },
+  { icon: "fa-shield-halved", value: "수신 시 차감", label: "미수신 무과금" },
 ];
 
 const FLAGS = ["kr", "us", "gb", "jp", "ru", "cn", "fr", "br", "ca", "vn"];

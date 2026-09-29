@@ -2,16 +2,15 @@ import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { COUNTRIES, SERVICES, SMS_WAIT_MS, chargeAmount, wonOf } from "@/lib/config";
 import { quoteOffer } from "@/lib/catalog";
-import { cardPaymentAvailable } from "@/lib/payments";
 import BrandIcon from "@/components/BrandIcon";
 import OrderForm from "./OrderForm";
 
 export const dynamic = "force-dynamic";
 
 /**
- * 주문 페이지: 상품(서비스 × 국가 인증 1건) 확인 → 결제수단 선택 → 결제하기.
- * 결제창(카드·간편결제) / 등록 카드 원클릭 / 잔액 차감 중 하나로 결제하면 번호가 발급되고
- * SMS 인증 화면으로 넘어간다. 코드 미수신 시 결제는 자동 취소된다.
+ * 주문 페이지: 상품(서비스 × 국가 인증 1건) 확인 → 주문하기(잔액 차감).
+ * 포인트 충전 방식이라 결제는 잔액 충전에서 하고, 여기서는 번호를 발급받아 SMS 인증 화면으로 넘어간다.
+ * 코드를 받았을 때만 잔액에서 차감되고, 미수신이면 차감되지 않는다.
  */
 export default async function OrderPage({
   searchParams,
@@ -47,7 +46,7 @@ export default async function OrderPage({
         <span className="text-zinc-600">주문</span>
       </nav>
       <h1 className="flex items-center gap-2 text-xl font-bold">
-        <i className="fa-solid fa-cart-shopping text-emerald-600" aria-hidden /> 주문 / 결제
+        <i className="fa-solid fa-cart-shopping text-emerald-600" aria-hidden /> 주문
       </h1>
 
       {/* 주문 상품 */}
@@ -67,7 +66,7 @@ export default async function OrderPage({
               </span>
             </p>
             <p className="mt-0.5 text-xs text-zinc-500">
-              수량 1 · 번호 발급 후 {waitMin}분 내 코드 미수신 시 자동 취소
+              수량 1 · 번호 발급 후 {waitMin}분 내 코드 미수신 시 자동 취소·차감 없음
             </p>
           </div>
           <p className="font-num text-lg font-bold">
@@ -80,12 +79,9 @@ export default async function OrderPage({
         <OrderForm
           service={service.value}
           country={country.value}
-          productName={`${service.label} / ${country.label} 인증 1건`}
           pricePoint={quote.price}
           amountWon={chargeAmount(quote.price)}
           balancePoint={user.point}
-          cardAvailable={cardPaymentAvailable()}
-          savedCard={user.billingKey ? user.cardLabel : null}
         />
       ) : (
         <section className="rounded-2xl bg-amber-50 px-5 py-4 text-sm text-amber-700">

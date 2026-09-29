@@ -60,7 +60,7 @@ export default async function ProductDetailPage({ params }: Params) {
             </p>
             <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600">
               <li><i className="fa-solid fa-gift mr-1 text-emerald-600" aria-hidden />번호 발급 무료</li>
-              <li><i className="fa-solid fa-circle-check mr-1 text-emerald-600" aria-hidden />코드 수신 시에만 결제 확정</li>
+              <li><i className="fa-solid fa-circle-check mr-1 text-emerald-600" aria-hidden />코드 수신 시에만 잔액 차감</li>
               <li><i className="fa-solid fa-rotate-left mr-1 text-emerald-600" aria-hidden />{waitMin}분 미수신 시 자동 취소·무과금</li>
               <li><i className="fa-solid fa-ban mr-1 text-zinc-400" aria-hidden />수신 완료 후 환불 불가 (<Link href="/refund" className="underline">환불규정</Link>)</li>
             </ul>

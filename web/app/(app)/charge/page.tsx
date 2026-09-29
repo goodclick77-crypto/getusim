@@ -8,6 +8,7 @@ import ChargeForm from "./ChargeForm";
 import Reveal from "@/components/Reveal";
 import CopyButton from "@/components/CopyButton";
 import ConfirmButton from "@/components/ConfirmButton";
+import { cardPaymentAvailable } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,7 @@ export default async function ChargePage({
 
   // 충전(ChargeOrder) + 환불/관리자조정(PointLog)을 한 내역으로 병합(날짜순)
   type Item =
-    | { kind: "charge"; id: number; createdAt: Date; chargePoint: number; amount: number; status: string }
+    | { kind: "charge"; id: number; createdAt: Date; chargePoint: number; amount: number; status: string; method: string }
     | { kind: "refund"; id: number; createdAt: Date; amount: number }
     | { kind: "adjust"; id: number; createdAt: Date; amount: number; reason: string };
   const items: Item[] = [
@@ -62,6 +63,7 @@ export default async function ChargePage({
       chargePoint: o.chargePoint,
       amount: o.amount,
       status: o.status,
+      method: o.method,
     })),
     ...logs.map((l) =>
       l.relType === "refund"
@@ -77,6 +79,46 @@ export default async function ChargePage({
   ]
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, 20);
+
+  const cardAvailable = cardPaymentAvailable();
+  const bankInfo = (
+    <section className="rounded-2xl border border-black/10 bg-white/40 p-4">
+      <h3 className="flex items-center gap-2 text-sm font-bold">
+        <i className="fa-solid fa-building-columns text-emerald-600" aria-hidden /> 무통장 입금 계좌
+      </h3>
+      <dl className="mt-3 overflow-hidden rounded-xl border border-black/10">
+        <div className="flex items-center justify-between gap-3 border-b border-black/5 px-4 py-3 text-sm">
+          <dt className="text-zinc-500">은행</dt>
+          <dd className="font-medium">{BANK_INFO.bank}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-3 border-b border-black/5 bg-emerald-50/40 px-4 py-3">
+          <dt className="shrink-0 text-sm text-zinc-500">계좌번호</dt>
+          <dd className="flex min-w-0 items-center justify-end gap-2">
+            {/* 계좌번호는 텍스트로 싣지 않고 이미지로만 표시한다(크롤링 → 보이스피싱 악용 방지).
+                alt 에도 번호를 넣지 않는다 — 스크린리더 사용자는 복사 버튼으로 받는다. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/api/bank-account/image"
+              alt="입금 계좌번호 (옆의 복사 버튼으로 복사할 수 있습니다)"
+              width={bankImageSize().width}
+              height={bankImageSize().height}
+              draggable={false}
+              className="h-auto min-w-0 max-w-full select-none"
+            />
+            <CopyButton
+              src="/api/bank-account"
+              label="복사"
+              className="border border-black/10"
+            />
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+          <dt className="text-zinc-500">예금주</dt>
+          <dd className="font-medium">{BANK_INFO.holder}</dd>
+        </div>
+      </dl>
+    </section>
+  );
 
   return (
     <div className="space-y-6">
@@ -120,45 +162,6 @@ export default async function ChargePage({
         </p>
       )}
 
-      <Reveal>
-        <section className="glass rounded-2xl p-5">
-          <h2 className="flex items-center gap-2 font-bold">
-            <i className="fa-solid fa-building-columns text-emerald-600" aria-hidden /> 무통장 입금 계좌
-          </h2>
-          <dl className="mt-3 overflow-hidden rounded-xl border border-black/10">
-            <div className="flex items-center justify-between gap-3 border-b border-black/5 px-4 py-3 text-sm">
-              <dt className="text-zinc-500">은행</dt>
-              <dd className="font-medium">{BANK_INFO.bank}</dd>
-            </div>
-            <div className="flex items-center justify-between gap-3 border-b border-black/5 bg-emerald-50/40 px-4 py-3">
-              <dt className="shrink-0 text-sm text-zinc-500">계좌번호</dt>
-              <dd className="flex min-w-0 items-center justify-end gap-2">
-                {/* 계좌번호는 텍스트로 싣지 않고 이미지로만 표시한다(크롤링 → 보이스피싱 악용 방지).
-                    alt 에도 번호를 넣지 않는다 — 스크린리더 사용자는 복사 버튼으로 받는다. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/api/bank-account/image"
-                  alt="입금 계좌번호 (옆의 복사 버튼으로 복사할 수 있습니다)"
-                  width={bankImageSize().width}
-                  height={bankImageSize().height}
-                  draggable={false}
-                  className="h-auto min-w-0 max-w-full select-none"
-                />
-                <CopyButton
-                  src="/api/bank-account"
-                  label="복사"
-                  className="border border-black/10"
-                />
-              </dd>
-            </div>
-            <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-              <dt className="text-zinc-500">예금주</dt>
-              <dd className="font-medium">{BANK_INFO.holder}</dd>
-            </div>
-          </dl>
-        </section>
-      </Reveal>
-
       <Reveal delay={80}>
         <section className="glass rounded-2xl p-5">
           <h2 className="mb-1 font-bold">충전 신청</h2>
@@ -171,6 +174,8 @@ export default async function ChargePage({
             unitPoint={SMS_BASE_POINT}
             feeRate={CHARGE_FEE_RATE}
             defaultName={user.name}
+            cardAvailable={cardAvailable}
+            bankInfo={bankInfo}
           />
         </section>
       </Reveal>
@@ -189,7 +194,7 @@ export default async function ChargePage({
                       <p className="font-num text-base font-bold">
                         {bal(it.chargePoint)}{" "}
                         <span className="text-sm font-normal text-zinc-400">
-                          충전 · 인증 {Math.floor(it.chargePoint / SMS_BASE_POINT).toLocaleString("ko-KR")}회분
+                          {it.method === "BANK_TRANSFER" ? "무통장" : "카드"} 충전 · 인증 {Math.floor(it.chargePoint / SMS_BASE_POINT).toLocaleString("ko-KR")}회분
                         </span>
                       </p>
                       <p className="font-num mt-0.5 text-xs text-zinc-400">

@@ -102,7 +102,7 @@ export default async function AdminChargesPage({
     // 이미 자동 연결하므로(lib/charge.ts) 중복이고, 이미 지급된 주문에 관리자가
     // 실수로 또 연결하는 통로만 열어준다. 남는 로그는 "미매칭 해제"로 정리한다.
     prisma.chargeOrder.findMany({
-      where: { status: "PENDING", charged: false, createdAt: { gte: since } },
+      where: { status: "PENDING", charged: false, method: "BANK_TRANSFER", createdAt: { gte: since } },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -406,6 +406,7 @@ function DateGroup({
     amount: number;
     chargePoint: number;
     depositName: string;
+    method: string;
     status: string;
     autoConfirmed: boolean;
     createdAt: Date;
@@ -437,7 +438,7 @@ function DateGroup({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-base font-bold">
-                    {o.depositName || "(입금자명 없음)"}
+                    {o.method === "CARD" && !o.depositName ? "카드결제" : o.depositName || "(입금자명 없음)"}
                   </span>
                   {pending && (
                     <span className="shrink-0 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
@@ -490,7 +491,7 @@ function DateGroup({
                       </ConfirmButton>
                     </form>
                   </div>
-                ) : o.status === "CANCELED" ? (
+                ) : o.status === "CANCELED" && o.method === "BANK_TRANSFER" ? (
                   <div className="flex flex-col items-end gap-1.5">
                     <span
                       className={`rounded-md px-2 py-1 text-xs font-medium ${STATUS_BADGE[o.status]}`}
@@ -511,7 +512,11 @@ function DateGroup({
                     >
                       {STATUS_LABEL[o.status]}
                     </span>
-                    {o.autoConfirmed ? (
+                    {o.method === "CARD" ? (
+                      <span className="flex items-center gap-1 whitespace-nowrap rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">
+                        <i className="fa-solid fa-credit-card" aria-hidden /> 카드
+                      </span>
+                    ) : o.autoConfirmed ? (
                       <span className="flex items-center gap-1 whitespace-nowrap rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-700">
                         <i className="fa-solid fa-bolt" aria-hidden /> 자동
                       </span>

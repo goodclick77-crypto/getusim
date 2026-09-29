@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
 
   const provider = getPaymentProvider();
-  if (!provider.isConfigured()) {
+  if (!provider.isConfigured() || !provider.supportsBilling) {
     return NextResponse.json({ error: "카드 결제가 아직 준비되지 않았습니다" }, { status: 503 });
   }
   const body = (await req.json().catch(() => ({}))) as { authPayload?: Record<string, string> };

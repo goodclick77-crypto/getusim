@@ -24,6 +24,7 @@ const BASE = "https://api.tosspayments.com/v1";
 
 export class TossPaymentProvider implements PaymentProvider {
   readonly name = "toss" as const;
+  readonly supportsBilling = true;
   private secret = process.env.TOSS_SECRET_KEY || "";
 
   isConfigured() {

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { wonOf } from "@/lib/config";
 import PaymentWindow from "./PaymentWindow";
+import PaypleWindow from "./PaypleWindow";
+import type { PaymentWindowConfig } from "@/lib/payments/types";
 
 type Method = "BALANCE" | "WINDOW" | "ONECLICK";
 
@@ -24,6 +26,7 @@ export default function OrderForm({
   balancePoint,
   cardAvailable,
   savedCard,
+  windowConfig,
 }: {
   service: string;
   country: string;
@@ -33,6 +36,7 @@ export default function OrderForm({
   balancePoint: number;
   cardAvailable: boolean;
   savedCard: string | null;
+  windowConfig: PaymentWindowConfig;
 }) {
   const router = useRouter();
   const balanceOk = balancePoint >= pricePoint;
@@ -200,7 +204,25 @@ export default function OrderForm({
         )}
       </section>
 
-      {windowOpen && (
+      {windowOpen && windowConfig.provider === "payple" && (
+        <PaypleWindow
+          clientKey={windowConfig.clientKey}
+          scriptUrl={windowConfig.scriptUrl}
+          productName={productName}
+          amountWon={amountWon}
+          orderId={windowOrderId}
+          onClose={() => setWindowOpen(false)}
+          onError={(m) => {
+            setWindowOpen(false);
+            setMsg(m);
+          }}
+          onPaid={(token) => {
+            setWindowOpen(false);
+            void issue({ pay: "window", windowToken: token, windowOrderId });
+          }}
+        />
+      )}
+      {windowOpen && windowConfig.provider === "mock" && (
         <PaymentWindow
           productName={productName}
           amountWon={amountWon}

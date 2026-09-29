@@ -16,6 +16,7 @@ import type {
  */
 export class MockPaymentProvider implements PaymentProvider {
   readonly name = "mock" as const;
+  readonly supportsBilling = true;
   private seq = 0;
 
   isConfigured() {

@@ -55,6 +55,9 @@ export async function POST(req: Request) {
     if (payMethod === "CARD" && !getPaymentProvider().isConfigured()) {
       return NextResponse.json({ error: "card", message: "카드 결제가 아직 준비되지 않았습니다." });
     }
+    if (pay === "card" && !getPaymentProvider().supportsBilling) {
+      return NextResponse.json({ error: "card", message: "등록 카드 결제를 지원하지 않습니다. 결제창으로 결제해 주세요." });
+    }
     if (pay === "card" && !user.billingKey) {
       return NextResponse.json({ error: "card", message: "먼저 결제할 카드를 등록해 주세요." });
     }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { COUNTRIES, SERVICES, SMS_WAIT_MS, chargeAmount, wonOf } from "@/lib/config";
 import { quoteOffer } from "@/lib/catalog";
-import { cardPaymentAvailable } from "@/lib/payments";
+import { cardPaymentAvailable, oneClickAvailable, paymentWindowConfig } from "@/lib/payments";
 import BrandIcon from "@/components/BrandIcon";
 import OrderForm from "./OrderForm";
 
@@ -85,7 +85,8 @@ export default async function OrderPage({
           amountWon={chargeAmount(quote.price)}
           balancePoint={user.point}
           cardAvailable={cardPaymentAvailable()}
-          savedCard={user.billingKey ? user.cardLabel : null}
+          savedCard={oneClickAvailable() && user.billingKey ? user.cardLabel : null}
+          windowConfig={paymentWindowConfig()}
         />
       ) : (
         <section className="rounded-2xl bg-amber-50 px-5 py-4 text-sm text-amber-700">

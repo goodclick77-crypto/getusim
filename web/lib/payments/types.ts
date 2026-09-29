@@ -11,7 +11,7 @@
  *  3. cancel          — 승인을 취소한다(코드 미수신·시간 초과·5sim 실패 시 자동 호출).
  */
 
-export type PaymentProviderName = "none" | "mock" | "toss" | "kcp";
+export type PaymentProviderName = "none" | "mock" | "toss" | "kcp" | "payple";
 
 export type BillingKeyResult = {
   /** PG가 발급한 빌링키. 카드번호 대신 이것만 저장한다. */
@@ -64,6 +64,8 @@ export interface PaymentProvider {
   readonly name: PaymentProviderName;
   /** 운영 준비가 됐는지(키 설정 등). false 면 화면에서 카드 결제 옵션을 숨긴다. */
   isConfigured(): boolean;
+  /** 빌링키(카드 등록·원클릭 결제)를 지원하는지. false 면 결제창 결제만 노출한다. */
+  readonly supportsBilling: boolean;
   issueBillingKey(input: {
     customerId: string;
     /** PG 카드등록 창이 돌려준 인증 파라미터(authKey 등). PG마다 형태가 다르므로 그대로 넘긴다. */
@@ -82,3 +84,8 @@ export class PaymentNotConfiguredError extends Error {
     this.name = "PaymentNotConfiguredError";
   }
 }
+
+/** 결제창을 띄우는 데 필요한 공개 설정(브라우저로 내려감). 비밀키는 절대 넣지 않는다. */
+export type PaymentWindowConfig =
+  | { provider: "mock" }
+  | { provider: "payple"; clientKey: string; scriptUrl: string };

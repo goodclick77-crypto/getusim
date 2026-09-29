@@ -44,15 +44,39 @@ export function pickBestOperator(
   return best;
 }
 
+/**
+ * 서비스별 마지막으로 성공한 가격표. 공급사 호출이 순간적으로 실패하면(타임아웃·일시 오류)
+ * 빈 목록("번호 없음") 대신 이걸 쓴다 — 실패 한 번에 상품이 사라졌다가 새로고침하면 다시
+ * 보이는 현상을 막는다. 너무 오래된 값은 가격이 틀릴 수 있어 STALE_MS 까지만 쓴다.
+ */
+const STALE_MS = 10 * 60 * 1000;
+const lastPrices = new Map<string, { at: number; data: PricesResponse }>();
+
+async function pricesFor(service: string): Promise<PricesResponse | null> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const data = (await fivesim.prices({ product: service })) ?? {};
+      if (data[service]) {
+        lastPrices.set(service, { at: Date.now(), data });
+        return data;
+      }
+      // 200 인데 서비스 키가 없음 = 비정상 응답으로 보고 재시도
+      console.warn(`[catalog] ${service} 가격표 비어 있음 (시도 ${attempt})`);
+    } catch (e) {
+      console.warn(`[catalog] ${service} 가격표 조회 실패 (시도 ${attempt}):`, e);
+    }
+    if (attempt === 1) await new Promise((r) => setTimeout(r, 300));
+  }
+  const last = lastPrices.get(service);
+  if (last && Date.now() - last.at < STALE_MS) return last.data;
+  return null;
+}
+
 export async function listCountryOffers(service: string): Promise<CountryOffer[]> {
   if (!SERVICES.some((s) => s.value === service)) return [];
 
-  let data: PricesResponse = {};
-  try {
-    data = await fivesim.prices({ product: service });
-  } catch {
-    return [];
-  }
+  const data = await pricesFor(service);
+  if (!data) return [];
 
   const fx = await getUsdKrw();
   const build = (allowShortWindow: boolean) =>

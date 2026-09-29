@@ -12,6 +12,7 @@ import {
   deleteDeposit,
 } from "../actions";
 import { normDepositName } from "@/lib/config";
+import { cardRefundOf, cardRefundPlan } from "@/lib/charge";
 import ConfirmButton from "@/components/ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -37,10 +38,7 @@ const STATUS_LABEL: Record<string, string> = {
 /** 카드 충전 환불 결과 안내 (refundCardCharge 가 ?refund= 로 넘긴다) */
 const REFUND_MSG: Record<string, { ok: boolean; text: string }> = {
   ok: { ok: true, text: "카드 결제를 취소하고 충전 포인트를 회수했습니다." },
-  insufficient: {
-    ok: false,
-    text: "회원이 충전 포인트를 이미 사용해 잔액이 부족합니다. 환불하지 않았습니다 — 필요하면 결제사 관리자에서 부분 취소 후 포인트를 직접 조정해 주세요.",
-  },
+  insufficient: { ok: false, text: "회원의 보유 포인트가 없어 환불할 금액이 없습니다." },
   pg_fail: { ok: false, text: "결제사 취소에 실패해 포인트와 주문을 원래대로 되돌렸습니다. 잠시 후 다시 시도하거나 결제사 관리자에서 확인해 주세요." },
   invalid: { ok: false, text: "환불할 수 없는 건입니다(이미 처리됐거나 카드 충전완료 건이 아님)." },
 };
@@ -61,6 +59,8 @@ export default async function AdminChargesPage({
     from?: string;
     to?: string;
     refund?: string;
+    rp?: string;
+    ra?: string;
   }>;
 }) {
   await requireAdmin();
@@ -70,7 +70,15 @@ export default async function AdminChargesPage({
   const from = (sp.from || "").trim();
   const to = (sp.to || "").trim();
   const page = Math.max(1, Number(sp.page) || 1);
-  const refundMsg = sp.refund ? REFUND_MSG[sp.refund] : undefined;
+  const refundMsg =
+    sp.refund === "partial"
+      ? {
+          ok: true,
+          text: `남은 포인트 ${pt(Number(sp.rp) || 0)}를 회수하고 카드 결제 ${won(Number(sp.ra) || 0)}을 부분 취소했습니다.`,
+        }
+      : sp.refund
+        ? REFUND_MSG[sp.refund]
+        : undefined;
   const createdAt = dateRange(from, to);
   const carry = `${q ? `&q=${encodeURIComponent(q)}` : ""}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`;
 
@@ -98,7 +106,7 @@ export default async function AdminChargesPage({
     prisma.chargeOrder.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      include: { user: { select: { loginId: true, name: true } } },
+      include: { user: { select: { loginId: true, name: true, point: true } } },
       skip: (page - 1) * PER,
       take: PER,
     }),
@@ -426,6 +434,49 @@ export default async function AdminChargesPage({
   );
 }
 
+/** 카드 충전완료 건: 부분환불 내역 + 환불 버튼(남은 충전분과 회원 보유 포인트 중 작은 만큼) */
+function CardRefund({
+  o,
+}: {
+  o: {
+    id: number;
+    amount: number;
+    chargePoint: number;
+    legacyData: unknown;
+    user: { loginId: string; point?: number };
+  };
+}) {
+  const done = cardRefundOf(o.legacyData);
+  const plan = cardRefundPlan(o, o.user.point ?? 0);
+  return (
+    <>
+      {done.amount > 0 && (
+        <span className="font-num whitespace-nowrap text-[11px] text-red-500">부분환불 {won(done.amount)}</span>
+      )}
+      {plan.point > 0 ? (
+        <form action={refundCardCharge}>
+          <input type="hidden" name="id" value={o.id} />
+          <ConfirmButton
+            message={`${o.user.loginId} 회원의 카드 충전을 ${plan.full ? "전액" : "부분"} 환불할까요?
+
+포인트 ${pt(plan.point)} 회수 + 카드 결제 ${won(plan.amount)} 취소${
+              plan.full ? "" : `
+(충전 ${pt(o.chargePoint)} 중 회원이 이미 쓴 포인트는 환불하지 않습니다)`
+            }
+
+되돌릴 수 없습니다.`}
+            className="whitespace-nowrap rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
+          >
+            {plan.full ? "환불" : "부분환불"}
+          </ConfirmButton>
+        </form>
+      ) : (
+        <span className="text-right text-[11px] leading-tight text-zinc-400">환불 가능 포인트 없음</span>
+      )}
+    </>
+  );
+}
+
 /** 관리자 환불(refundCardCharge)로 취소된 카드 건인지 — 충전 실패로 자동취소된 건과 구분 */
 function isRefunded(data: unknown): boolean {
   return !!data && typeof data === "object" && "refundedAt" in data;
@@ -448,7 +499,7 @@ function DateGroup({
     legacyData: unknown;
     createdAt: Date;
     userId: number;
-    user: { loginId: string; name: string };
+    user: { loginId: string; name: string; point?: number };
   }[];
 }) {
   const dayTotal = list.reduce((a, o) => a + o.amount, 0);
@@ -555,19 +606,7 @@ function DateGroup({
                           <i className="fa-solid fa-credit-card" aria-hidden />{" "}
                           {o.status === "CANCELED" && isRefunded(o.legacyData) ? "환불됨" : "카드"}
                         </span>
-                        {o.status === "COMPLETED" && o.charged && (
-                          <form action={refundCardCharge}>
-                            <input type="hidden" name="id" value={o.id} />
-                            <ConfirmButton
-                              message={`${o.user.loginId} 회원의 카드 충전 ${won(o.amount)}을 환불할까요?
-
-충전된 ${pt(o.chargePoint)}를 회수하고 카드 결제를 취소합니다. 되돌릴 수 없습니다.`}
-                              className="whitespace-nowrap rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
-                            >
-                              환불
-                            </ConfirmButton>
-                          </form>
-                        )}
+                        {o.status === "COMPLETED" && o.charged && <CardRefund o={o} />}
                       </>
                     ) : o.autoConfirmed ? (
                       <span className="flex items-center gap-1 whitespace-nowrap rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-700">

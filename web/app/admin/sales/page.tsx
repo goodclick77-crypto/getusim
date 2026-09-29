@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { won, pt, dateRange } from "@/lib/format";
+import { partialRefundSum } from "@/lib/charge";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,7 @@ export default async function AdminSalesPage({
   const since = sinceOf(period);
   const dateFilter = range ?? { gte: since };
 
-  const [chargeAgg, rentalAgg, byUser, attemptCount, failCount] = await Promise.all([
+  const [chargeAgg, rentalAgg, byUser, attemptCount, failCount, refunds] = await Promise.all([
     prisma.chargeOrder.aggregate({
       _sum: { amount: true },
       _count: true,
@@ -65,6 +66,7 @@ export default async function AdminSalesPage({
     // 발급 시도(전체) / 실패(취소·밴) 건수
     prisma.numberRental.count({ where: { createdAt: dateFilter } }),
     prisma.numberRental.count({ where: { status: "CANCELED", createdAt: dateFilter } }),
+    partialRefundSum({ createdAt: dateFilter }),
   ]);
 
   const userIds = byUser.map((b) => b.userId);
@@ -85,10 +87,13 @@ export default async function AdminSalesPage({
     }),
   ]);
   const userMap = new Map(users.map((u) => [u.id, u]));
-  const chargeMap = new Map(chargesByUser.map((c) => [c.userId, c._sum.amount ?? 0]));
+  // 카드 부분환불분은 매출에서 뺀다
+  const chargeMap = new Map(
+    chargesByUser.map((c) => [c.userId, (c._sum.amount ?? 0) - (refunds.get(c.userId) ?? 0)]),
+  );
   const failMap = new Map(failByUser.map((f) => [f.userId, f._count]));
 
-  const chargeRevenue = chargeAgg._sum.amount ?? 0;
+  const chargeRevenue = (chargeAgg._sum.amount ?? 0) - [...refunds.values()].reduce((a, b) => a + b, 0);
   const smsSales = rentalAgg._sum.pricePoint ?? 0;
   const cost = rentalAgg._sum.costKrw ?? 0;
   const netMargin = chargeRevenue - cost;

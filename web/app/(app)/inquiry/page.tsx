@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ymdhm, pt } from "@/lib/format";
 import { chargeAmount } from "@/lib/config";
+import { refundSplit } from "@/lib/card-refund";
 import InquiryForm from "./InquiryForm";
 import Reveal from "@/components/Reveal";
 import { turnstileSiteKey } from "@/lib/turnstile";
@@ -35,6 +36,8 @@ export default async function InquiryPage({
     take: 30,
     include: { replies: { orderBy: { createdAt: "asc" } } },
   });
+  // 환불 시 카드 결제 취소로 돌려받을 몫 / 계좌로 받을 몫
+  const split = user.point > 0 ? await refundSplit(user.id, user.point) : null;
 
   return (
     <div className="space-y-6">
@@ -59,6 +62,8 @@ export default async function InquiryPage({
           <InquiryForm
             currentPoint={user.point}
             refundWon={chargeAmount(user.point)}
+            cardWon={split?.cardWon ?? 0}
+            bankWon={split?.bankWon ?? 0}
             siteKey={turnstileSiteKey()}
           />
         </section>

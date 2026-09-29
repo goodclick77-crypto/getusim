@@ -43,9 +43,9 @@ export default async function ChargePage({
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
-    // 환불 + 관리자 수동 지급/차감
+    // 환불(카드 결제 취소 포함) + 관리자 수동 지급/차감
     prisma.pointLog.findMany({
-      where: { userId: user.id, relType: { in: ["refund", "admin"] } },
+      where: { userId: user.id, relType: { in: ["refund", "charge_refund", "admin"] } },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
@@ -67,7 +67,8 @@ export default async function ChargePage({
       card: o.method !== "BANK_TRANSFER",
     })),
     ...logs.map((l) =>
-      l.relType === "refund"
+      // 환불 실패 복구(+) 같은 드문 건은 사유와 함께 조정 내역으로 보인다
+      (l.relType === "refund" || l.relType === "charge_refund") && l.amount < 0
         ? { kind: "refund" as const, id: l.id, createdAt: l.createdAt, amount: l.amount }
         : {
             kind: "adjust" as const,

@@ -16,7 +16,7 @@ import { chargeAmount, CHARGE_MIN_POINT, CHARGE_MAX_POINT } from "@/lib/config";
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
-  if (!rateLimit(`pay-charge:${user.id}`, 10, 60_000)) {
+  if (!(await rateLimit(`pay-charge:${user.id}`, 10, 60_000))) {
     return NextResponse.json({ error: "잠시 후 다시 시도해 주세요." }, { status: 429 });
   }
 

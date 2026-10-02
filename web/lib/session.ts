@@ -14,7 +14,10 @@ if (!process.env.AUTH_SECRET && process.env.NODE_ENV === "production") {
 const secret = new TextEncoder().encode(
   process.env.AUTH_SECRET || "dev-secret-change-in-production",
 );
-const JWT_ALG = { algorithms: ["HS256"] };
+// 토큰을 발급한 배포 환경에 묶는다. 환경마다 DB 가 달라 같은 uid 가 다른 회원을 가리키므로,
+// 스테이징에서 받은 토큰이 운영에서 통하면 남의 계정이 열린다(키가 실수로 공유돼도 여기서 막힘).
+const SESSION_AUD = `getusim:${process.env.RAILWAY_ENVIRONMENT_NAME || "local"}`;
+const JWT_VERIFY = { algorithms: ["HS256"], audience: SESSION_AUD };
 
 export type SessionPayload = { uid: number; role: string };
 
@@ -35,13 +38,14 @@ export function sessionCookieOptions() {
 export async function signResetToken(uid: number) {
   return new SignJWT({ uid, purpose: "reset" })
     .setProtectedHeader({ alg: "HS256" })
+    .setAudience(SESSION_AUD)
     .setIssuedAt()
     .setExpirationTime("15m")
     .sign(secret);
 }
 export async function verifyResetToken(token: string): Promise<number | null> {
   try {
-    const { payload } = await jwtVerify(token, secret, JWT_ALG);
+    const { payload } = await jwtVerify(token, secret, JWT_VERIFY);
     if (payload.purpose !== "reset") return null;
     return Number(payload.uid);
   } catch {
@@ -53,6 +57,7 @@ export async function verifyResetToken(token: string): Promise<number | null> {
 export async function signSession(uid: number, role: string) {
   return new SignJWT({ uid, role })
     .setProtectedHeader({ alg: "HS256" })
+    .setAudience(SESSION_AUD)
     .setIssuedAt()
     .setExpirationTime("30d")
     .sign(secret);
@@ -90,7 +95,8 @@ async function readPayload(): Promise<SessionPayload | null> {
   const token = store.get(COOKIE)?.value;
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, secret, JWT_ALG);
+    const { payload } = await jwtVerify(token, secret, JWT_VERIFY);
+    if (payload.purpose) return null; // 비밀번호 재설정 토큰 등은 세션으로 쓰지 못하게
     return { uid: Number(payload.uid), role: String(payload.role) };
   } catch {
     return null;

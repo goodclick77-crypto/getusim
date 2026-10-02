@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, touchLastSeen } from "@/lib/session";
+import { clientIp } from "@/lib/ratelimit";
 import { prisma } from "@/lib/prisma";
 import { fivesim, FiveSimError } from "@/lib/fivesim";
 import { getUsdKrw } from "@/lib/fx";
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ error: "로그인이 필요합니다" }, { status: 401 });
 
     // 세션만으로 발급하는 활동 사용자도 로그인 현황에 잡히도록 접속시각 갱신(스로틀됨)
-    const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+    const ip = clientIp(req);
     await touchLastSeen(user.id, ip);
 
     // maxPoint = 회원 화면에 표시됐던 차감 예정 포인트. 있으면 그 금액을 상한으로 쓴다.
@@ -152,23 +153,34 @@ export async function POST(req: Request) {
       });
     }
 
+    // 동시 요청이 모두 위의 (오래된) 예약 합계를 보고 통과할 수 있으므로,
+    // 회원 단위 잠금 안에서 잔액·예약을 다시 계산한 뒤 저장한다. 초과분은 산 번호를 취소.
     let rental;
     try {
-      rental = await prisma.numberRental.create({
-        data: {
-          userId: user.id,
-          provider: "5sim",
-          fivesimId: String(order.id),
-          country,
-          operator,
-          service,
-          phoneNumber: order.phone,
-          pricePoint,
-          costKrw: Math.round((order.price || 0) * fx),
-          status: "PENDING",
-          // 5sim이 만료시간을 안 주면 15분 후로 기본 설정(이어받기/만료처리 위해 null 금지)
-          expiresAt: order.expires ? new Date(order.expires) : new Date(Date.now() + 15 * 60 * 1000),
-        },
+      rental = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${user.id})`;
+        const fresh = await tx.user.findUnique({ where: { id: user.id }, select: { point: true } });
+        const agg = await tx.numberRental.aggregate({
+          where: { userId: user.id, status: "PENDING", expiresAt: { gt: new Date() } },
+          _sum: { pricePoint: true },
+        });
+        if ((fresh?.point ?? 0) - (agg._sum.pricePoint ?? 0) < pricePoint) return null;
+        return tx.numberRental.create({
+          data: {
+            userId: user.id,
+            provider: "5sim",
+            fivesimId: String(order.id),
+            country,
+            operator,
+            service,
+            phoneNumber: order.phone,
+            pricePoint,
+            costKrw: Math.round((order.price || 0) * fx),
+            status: "PENDING",
+            // 5sim이 만료시간을 안 주면 15분 후로 기본 설정(이어받기/만료처리 위해 null 금지)
+            expiresAt: order.expires ? new Date(order.expires) : new Date(Date.now() + 15 * 60 * 1000),
+          },
+        });
       });
     } catch (e) {
       // DB 저장 실패 → 산 번호를 취소해 원가 손실 방지
@@ -176,6 +188,16 @@ export async function POST(req: Request) {
         await fivesim.cancel(order.id);
       } catch {}
       throw e;
+    }
+    if (!rental) {
+      try {
+        await fivesim.cancel(order.id);
+      } catch {}
+      return NextResponse.json({
+        error: "need",
+        needPoint: pricePoint,
+        message: "진행중인 번호에 포인트가 예약되어 있어 추가 발급할 수 없습니다. 진행중 번호를 먼저 마무리해주세요.",
+      });
     }
 
     await notifyAdmin(

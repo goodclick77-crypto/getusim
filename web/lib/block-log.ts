@@ -1,7 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
 import { prisma } from "./prisma";
-import { rateLimit } from "./ratelimit";
+import { rateLimit, ipFromHeaders } from "./ratelimit";
 
 // 보안 차단 기록(관리자 > 차단 내역). 기록 실패가 본 요청을 깨뜨리면 안 되므로 절대 throw 하지 않는다.
 
@@ -47,7 +47,7 @@ export async function logBlock(e: Entry): Promise<void> {
   try {
     const h = await headers();
     const ip =
-      e.ip ?? ((h.get("x-forwarded-for") || "").split(",")[0].trim() || h.get("x-real-ip") || "");
+      e.ip ?? ipFromHeaders(h);
     // 도배 방지: 같은 IP·같은 사유·같은 대상은 30초에 1건, 전체는 1시간 2,000건까지만 기록
     const who = e.email || e.loginId || String(e.userId ?? "");
     if (e.kind !== "ADMIN") {

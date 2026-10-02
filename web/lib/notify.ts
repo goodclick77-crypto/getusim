@@ -41,7 +41,7 @@ export function mailerProvider(): "resend" | "gmail" | null {
   return null;
 }
 
-let transporter: nodemailer.Transporter | null = null;
+let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
 function gmailTransport() {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;

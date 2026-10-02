@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 type TurnstileApi = {
   render: (el: HTMLElement, opts: Record<string, unknown>) => string;
   remove: (id: string) => void;
+  reset: (id?: string) => void;
 };
 declare global {
   interface Window {

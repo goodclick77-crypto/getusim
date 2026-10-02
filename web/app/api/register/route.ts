@@ -96,7 +96,7 @@ export async function POST(req: Request) {
 
   // 가입=첫 접속. 로그인 폼을 거치지 않으므로 여기서 마지막 접속시각을 기록
   // (안 하면 가입 직후 바로 발급한 회원이 로그인 현황에 안 잡힘)
-  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+  const ip = clientIp(req);
   await touchLastSeen(userId, ip);
 
   const token = await signSession(userId, role);

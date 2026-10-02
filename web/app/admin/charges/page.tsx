@@ -6,12 +6,18 @@ import {
   confirmCharge,
   cancelCharge,
   restoreCharge,
+  refundCardCharge,
+  resolveCardRefund,
   matchDeposit,
   dismissDeposit,
   deleteDeposit,
 } from "../actions";
 import { normDepositName } from "@/lib/config";
+import { cardRefundOf, cardRefundPlan } from "@/lib/charge";
+import { pendingRefundOf } from "@/lib/card-refund";
 import ConfirmButton from "@/components/ConfirmButton";
+import { getPaymentProvider } from "@/lib/payments";
+import CardRefundForm from "./CardRefundForm";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +39,22 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELED: "취소",
 };
 
+/** 카드 충전 환불 결과 안내 (refundCardCharge 가 ?refund= 로 넘긴다) */
+const REFUND_MSG: Record<string, { ok: boolean; text: string }> = {
+  ok: { ok: true, text: "카드 결제를 취소하고 충전 포인트를 회수했습니다." },
+  insufficient: { ok: false, text: "회원의 보유 포인트가 없어 환불할 금액이 없습니다." },
+  rental: {
+    ok: false,
+    text: "회원에게 문자를 기다리는 번호가 있어 환불하지 않았습니다(환불하면 그 번호를 무료로 받게 됨). 몇 분 뒤 다시 시도해 주세요.",
+  },
+  pg_unknown: {
+    ok: false,
+    text: "결제사 응답을 받지 못해 취소 여부를 알 수 없습니다. 아래 '환불 확인 필요'에서 결제사 관리자 확인 후 정리해 주세요.",
+  },
+  pg_fail: { ok: false, text: "결제사 취소에 실패해 포인트와 주문을 원래대로 되돌렸습니다. 잠시 후 다시 시도하거나 결제사 관리자에서 확인해 주세요." },
+  invalid: { ok: false, text: "환불할 수 없는 건입니다(이미 처리됐거나 카드 충전완료 건이 아님)." },
+};
+
 const PER = 60;
 /** 미매칭 입금에 수동 연결할 주문 후보를 찾는 기간(일).
  * 금액만으로 후보를 잡으므로 기간이 길수록 남의 주문이 대거 섞여 오선택 위험이 커진다.
@@ -42,7 +64,16 @@ const DEPOSIT_MATCH_WINDOW_DAYS = 7;
 export default async function AdminChargesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; page?: string; from?: string; to?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    q?: string;
+    page?: string;
+    from?: string;
+    to?: string;
+    refund?: string;
+    rp?: string;
+    ra?: string;
+  }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
@@ -51,6 +82,15 @@ export default async function AdminChargesPage({
   const from = (sp.from || "").trim();
   const to = (sp.to || "").trim();
   const page = Math.max(1, Number(sp.page) || 1);
+  const refundMsg =
+    sp.refund === "partial"
+      ? {
+          ok: true,
+          text: `남은 포인트 ${pt(Number(sp.rp) || 0)}를 회수하고 카드 결제 ${won(Number(sp.ra) || 0)}을 부분 취소했습니다.`,
+        }
+      : sp.refund
+        ? REFUND_MSG[sp.refund]
+        : undefined;
   const createdAt = dateRange(from, to);
   const carry = `${q ? `&q=${encodeURIComponent(q)}` : ""}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`;
 
@@ -73,12 +113,23 @@ export default async function AdminChargesPage({
 
   const since = new Date(Date.now() - DEPOSIT_MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
+  // 결제사 응답이 불명확해 확인을 기다리는 카드 환불(탭·검색과 무관하게 항상 표시)
+  const pendingIds = await prisma.$queryRaw<{ id: number }[]>`
+    SELECT id FROM charge_order WHERE legacy_data ? 'refundPending' ORDER BY id DESC LIMIT 50`;
+  const pendingRefunds = pendingIds.length
+    ? await prisma.chargeOrder.findMany({
+        where: { id: { in: pendingIds.map((r) => r.id) } },
+        include: { user: { select: { loginId: true, name: true } } },
+        orderBy: { id: "desc" },
+      })
+    : [];
+
   const [orders, count, unmatchedDeposits, recentMatched, unmatchedCount, matchCandidates] =
     await Promise.all([
     prisma.chargeOrder.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      include: { user: { select: { loginId: true, name: true } } },
+      include: { user: { select: { loginId: true, name: true, point: true } } },
       skip: (page - 1) * PER,
       take: PER,
     }),
@@ -161,6 +212,66 @@ export default async function AdminChargesPage({
           ← 관리자 홈
         </Link>
       </div>
+
+      {refundMsg && (
+        <p
+          className={`rounded-xl px-4 py-3 text-sm ${
+            refundMsg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
+          }`}
+        >
+          {refundMsg.text}
+        </p>
+      )}
+
+      {pendingRefunds.length > 0 && (
+        <section className="rounded-2xl border border-red-200 bg-red-50/60 p-4">
+          <h2 className="flex items-center gap-1.5 text-sm font-bold text-red-600">
+            <i className="fa-solid fa-triangle-exclamation" aria-hidden /> 환불 확인 필요 {pendingRefunds.length}건
+          </h2>
+          <p className="mt-1 text-xs text-zinc-600">
+            카드 취소 요청의 결과를 받지 못했습니다(포인트는 회수된 상태). 결제사 관리자에서 해당 거래가 취소됐는지 확인한
+            뒤 정리해 주세요.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {pendingRefunds.map((o) => {
+              const p = pendingRefundOf(o.legacyData)!;
+              return (
+                <li key={o.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-num">
+                      <b>{o.user.name || o.user.loginId}</b> · 충전 #{o.id} · 취소 요청{" "}
+                      <b className="text-red-600">{won(p.amount)}</b> ({pt(p.point)} 회수됨)
+                    </p>
+                    <p className="font-num truncate text-xs text-zinc-400">
+                      거래번호 {o.pgTno} · {ymdhm(new Date(p.at))}
+                    </p>
+                  </div>
+                  <form action={resolveCardRefund}>
+                    <input type="hidden" name="id" value={o.id} />
+                    <input type="hidden" name="canceled" value="1" />
+                    <ConfirmButton
+                      message={`결제사 관리자에서 ${won(p.amount)} 취소가 확인됐나요? 확인됨으로 정리합니다(포인트는 회수된 상태 유지).`}
+                      className="whitespace-nowrap rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
+                    >
+                      취소 확인됨
+                    </ConfirmButton>
+                  </form>
+                  <form action={resolveCardRefund}>
+                    <input type="hidden" name="id" value={o.id} />
+                    <input type="hidden" name="canceled" value="0" />
+                    <ConfirmButton
+                      message={`결제사에서 취소되지 않은 게 확실한가요? 회수한 ${pt(p.point)}를 회원에게 되돌리고 환불 기록을 지웁니다.`}
+                      className="whitespace-nowrap rounded-lg border border-black/10 px-2.5 py-1 text-xs text-zinc-600 hover:bg-black/5"
+                    >
+                      취소 안 됨 · 포인트 복구
+                    </ConfirmButton>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <form action="/admin/charges" method="GET" className="space-y-2">
         <input type="hidden" name="status" value={status} />
@@ -396,6 +507,48 @@ export default async function AdminChargesPage({
   );
 }
 
+/** 카드 충전완료 건: 부분환불 내역 + 환불 버튼(남은 충전분과 회원 보유 포인트 중 작은 만큼) */
+function CardRefund({
+  o,
+}: {
+  o: {
+    id: number;
+    amount: number;
+    chargePoint: number;
+    legacyData: unknown;
+    user: { loginId: string; point?: number };
+  };
+}) {
+  const done = cardRefundOf(o.legacyData);
+  const plan = cardRefundPlan(o, o.user.point ?? 0);
+  return (
+    <>
+      {done.amount > 0 && (
+        <span className="font-num whitespace-nowrap text-[11px] text-red-500">카드취소 {won(done.amount)}</span>
+      )}
+      {plan.point > 0 ? (
+        <CardRefundForm
+          action={refundCardCharge}
+          id={o.id}
+          loginId={o.user.loginId}
+          max={plan.point}
+          chargePoint={o.chargePoint}
+          amount={o.amount}
+          prevPoint={done.point}
+          prevAmount={done.amount}
+        />
+      ) : (
+        <span className="text-right text-[11px] leading-tight text-zinc-400">환불 가능 포인트 없음</span>
+      )}
+    </>
+  );
+}
+
+/** 관리자 환불(refundCardCharge)로 취소된 카드 건인지 — 충전 실패로 자동취소된 건과 구분 */
+function isRefunded(data: unknown): boolean {
+  return !!data && typeof data === "object" && "refundedAt" in data;
+}
+
 function DateGroup({
   date,
   list,
@@ -409,9 +562,12 @@ function DateGroup({
     method: string;
     status: string;
     autoConfirmed: boolean;
+    charged: boolean;
+    pg: string;
+    legacyData: unknown;
     createdAt: Date;
     userId: number;
-    user: { loginId: string; name: string };
+    user: { loginId: string; name: string; point?: number };
   }[];
 }) {
   const dayTotal = list.reduce((a, o) => a + o.amount, 0);
@@ -438,7 +594,8 @@ function DateGroup({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-base font-bold">
-                    {o.method === "CARD" && !o.depositName ? "카드결제" : o.depositName || "(입금자명 없음)"}
+                    {/* 카드 결제는 입금자명이 없다 → 회원 이름(결제 방식은 오른쪽 "카드" 배지) */}
+                    {o.method === "CARD" ? o.user.name || o.user.loginId : o.depositName || "(입금자명 없음)"}
                   </span>
                   {pending && (
                     <span className="shrink-0 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
@@ -454,7 +611,8 @@ function DateGroup({
                     {o.user.loginId}
                   </Link>
                   {/* 입금자명이 회원 이름과 다르면 타인 명의 입금일 수 있어 그때만 덧붙인다 */}
-                  {o.user.name &&
+                  {o.method !== "CARD" &&
+                    o.user.name &&
                     normDepositName(o.user.name) !== normDepositName(o.depositName) && (
                       <span className="text-zinc-500"> (회원명 {o.user.name})</span>
                     )}{" "}
@@ -513,9 +671,15 @@ function DateGroup({
                       {STATUS_LABEL[o.status]}
                     </span>
                     {o.method === "CARD" ? (
-                      <span className="flex items-center gap-1 whitespace-nowrap rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">
-                        <i className="fa-solid fa-credit-card" aria-hidden /> 카드
-                      </span>
+                      <>
+                        <span className="flex items-center gap-1 whitespace-nowrap rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">
+                          <i className="fa-solid fa-credit-card" aria-hidden />{" "}
+                          {o.status === "CANCELED" && isRefunded(o.legacyData) ? "카드취소 환불" : "카드"}
+                        </span>
+                        {o.status === "COMPLETED" && o.charged && o.pg === getPaymentProvider().name && (
+                          <CardRefund o={o} />
+                        )}
+                      </>
                     ) : o.autoConfirmed ? (
                       <span className="flex items-center gap-1 whitespace-nowrap rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-700">
                         <i className="fa-solid fa-bolt" aria-hidden /> 자동

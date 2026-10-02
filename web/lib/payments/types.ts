@@ -85,6 +85,17 @@ export class PaymentNotConfiguredError extends Error {
   }
 }
 
+/**
+ * 결제사가 요청을 받고 "처리하지 않음"을 명확히 응답한 경우(실패 코드). 이 에러면 취소·승인이 일어나지 않은 게 확실하다.
+ * 그 밖의 에러(네트워크 끊김·응답 이상)는 결제사 쪽에서 실제로 처리됐을 수도 있어 결과를 알 수 없다.
+ */
+export class PaymentDeclinedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PaymentDeclinedError";
+  }
+}
+
 /** 결제창을 띄우는 데 필요한 공개 설정(브라우저로 내려감). 비밀키는 절대 넣지 않는다. */
 export type PaymentWindowConfig =
   | { provider: "mock" }

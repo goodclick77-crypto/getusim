@@ -1,5 +1,6 @@
 import "server-only";
 import {
+  PaymentDeclinedError,
   PaymentNotConfiguredError,
   type ApproveResult,
   type BillingKeyResult,
@@ -164,7 +165,8 @@ export class PayplePaymentProvider implements PaymentProvider {
       PCD_PAYCANCEL_FLAG: "Y",
     });
     if (auth.result !== "success" || !auth.AuthKey) {
-      throw new Error(`[pay:payple] 취소 인증 실패 ${auth.result_msg || ""}`);
+      // 취소 요청 전 단계 — 취소는 일어나지 않았다
+      throw new PaymentDeclinedError(`[pay:payple] 취소 인증 실패 ${auth.result_msg || ""}`);
     }
 
     // 2) 승인취소
@@ -179,8 +181,13 @@ export class PayplePaymentProvider implements PaymentProvider {
       PCD_PAY_DATE: tx.date,
       PCD_REFUND_TOTAL: String(amount),
     });
+    if (r.PCD_PAY_CODE && r.PCD_PAY_CODE !== "PAYC0000") {
+      // 결제사가 실패 코드로 응답 → 취소되지 않은 게 확실
+      throw new PaymentDeclinedError(`[pay:payple] 취소 실패 ${r.PCD_PAY_CODE || ""} ${r.PCD_PAY_MSG || ""} (${p.reason})`);
+    }
     if (r.PCD_PAY_CODE !== "PAYC0000") {
-      throw new Error(`[pay:payple] 취소 실패 ${r.PCD_PAY_CODE || ""} ${r.PCD_PAY_MSG || ""} (${p.reason})`);
+      // 응답에 결과 코드가 없다 → 취소 여부를 알 수 없음(일반 에러로 던져 호출부가 확인 필요로 처리)
+      throw new Error(`[pay:payple] 취소 응답에 결과 코드 없음 ${JSON.stringify(r)} (${p.reason})`);
     }
     return { canceledAt: new Date(), raw: r };
   }

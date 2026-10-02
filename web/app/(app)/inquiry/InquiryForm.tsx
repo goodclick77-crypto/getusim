@@ -14,10 +14,16 @@ const CATS = [
 export default function InquiryForm({
   currentPoint,
   refundWon,
+  cardWon,
+  bankWon,
   siteKey,
 }: {
   currentPoint: number;
   refundWon: number;
+  /** 카드 결제 취소로 돌려받을 금액(카드로 충전한 포인트분) */
+  cardWon: number;
+  /** 계좌로 받을 금액(그 외 포인트분) */
+  bankWon: number;
   siteKey: string | null;
 }) {
   const [category, setCategory] = useState<"USAGE" | "REFUND" | "OTHER">("USAGE");
@@ -71,19 +77,36 @@ export default function InquiryForm({
                   환불 금액 {refundWon.toLocaleString("ko-KR")}원{" "}
                   <span className="text-xs font-normal text-zinc-500">(부가세 포함)</span>
                 </p>
+                {cardWon > 0 && (
+                  <ul className="font-num mt-2 space-y-0.5 text-xs text-zinc-600">
+                    <li className="text-violet-700">
+                      · 카드취소 환불 <b>{cardWon.toLocaleString("ko-KR")}원</b>{" "}
+                      <span className="text-zinc-500">— 카드로 충전한 금액은 결제한 카드로 취소해 드립니다.</span>
+                    </li>
+                    {bankWon > 0 && (
+                      <li className="text-amber-700">
+                        · 포인트 환불 <b>{bankWon.toLocaleString("ko-KR")}원</b>{" "}
+                        <span className="text-zinc-500">— 입력하신 계좌로 입금해 드립니다.</span>
+                      </li>
+                    )}
+                  </ul>
+                )}
                 <p className="mt-1 text-xs text-zinc-500">
                   환불은 <b>보유 포인트 전액</b>으로만 신청됩니다. 승인되면 위 포인트가
-                  차감되고 환불 금액이 입금됩니다.
+                  차감되고 환불 금액이 {bankWon > 0 ? "입금" : "카드 결제 취소로 환불"}됩니다.
                 </p>
               </div>
-              <textarea
-                name="refundInfo"
-                required
-                rows={3}
-                placeholder="환불 받을 계좌 (은행 / 계좌번호 / 예금주) 와 연락처를 적어주세요"
-                aria-label="환불 정보"
-                className="w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 outline-none focus:border-emerald-500"
-              />
+              {/* 계좌 정보는 계좌로 받을 몫이 있을 때만 */}
+              {bankWon > 0 && (
+                <textarea
+                  name="refundInfo"
+                  required
+                  rows={3}
+                  placeholder="환불 받을 계좌 (은행 / 계좌번호 / 예금주) 와 연락처를 적어주세요"
+                  aria-label="환불 정보"
+                  className="w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 outline-none focus:border-emerald-500"
+                />
+              )}
             </>
           ) : (
             <p className="rounded-lg bg-white px-3.5 py-3 text-sm text-zinc-500">

@@ -73,14 +73,18 @@ export function rateLimitLocal(key: string, limit: number, windowMs: number): bo
 }
 
 /** 헤더에서 클라이언트 IP 추출.
- *  X-Forwarded-For 의 왼쪽 값은 클라이언트가 마음대로 넣을 수 있어(속도제한 우회) 쓰지 않는다.
- *  Railway 엣지 프록시가 맨 뒤에 붙이는 값(신뢰 프록시 1홉)만 사용. */
+ *  Railway 는 X-Forwarded-For 끝에 "<실제 클라이언트 IP>, <Railway 엣지 IP(152.233.x.x 등)>" 를 붙인다.
+ *    · 맨 왼쪽 값은 클라이언트가 마음대로 넣을 수 있어(속도제한 우회) 쓰면 안 되고,
+ *    · 맨 끝은 엣지 서버 IP 라 전 회원이 몇 개 카운터를 나눠 쓰게 된다(2026-10 운영에서 확인).
+ *  → 끝에서 두 번째(엣지가 붙인 실제 클라이언트 IP)를 쓴다. */
+const TRUSTED_PROXY_HOPS = 1;
 export function ipFromHeaders(h: Headers): string {
   const parts = (h.get("x-forwarded-for") || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  return parts[parts.length - 1] || h.get("x-real-ip") || "unknown";
+  const i = Math.max(0, parts.length - 1 - TRUSTED_PROXY_HOPS);
+  return parts[i] || h.get("x-real-ip") || "unknown";
 }
 
 /** 요청에서 클라이언트 IP 추출 */

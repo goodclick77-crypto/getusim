@@ -23,13 +23,20 @@ export default function EmailVerifyField({
       setMsg({ ok: false, text: "이메일을 정확히 입력해주세요." });
       return;
     }
+    // 같은 폼의 보안문자 토큰을 함께 보낸다(1회용 → 발송 후 위젯을 리셋해 가입 제출용 새 토큰을 받게 함)
+    const form = emailRef.current.form;
+    const captchaEl = form?.elements.namedItem("cf-turnstile-response") as HTMLInputElement | null;
+    if (captchaEl && !captchaEl.value) {
+      setMsg({ ok: false, text: "아래 보안문자 확인이 끝난 뒤 다시 눌러주세요." });
+      return;
+    }
     setSending(true);
     setMsg(null);
     try {
       const res = await fetch("/api/register/send-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, captcha: captchaEl?.value || "" }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (data.ok) {
@@ -41,6 +48,7 @@ export default function EmailVerifyField({
     } catch {
       setMsg({ ok: false, text: "발송에 실패했습니다. 잠시 후 다시 시도해주세요." });
     } finally {
+      if (captchaEl) window.turnstile?.reset();
       setSending(false);
     }
   }

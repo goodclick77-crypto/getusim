@@ -23,8 +23,18 @@ export function rateLimit(key: string, limit: number, windowMs: number): boolean
   return arr.length <= limit;
 }
 
+/** 헤더에서 클라이언트 IP 추출.
+ *  X-Forwarded-For 의 왼쪽 값은 클라이언트가 마음대로 넣을 수 있어(속도제한 우회) 쓰지 않는다.
+ *  Railway 엣지 프록시가 맨 뒤에 붙이는 값(신뢰 프록시 1홉)만 사용. */
+export function ipFromHeaders(h: Headers): string {
+  const parts = (h.get("x-forwarded-for") || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return parts[parts.length - 1] || h.get("x-real-ip") || "unknown";
+}
+
 /** 요청에서 클라이언트 IP 추출 */
 export function clientIp(req: Request): string {
-  const xff = req.headers.get("x-forwarded-for") || "";
-  return xff.split(",")[0].trim() || req.headers.get("x-real-ip") || "unknown";
+  return ipFromHeaders(req.headers);
 }

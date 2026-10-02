@@ -52,6 +52,19 @@ function isBlockedDomain(domain: string): boolean {
   return false;
 }
 
+/** 같은 수신함으로 가는 주소를 하나로 모은 키(발송 속도제한용).
+ *  user+1@ / user+2@ 처럼 접미사만 바꿔 1분 1회 제한을 피하는 것 방지. Gmail 은 로컬파트의 점도 무시. */
+export function canonicalEmail(email: string): string {
+  const e = norm(email);
+  const at = e.lastIndexOf("@");
+  if (at < 0) return e;
+  let local = e.slice(0, at).split("+")[0];
+  let domain = e.slice(at + 1);
+  if (domain === "googlemail.com") domain = "gmail.com";
+  if (domain === "gmail.com") local = local.replace(/\./g, "");
+  return `${local}@${domain}`;
+}
+
 /** 가입에 쓸 수 없는 이메일이면 사유 문자열, 괜찮으면 null. */
 export function emailProblem(email: string): string | null {
   const e = norm(email);

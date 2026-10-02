@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || user.leftAt || user.role !== "ADMIN") return redirectTo("/login?error=expired");
 
-  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+  const ip = clientIp(req);
   const ua = (req.headers.get("user-agent") || "").slice(0, 200);
   return finishLogin(user, ip, ua);
 }

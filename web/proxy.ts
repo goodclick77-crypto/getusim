@@ -9,6 +9,7 @@ import { jwtVerify } from "jose";
 
 const SESSION_COOKIE = "getusim_session"; // lib/session.ts 와 동일 (server-only 라 직접 import 불가)
 
+const SESSION_AUD = `getusim:${process.env.RAILWAY_ENVIRONMENT_NAME || "local"}`; // lib/session.ts 와 동일
 const secret = process.env.AUTH_SECRET
   ? new TextEncoder().encode(process.env.AUTH_SECRET)
   : null;
@@ -41,6 +42,7 @@ async function isAdmin(req: NextRequest): Promise<boolean> {
   try {
     const { payload } = await jwtVerify(token, secret, {
       algorithms: ["HS256"],
+      audience: SESSION_AUD,
     });
     return String(payload.role) === "ADMIN";
   } catch {

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { sendMail } from "@/lib/notify";
-import { emailProblem, emailVerifyEnabled, issueCode } from "@/lib/email-verify";
+import { canonicalEmail, emailProblem, emailVerifyEnabled, issueCode } from "@/lib/email-verify";
+import { verifyTurnstile } from "@/lib/turnstile";
 import { logBlock } from "@/lib/block-log";
 
 // 회원가입 이메일 인증번호 발송. 응답: { ok: true } 또는 { ok: false, error }
@@ -23,11 +24,18 @@ export async function POST(req: Request) {
   }
 
   let email = "";
+  const captcha = new FormData();
   try {
-    const body = (await req.json()) as { email?: unknown };
+    const body = (await req.json()) as { email?: unknown; captcha?: unknown };
     email = String(body.email || "").trim();
+    captcha.set("cf-turnstile-response", String(body.captcha || ""));
   } catch {
     return fail("잘못된 요청입니다.");
+  }
+  // 가입·로그인과 같은 보안문자 — 없으면 봇이 남의 메일함으로 인증메일을 대량 발송할 수 있다
+  if (!(await verifyTurnstile(captcha, ip))) {
+    await logBlock({ kind: "SEND_CODE", reason: "CAPTCHA", detail: "보안문자 실패", email });
+    return fail("보안문자 확인 후 다시 눌러주세요.");
   }
   const problem = emailProblem(email);
   if (problem) {
@@ -40,7 +48,7 @@ export async function POST(req: Request) {
     return fail(problem);
   }
 
-  if (!rateLimit(`send-code:email:${email.toLowerCase()}`, 1, 60 * 1000)) {
+  if (!rateLimit(`send-code:email:${canonicalEmail(email)}`, 1, 60 * 1000)) {
     return fail("인증번호는 1분에 한 번 받을 수 있습니다.", 429);
   }
 

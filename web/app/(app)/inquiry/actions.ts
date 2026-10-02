@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { notifyAdmin } from "@/lib/notify";
 import { headers } from "next/headers";
-import { rateLimit } from "@/lib/ratelimit";
+import { rateLimit, ipFromHeaders } from "@/lib/ratelimit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { isHoneypotHit } from "@/lib/honeypot";
 import { logBlock } from "@/lib/block-log";
@@ -53,7 +53,7 @@ export async function createInquiry(formData: FormData) {
     redirect("/inquiry?error=rate");
   }
 
-  const ip = ((await headers()).get("x-forwarded-for") || "").split(",")[0].trim();
+  const ip = ipFromHeaders(await headers());
   if (!(await verifyTurnstile(formData, ip))) {
     await logBlock({ kind: "INQUIRY", reason: "CAPTCHA", ...who });
     redirect("/inquiry?error=captcha");

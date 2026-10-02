@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     return redirectTo(`/login?error=locked&m=${locked}${keep}`);
   }
 
-  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+  const ip = clientIp(req);
   const ua = (req.headers.get("user-agent") || "").slice(0, 200);
 
   const user = await authenticate(loginId, password);

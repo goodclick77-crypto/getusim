@@ -11,7 +11,7 @@ function redirectTo(path: string) {
 
 // 관리자 2단계: 이메일 인증번호 확인 후 로그인 완료
 export async function POST(req: Request) {
-  if (!rateLimit(`login-verify:${clientIp(req)}`, 10, 5 * 60 * 1000)) {
+  if (!(await rateLimit(`login-verify:${clientIp(req)}`, 10, 5 * 60 * 1000))) {
     await logBlock({ kind: "ADMIN_2FA", reason: "RATE_LIMIT", detail: "IP당 5분 10회 초과" });
     return redirectTo("/login?error=rate");
   }

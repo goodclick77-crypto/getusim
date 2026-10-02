@@ -12,7 +12,7 @@ function redirectTo(path: string) {
 // 본인확인: 아이디 + 이메일 일치 시, 등록된 이메일로 재설정 링크 발송.
 // (정보만 맞으면 즉시 링크 노출하던 방식 → 이메일 소유 증명 방식으로 변경)
 export async function POST(req: Request) {
-  if (!rateLimit(`findpw:${clientIp(req)}`, 5, 10 * 60 * 1000)) {
+  if (!(await rateLimit(`findpw:${clientIp(req)}`, 5, 10 * 60 * 1000))) {
     await logBlock({ kind: "FIND_PW", reason: "RATE_LIMIT", detail: "IP당 10분 5회 초과" });
     return redirectTo("/find-password?error=rate");
   }
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
   // 계정 존재 여부를 노출하지 않기 위해, 일치 여부와 무관하게 동일한 응답을 반환한다.
   // 같은 이메일로는 10분에 1통(IP를 바꿔가며 메일 폭탄 방지). 응답은 동일하게 유지.
-  if (user && user.email && rateLimit(`findpw:email:${email.toLowerCase()}`, 1, 10 * 60 * 1000)) {
+  if (user && user.email && (await rateLimit(`findpw:email:${email.toLowerCase()}`, 1, 10 * 60 * 1000))) {
     try {
       const token = await signResetToken(user.id);
       // Railway 프록시 뒤에서도 공개 도메인으로 링크 생성

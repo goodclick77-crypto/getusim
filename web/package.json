@@ -43,6 +43,7 @@
     "typescript": "^5"
   },
   "overrides": {
-    "postcss": "^8.5.18"
+    "postcss": "^8.5.18",
+    "deepmerge-ts": "^8.0.2"
   }
 }

@@ -10,7 +10,7 @@ function redirectTo(path: string) {
 
 // 이메일로 가입된 아이디를 그 이메일로 발송. (계정 존재 노출 방지: 항상 동일 응답)
 export async function POST(req: Request) {
-  if (!rateLimit(`findid:${clientIp(req)}`, 5, 10 * 60 * 1000)) {
+  if (!(await rateLimit(`findid:${clientIp(req)}`, 5, 10 * 60 * 1000))) {
     await logBlock({ kind: "FIND_ID", reason: "RATE_LIMIT", detail: "IP당 10분 5회 초과" });
     return redirectTo("/find-id?error=rate");
   }
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   });
 
   // 같은 이메일로는 10분에 1통(IP를 바꿔가며 메일 폭탄 방지). 응답은 동일하게 유지.
-  if (users.length > 0 && rateLimit(`findid:email:${email.toLowerCase()}`, 1, 10 * 60 * 1000)) {
+  if (users.length > 0 && (await rateLimit(`findid:email:${email.toLowerCase()}`, 1, 10 * 60 * 1000))) {
     try {
       const list = users
         .map(

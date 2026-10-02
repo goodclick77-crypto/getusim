@@ -40,8 +40,8 @@ export async function createInquiry(formData: FormData) {
   if (content.length > CONTENT_MAX) redirect("/inquiry?error=long");
 
   // 도배 방지: 계정당 10분에 5건, 하루 20건
-  const okShort = rateLimit(`inquiry:${user.id}`, 5, 10 * 60 * 1000);
-  const okDay = rateLimit(`inquiry-day:${user.id}`, 20, 24 * 60 * 60 * 1000);
+  const okShort = await rateLimit(`inquiry:${user.id}`, 5, 10 * 60 * 1000);
+  const okDay = await rateLimit(`inquiry-day:${user.id}`, 20, 24 * 60 * 60 * 1000);
   const who = { loginId: user.loginId, userId: user.id };
   if (!okShort || !okDay) {
     await logBlock({

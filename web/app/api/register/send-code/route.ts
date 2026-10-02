@@ -13,11 +13,11 @@ export async function POST(req: Request) {
 
   const ip = clientIp(req);
   // IP당 10분 5회 / 이메일당 1분 1회 / 전체 1시간 300회(봇이 IP를 바꿔가며 메일 한도를 소진하는 것 방지)
-  if (!rateLimit(`send-code:ip:${ip}`, 5, 10 * 60 * 1000)) {
+  if (!(await rateLimit(`send-code:ip:${ip}`, 5, 10 * 60 * 1000))) {
     await logBlock({ kind: "SEND_CODE", reason: "RATE_LIMIT", detail: "IP당 10분 5회 초과" });
     return fail("요청이 너무 많습니다. 잠시 후 다시 시도해주세요.", 429);
   }
-  if (!rateLimit("send-code:all", 300, 60 * 60 * 1000)) {
+  if (!(await rateLimit("send-code:all", 300, 60 * 60 * 1000))) {
     console.warn(`[send-code] global cap hit ip=${ip}`);
     await logBlock({ kind: "SEND_CODE", reason: "RATE_LIMIT", detail: "사이트 전체 1시간 300회 초과(대량 발송 의심)" });
     return fail("요청이 많아 잠시 발송이 제한되었습니다. 잠시 후 다시 시도해주세요.", 429);
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     return fail(problem);
   }
 
-  if (!rateLimit(`send-code:email:${canonicalEmail(email)}`, 1, 60 * 1000)) {
+  if (!(await rateLimit(`send-code:email:${canonicalEmail(email)}`, 1, 60 * 1000))) {
     return fail("인증번호는 1분에 한 번 받을 수 있습니다.", 429);
   }
 

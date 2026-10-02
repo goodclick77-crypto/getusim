@@ -22,7 +22,7 @@ function setCookieAndGo(token: string, path: string) {
 
 export async function POST(req: Request) {
   // 가입 스팸 제한: IP당 10분에 5회
-  if (!rateLimit(`register:${clientIp(req)}`, 5, 10 * 60 * 1000)) {
+  if (!(await rateLimit(`register:${clientIp(req)}`, 5, 10 * 60 * 1000))) {
     await logBlock({ kind: "SIGNUP", reason: "RATE_LIMIT", detail: "IP당 10분 5회 초과" });
     return redirectTo(
       `/register?error=${encodeURIComponent("가입 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.")}`,

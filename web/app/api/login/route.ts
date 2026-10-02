@@ -15,7 +15,7 @@ function redirectTo(path: string) {
 
 export async function POST(req: Request) {
   // 무차별 로그인 시도 제한: IP당 5분에 10회
-  if (!rateLimit(`login:${clientIp(req)}`, 10, 5 * 60 * 1000)) {
+  if (!(await rateLimit(`login:${clientIp(req)}`, 10, 5 * 60 * 1000))) {
     await logBlock({ kind: "LOGIN", reason: "RATE_LIMIT", detail: "IP당 5분 10회 초과(무차별 대입 의심)" });
     return redirectTo("/login?error=rate");
   }
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     const target = await prisma.user
       .findUnique({ where: { loginId }, select: { role: true } })
       .catch(() => null);
-    if (target?.role === "ADMIN" && rateLimit(`admin-fail-mail:${loginId}`, 1, 10 * 60 * 1000)) {
+    if (target?.role === "ADMIN" && (await rateLimit(`admin-fail-mail:${loginId}`, 1, 10 * 60 * 1000))) {
       await notifySecurity(
         `관리자 계정 로그인 실패 (${loginId})`,
         `관리자 아이디로 로그인 실패가 발생했습니다.

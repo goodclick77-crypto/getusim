@@ -34,8 +34,8 @@ export async function createChargeRequest(formData: FormData) {
   if (depositName.length > DEPOSIT_NAME_MAX) redirect("/charge?error=depositLong");
 
   // 신청 도배 방지: 계정당 10분에 5건, 하루 20건
-  const okShort = rateLimit(`charge:${user.id}`, 5, 10 * 60 * 1000);
-  const okDay = rateLimit(`charge-day:${user.id}`, 20, 24 * 60 * 60 * 1000);
+  const okShort = await rateLimit(`charge:${user.id}`, 5, 10 * 60 * 1000);
+  const okDay = await rateLimit(`charge-day:${user.id}`, 20, 24 * 60 * 60 * 1000);
   if (!okShort || !okDay) {
     await logBlock({
       kind: "CHARGE",

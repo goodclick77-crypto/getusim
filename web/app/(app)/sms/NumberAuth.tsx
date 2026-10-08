@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { isCodeAlertMuted, playCodeAlert, setCodeAlertMuted, unlockCodeAlert } from "@/lib/code-alert";
 import { COUNTRIES, SERVICES, SMS_BASE_POINT } from "@/lib/config";
 import { phoneFmt } from "@/lib/format";
 import ImageSelect from "@/components/ImageSelect";
@@ -257,6 +258,21 @@ export default function NumberAuth({ initialPoint }: Props) {
   const [favs, setFavs] = useState<Set<string>>(new Set()); // `${kind}:${value}`
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const pollGenRef = useRef(0); // 폴링 세대 토큰(동시 폴링 방지)
+  const [alertOn, setAlertOn] = useState(true); // 코드 도착 알림음(기기별 저장)
+
+  useEffect(() => {
+    setAlertOn(!isCodeAlertMuted());
+    // 새로고침 후 대기 이어받기처럼 "번호 받기"를 안 누른 경우에도, 화면을 한 번 누르면 소리가 나도록 오디오를 깨운다
+    document.addEventListener("pointerdown", unlockCodeAlert, { once: true });
+    return () => document.removeEventListener("pointerdown", unlockCodeAlert);
+  }, []);
+
+  function toggleAlert() {
+    const next = !alertOn;
+    setAlertOn(next);
+    setCodeAlertMuted(!next);
+    if (next) playCodeAlert(true); // 켤 때 한 번 들려준다(이 클릭이 오디오도 깨운다)
+  }
 
   // 즐겨찾기 로드 (회원별)
   useEffect(() => {
@@ -398,6 +414,7 @@ export default function NumberAuth({ initialPoint }: Props) {
 
   async function getNumber() {
     if (running) return;
+    unlockCodeAlert(); // 클릭 안에서 오디오를 깨워 둬야 나중에 코드가 오면 소리가 난다
     pollGenRef.current++; // 진행 중 폴링(이어받기 등) 취소
     setCode("");
     setPhone("");
@@ -513,6 +530,7 @@ export default function NumberAuth({ initialPoint }: Props) {
           const j = await res.json();
           if (j.received && j.code) {
             setCode(j.code);
+            playCodeAlert();
             setStatus("인증코드 수신 완료");
             if (typeof j.balanceAfter === "number") setPoint(Math.max(0, j.balanceAfter));
             else setPoint((p) => Math.max(0, p - charged));
@@ -535,6 +553,7 @@ export default function NumberAuth({ initialPoint }: Props) {
         if (pollGenRef.current !== myGen) return;
         if (j.code) {
           setCode(j.code);
+          playCodeAlert();
           setStatus("인증코드 수신 완료");
           if (typeof j.balanceAfter === "number") setPoint(Math.max(0, j.balanceAfter));
           else setPoint((p) => Math.max(0, p - charged));
@@ -563,6 +582,7 @@ export default function NumberAuth({ initialPoint }: Props) {
       const j = await res.json();
       if (j.received && j.code) {
         setCode(j.code);
+        playCodeAlert();
         setStatus("인증코드 수신 완료");
         if (typeof j.balanceAfter === "number") setPoint(Math.max(0, j.balanceAfter));
         setRemain(null);
@@ -734,6 +754,18 @@ export default function NumberAuth({ initialPoint }: Props) {
                 밴넘버
               </button>
             )}
+            <button
+              type="button"
+              onClick={toggleAlert}
+              aria-pressed={alertOn}
+              title={alertOn ? "코드 도착 알림음 끄기" : "코드 도착 알림음 켜기"}
+              className={`ml-auto inline-flex items-center gap-1.5 self-center rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+                alertOn ? "text-emerald-700 hover:bg-emerald-50" : "text-zinc-400 hover:bg-black/[0.03]"
+              }`}
+            >
+              <i className={`fa-solid ${alertOn ? "fa-volume-high" : "fa-volume-xmark"}`} aria-hidden />
+              알림음 {alertOn ? "켜짐" : "꺼짐"}
+            </button>
           </div>
         </div>
 

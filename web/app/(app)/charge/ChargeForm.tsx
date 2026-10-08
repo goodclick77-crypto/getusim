@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import PaymentWindow from "@/components/PaymentWindow";
-import PaypleWindow from "@/components/PaypleWindow";
+import PaypleWindow, { preloadPayple } from "@/components/PaypleWindow";
 import type { PaymentWindowConfig } from "@/lib/payments/types";
 
 type Method = "CARD" | "BANK";
@@ -64,6 +64,11 @@ export default function ChargeForm({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const amount = Math.round(point * feeRate);
+  const payple = cardAvailable && windowConfig.provider === "payple" ? windowConfig.scriptUrl : "";
+
+  useEffect(() => {
+    if (payple) preloadPayple(payple);
+  }, [payple]);
   const productName = `포인트 충전 ${point.toLocaleString("ko-KR")}P`;
 
   function openWindow() {

@@ -20,16 +20,38 @@ declare global {
 // payment.js 가 jQuery 를 전제로 한다(공식 샘플도 jQuery 를 먼저 로드).
 const JQUERY = "https://code.jquery.com/jquery-3.7.1.min.js";
 
+// 받는 중인 스크립트도 같은 약속을 돌려준다 — 미리 받기 도중 결제 버튼을 눌러도 다 받은 뒤에 연다.
+// 실패하면 지워서 다음에 다시 받게 한다.
+const loading = new Map<string, Promise<void>>();
+
 function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[data-src="${src}"]`)) return resolve();
+  const cached = loading.get(src);
+  if (cached) return cached;
+  const p = new Promise<void>((resolve, reject) => {
     const s = document.createElement("script");
     s.src = src;
     s.dataset.src = src;
     s.onload = () => resolve();
-    s.onerror = () => reject(new Error(`스크립트 로드 실패: ${src}`));
+    s.onerror = () => {
+      s.remove();
+      loading.delete(src);
+      reject(new Error(`스크립트 로드 실패: ${src}`));
+    };
     document.head.appendChild(s);
   });
+  loading.set(src, p);
+  return p;
+}
+
+/**
+ * 결제창 SDK 를 미리 받아 둔다(충전 페이지 진입 시). 버튼을 누른 뒤에 받으면 그 사이 시간이 길어져
+ * 모바일 브라우저가 결제창(새 창)을 팝업으로 보고 막을 수 있다. 실패는 무시 — 결제창이 열 때 다시 시도한다.
+ */
+export function preloadPayple(scriptUrl: string) {
+  (async () => {
+    if (!window.jQuery) await loadScript(JQUERY);
+    await loadScript(scriptUrl);
+  })().catch(() => {});
 }
 
 export default function PaypleWindow({

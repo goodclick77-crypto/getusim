@@ -29,7 +29,7 @@ export default async function Home() {
   const user = await getCurrentUser();
   return (
     <div className="flex flex-1 flex-col">
-      <header className="glass sticky top-0 z-40">
+      <header className="glass sticky top-7 z-40">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3.5 sm:px-6">
         <Link href="/" className="font-mont text-lg font-extrabold tracking-tight sm:text-xl">
           GetUsim

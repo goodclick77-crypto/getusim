@@ -200,6 +200,9 @@ export default function ChargeForm({
                 ? `${amount.toLocaleString("ko-KR")}원 결제하고 충전`
                 : "금액을 선택하세요"}
           </button>
+          <p className="text-center text-xs text-zinc-500">
+            사용한 포인트는 환불되지 않으며, 카드 취소 시 카드사 반영까지 영업일 기준 3~7일이 걸릴 수 있습니다.
+          </p>
           {msg && (
             <p
               role="alert"

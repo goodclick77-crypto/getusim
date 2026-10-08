@@ -95,6 +95,12 @@ export default function InquiryForm({
                   환불은 <b>보유 포인트 전액</b>으로만 신청됩니다. 승인되면 위 포인트가
                   차감되고 환불 금액이 {bankWon > 0 ? "입금" : "카드 결제 취소로 환불"}됩니다.
                 </p>
+                {cardWon > 0 && (
+                  <ul className="mt-1.5 space-y-0.5 text-xs text-zinc-500">
+                    <li>· 이미 사용하신 포인트는 환불되지 않으며, 남은 포인트만큼만 부분 취소됩니다.</li>
+                    <li>· 카드 결제 취소는 카드사 사정에 따라 영업일 기준 3~7일 정도 걸릴 수 있습니다.</li>
+                  </ul>
+                )}
               </div>
               {/* 계좌 정보는 계좌로 받을 몫이 있을 때만 */}
               {bankWon > 0 && (

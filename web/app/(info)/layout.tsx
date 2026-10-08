@@ -8,7 +8,7 @@ export default function InfoLayout({
 }) {
   return (
     <div className="flex flex-1 flex-col">
-      <header className="glass sticky top-0 z-40 flex items-center justify-between px-5 py-3.5 sm:px-8">
+      <header className="glass sticky top-7 z-40 flex items-center justify-between px-5 py-3.5 sm:px-8">
         <Link href="/" className="font-mont text-xl font-extrabold tracking-tight">
           GetUsim
         </Link>

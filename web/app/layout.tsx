@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import NaverAnalytics from "./NaverAnalytics";
-import TopNoticeBar from "@/components/TopNoticeBar";
+// import TopNoticeBar from "@/components/TopNoticeBar";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://getusim.com"),
@@ -41,7 +41,8 @@ export default function RootLayout({
         <a href="#main" className="skip-link">
           본문 바로가기
         </a>
-        <TopNoticeBar />
+        {/* 상단 공지 바 — 필요할 때 다시 켜고, 헤더들의 top-0 을 top-7 로 되돌린다 */}
+        {/* <TopNoticeBar /> */}
         {children}
         <NaverAnalytics />
       </body>

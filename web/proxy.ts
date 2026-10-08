@@ -28,6 +28,7 @@ const ALLOW_PREFIXES = [
   "/api/find-id",
   "/api/reset-password",
   "/api/payments/deposit-webhook",
+  "/opengraph-image", // 카톡 등 링크 미리보기 이미지
 ];
 
 function maintenanceOn(): boolean {

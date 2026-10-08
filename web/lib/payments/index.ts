@@ -21,7 +21,7 @@ export * from "./types";
  *
  * 운영 여부 판단: RAILWAY_ENVIRONMENT_NAME 이 "production" 이면 운영으로 본다.
  */
-const NAME = ((process.env.PAYMENT_PROVIDER || "none").toLowerCase() as PaymentProviderName);
+const NAME = ((process.env.PAYMENT_PROVIDER || "none").trim().toLowerCase() as PaymentProviderName);
 
 class NoneProvider implements PaymentProvider {
   readonly name = "none" as const;

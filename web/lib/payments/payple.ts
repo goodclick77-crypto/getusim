@@ -27,7 +27,7 @@ import {
  *  PAYPLE_REFERER     페이플에 등록한 도메인의 사이트 주소 (예: https://xxx.up.railway.app).
  *                     없으면 RAILWAY_PUBLIC_DOMAIN 으로 만든다. 불일치 시 AUTH0004/AUTH0007.
  */
-const LIVE = (process.env.PAYPLE_MODE || "test").toLowerCase() === "live";
+const LIVE = (process.env.PAYPLE_MODE || "test").trim().toLowerCase() === "live";
 const CPAY = LIVE ? "https://cpay.payple.kr" : "https://democpay.payple.kr";
 
 /** 결제창 토큰: 브라우저 콜백이 넘긴 인증 결과 */
@@ -75,12 +75,12 @@ type PcdResponse = Record<string, string | undefined>;
 export class PayplePaymentProvider implements PaymentProvider {
   readonly name = "payple" as const;
   readonly supportsBilling = false;
-  private cstId = process.env.PAYPLE_CST_ID || "";
-  private custKey = process.env.PAYPLE_CUST_KEY || "";
-  private clientKey = process.env.PAYPLE_CLIENT_KEY || "";
-  private refundKey = process.env.PAYPLE_REFUND_KEY || "";
+  private cstId = (process.env.PAYPLE_CST_ID || "").trim();
+  private custKey = (process.env.PAYPLE_CUST_KEY || "").trim();
+  private clientKey = (process.env.PAYPLE_CLIENT_KEY || "").trim();
+  private refundKey = (process.env.PAYPLE_REFUND_KEY || "").trim();
   private referer =
-    process.env.PAYPLE_REFERER ||
+    process.env.PAYPLE_REFERER?.trim() ||
     (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "");
 
   isConfigured() {

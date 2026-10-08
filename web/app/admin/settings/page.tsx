@@ -8,7 +8,7 @@ import { mailerConfigured, mailerProvider } from "@/lib/notify";
 export const dynamic = "force-dynamic";
 
 const EVENTS = [
-  { key: "onDeposit", label: "충전 입금 감지", desc: "은행 입금이 자동확인/미매칭될 때" },
+  { key: "onDeposit", label: "충전 완료(입금·카드결제)", desc: "은행 입금이 자동확인/미매칭될 때, 카드결제·카드취소가 완료될 때" },
   { key: "onChargeRequest", label: "충전 신청", desc: "회원이 충전을 신청(입금 전)할 때" },
   { key: "onOrder", label: "번호 주문", desc: "회원이 SMS 인증 번호를 발급받을 때" },
   { key: "onInquiry", label: "1:1 문의 등록", desc: "새 문의가 등록될 때" },

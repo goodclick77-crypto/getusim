@@ -192,6 +192,19 @@ export async function refundCardOrder(
     return { ok: false, error: "pg_fail", ...plan };
   }
 
+  const who = await prisma.user
+    .findUnique({ where: { id: order.userId }, select: { name: true, loginId: true } })
+    .catch(() => null);
+  await notifyAdmin(
+    "deposit",
+    `[카드취소] ${who?.name || who?.loginId || `회원 #${order.userId}`} ${plan.amount.toLocaleString("ko-KR")}원 환불`,
+    `회원: ${who?.name || "-"} (${who?.loginId || order.userId})
+취소 금액: ${plan.amount.toLocaleString("ko-KR")}원
+회수 포인트: ${plan.point.toLocaleString("ko-KR")}P
+${plan.full ? "전액 취소" : "부분 취소"} · 충전 #${id}
+거래번호: ${order.pgTno}`,
+  ).catch(() => {});
+
   return { ok: true, ...plan };
 }
 

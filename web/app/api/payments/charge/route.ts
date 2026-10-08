@@ -93,5 +93,14 @@ export async function POST(req: Request) {
     });
   }
 
+  await notifyAdmin(
+    "deposit",
+    `[카드결제] ${user.name || user.loginId} ${amount.toLocaleString("ko-KR")}원 · ${point.toLocaleString("ko-KR")}P 충전`,
+    `회원: ${user.name || "-"} (${user.loginId})
+결제 금액: ${amount.toLocaleString("ko-KR")}원
+충전 포인트: ${point.toLocaleString("ko-KR")}P
+거래번호: ${txId}`,
+  ).catch(() => {});
+
   return NextResponse.json({ ok: true, point, amount });
 }

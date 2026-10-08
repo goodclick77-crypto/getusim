@@ -7,6 +7,16 @@ import { prisma } from "@/lib/prisma";
 import { completeCharge, expireStaleChargeOrders } from "@/lib/charge";
 import { expireStaleRentals } from "@/lib/rentals";
 import { adjustPoint, InsufficientPointError } from "@/lib/points";
+import {
+  REFUND_CARD,
+  REFUND_POINT,
+  hasPendingRental,
+  refundableCardOrders,
+  refundCardOrder,
+  refundSplit,
+  resolvePendingRefund,
+} from "@/lib/card-refund";
+import { chargeAmount } from "@/lib/config";
 
 /**
  * 방치된 건 정리를 관리자가 수동 실행. (/api/cron/sweep 과 같은 작업 — 크론 미설정 시 대체)
@@ -123,12 +133,50 @@ export async function cancelCharge(formData: FormData) {
   revalidatePath("/admin/inquiries");
 }
 
+/**
+ * 카드 충전 환불(관리자 충전내역의 환불 버튼): 입력한 포인트만큼(없으면 최대치) 회수 → 결제사 전액/부분 취소.
+ * 최대치는 미환불 충전분과 회원 보유 포인트 중 작은 쪽. 처리 내용은 lib/card-refund.ts.
+ */
+export async function refundCardCharge(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const want = Number(formData.get("point")) || undefined; // 관리자가 입력한 환불 포인트(없으면 최대치)
+  if (!Number.isInteger(id)) redirect("/admin/charges?status=COMPLETED&refund=invalid");
+
+  const r = await refundCardOrder(id, { want });
+  if (!r.ok) redirect(`/admin/charges?status=COMPLETED&refund=${r.error}`);
+
+  const order = await prisma.chargeOrder.findUnique({ where: { id }, select: { userId: true } });
+  revalidatePath("/admin");
+  revalidatePath("/admin/charges");
+  revalidatePath("/admin/sales");
+  if (order) revalidatePath(`/admin/members/${order.userId}`);
+  redirect(
+    r.full
+      ? "/admin/charges?status=CANCELED&refund=ok"
+      : `/admin/charges?status=COMPLETED&refund=partial&rp=${r.point}&ra=${r.amount}`,
+  );
+}
+
+/** 결제사 응답이 불명확했던 카드 환불 정리: canceled=1 이면 취소 확인(표시 삭제), 0 이면 포인트·기록 원복 */
+export async function resolveCardRefund(formData: FormData) {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const canceled = formData.get("canceled") === "1";
+  if (!Number.isInteger(id)) return;
+  await resolvePendingRefund(id, canceled);
+  revalidatePath("/admin");
+  revalidatePath("/admin/charges");
+  revalidatePath("/admin/sales");
+}
+
 /** 취소된 신청을 입금대기로 되돌림 (실수 취소 복구). 이미 지급된 건은 제외. */
 export async function restoreCharge(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id"));
   const order = await prisma.chargeOrder.findUnique({ where: { id } });
-  if (order && !order.charged && order.status === "CANCELED") {
+  // 카드 충전 건은 결제 승인이 이미 취소된 것이라 되살리면 결제 없이 지급 대상이 된다 → 무통장만
+  if (order && !order.charged && order.status === "CANCELED" && order.method === "BANK_TRANSFER") {
     await prisma.chargeOrder.update({
       where: { id },
       data: { status: "PENDING" },
@@ -237,7 +285,11 @@ export async function deleteReplyTemplate(formData: FormData) {
   revalidatePath("/admin/inquiries");
 }
 
-/** 환불 승인 → 신청 포인트 자동 차감 (멱등: 이미 처리됐거나 잔액부족이면 변동 없음) */
+/**
+ * 환불 승인 → 신청 포인트 차감. 카드로 충전한 포인트는 카드 결제를 바로 취소하고(최근 충전부터),
+ * 카드로 못 채운 나머지만 계좌 송금 대상으로 차감한다(실제 송금은 관리자가 별도로).
+ * 멱등: 처리표시를 먼저 선점해 중복 승인을 막는다.
+ */
 export async function approveRefund(formData: FormData) {
   await requireAdmin();
   const id = Number(formData.get("id"));
@@ -252,36 +304,76 @@ export async function approveRefund(formData: FormData) {
   ) {
     redirect("/admin/inquiries?error=refund_invalid");
   }
-  try {
-    await prisma.$transaction(async (tx) => {
-      // 먼저 처리표시를 선점(동시/중복 승인 방지). 이미 처리됐으면 count=0 → 중단.
-      const claim = await tx.inquiry.updateMany({
-        where: { id, category: "REFUND", refundedAt: null },
-        data: { refundedAt: new Date(), status: "ANSWERED" },
-      });
-      if (claim.count === 0) throw new Error("ALREADY");
-      // 포인트 차감(잔액부족이면 InsufficientPointError → 트랜잭션 롤백)
-      await adjustPoint(
-        {
-          userId: inq.userId!,
-          amount: -inq.refundPoint!,
-          reason: "포인트 환불",
-          relType: "refund",
-          relId: inq.id,
-        },
-        tx,
-      );
+  const userId = inq.userId;
+  const total = inq.refundPoint;
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { point: true } });
+  if (!user || user.point < total) redirect("/admin/inquiries?error=insufficient");
+  // 문자 대기 중 번호가 있으면 그 번호의 예약 포인트까지 환불돼 무료 수신이 된다 → 끝난 뒤 승인
+  if (await hasPendingRental(userId)) redirect("/admin/inquiries?error=rental");
+
+  // 처리표시 선점(동시/중복 승인 방지). 이미 처리됐으면 중단.
+  const claim = await prisma.inquiry.updateMany({
+    where: { id, category: "REFUND", refundedAt: null },
+    data: { refundedAt: new Date(), status: "ANSWERED" },
+  });
+  if (claim.count === 0) redirect("/admin/inquiries?error=refund_invalid");
+
+  // 카드 충전분 / 계좌 송금분을 먼저 나눈다. 카드 취소가 실패한 몫을 계좌로 돌리면 카드 결제가 현금으로
+  // 빠져나가는 통로(카드깡)가 되므로, 실패분은 처리하지 않고 회원 포인트에 남긴다.
+  const split = await refundSplit(userId, total);
+
+  // 1) 카드 충전분: 결제사 취소(최근 충전부터)
+  let cardLeft = split.cardPoint;
+  let cardWon = 0;
+  let cardFailPoint = 0; // 결제사 거절 → 포인트 원복됨(회원에게 남음)
+  let unknown = 0; // 결제사 응답 불명 → 확인 필요로 표시됨
+  for (const o of await refundableCardOrders(userId)) {
+    if (cardLeft <= 0) break;
+    const r = await refundCardOrder(o.id, {
+      want: cardLeft,
+      log: (p) => ({
+        reason: `카드취소 환불 ${p.amount.toLocaleString("ko-KR")}원 (충전 #${o.id})`,
+        relType: REFUND_CARD,
+        relId: id,
+      }),
     });
-  } catch (e) {
-    if (e instanceof InsufficientPointError) {
-      redirect("/admin/inquiries?error=insufficient");
+    if (r.ok || r.error === "pg_unknown") {
+      cardLeft -= r.point;
+      cardWon += r.amount;
+      if (!r.ok) unknown++;
+    } else if (r.error === "pg_fail") {
+      cardLeft -= r.point;
+      cardFailPoint += r.point;
     }
-    if (e instanceof Error && e.message === "ALREADY") {
-      redirect("/admin/inquiries?error=refund_invalid");
-    }
-    throw e;
   }
+  cardFailPoint += Math.max(0, cardLeft); // 그 사이 사라진 카드 건 등으로 못 채운 몫도 처리하지 않음
+
+  // 2) 계좌 송금분: 포인트만 차감(실제 송금은 관리자가 별도로)
+  const left = split.bankPoint;
+  let bankFail = false;
+  if (left > 0) {
+    try {
+      await adjustPoint({
+        userId,
+        amount: -left,
+        reason: `포인트 환불 — 계좌 입금 ${chargeAmount(left).toLocaleString("ko-KR")}원`,
+        relType: REFUND_POINT,
+        relId: id,
+      });
+    } catch (e) {
+      if (!(e instanceof InsufficientPointError)) throw e;
+      bankFail = true; // 처리 중 회원이 포인트를 썼다 — 카드분은 이미 처리됐으므로 선점은 유지
+    }
+  }
+
   revalidatePath("/admin/inquiries");
-  revalidatePath(`/admin/members/${inq.userId}`);
-  redirect("/admin/inquiries?ok=refund");
+  revalidatePath("/admin/charges");
+  revalidatePath(`/admin/members/${userId}`);
+  redirect(
+    `/admin/inquiries?ok=refund&card=${cardWon}&bank=${left > 0 && !bankFail ? chargeAmount(left) : 0}` +
+      (cardFailPoint ? `&cardFail=${cardFailPoint}` : "") +
+      (unknown ? `&unknown=${unknown}` : "") +
+      (bankFail ? `&bankFail=${left}` : ""),
+  );
 }

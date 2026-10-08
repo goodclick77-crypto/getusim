@@ -51,6 +51,13 @@ async function isAdmin(req: NextRequest): Promise<boolean> {
 }
 
 export async function proxy(req: NextRequest) {
+  // www.getusim.com → getusim.com. 페이플에 getusim.com 만 등록돼 있어 www 에서 결제하면 AUTH0004 가 난다.
+  const host = (req.headers.get("x-forwarded-host") || req.headers.get("host") || "").toLowerCase();
+  if (host.startsWith("www.")) {
+    const url = new URL(req.nextUrl.pathname + req.nextUrl.search, `https://${host.slice(4)}`);
+    return NextResponse.redirect(url, 308);
+  }
+
   if (!maintenanceOn()) return NextResponse.next();
 
   const { pathname } = req.nextUrl;

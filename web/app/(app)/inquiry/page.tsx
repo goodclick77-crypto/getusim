@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ymdhm, pt } from "@/lib/format";
 import { chargeAmount } from "@/lib/config";
+import { refundResults, refundSplit } from "@/lib/card-refund";
 import InquiryForm from "./InquiryForm";
 import Reveal from "@/components/Reveal";
 import { turnstileSiteKey } from "@/lib/turnstile";
@@ -9,6 +10,7 @@ import { turnstileSiteKey } from "@/lib/turnstile";
 const ERRORS: Record<string, string> = {
   empty: "문의 내용을 입력하세요.",
   refund: "환불 계좌 정보를 입력하세요. (환불 가능 포인트가 있어야 합니다)",
+  rental: "문자를 기다리는 번호가 있습니다. 인증이 끝나거나 취소된 뒤 환불을 신청해 주세요.",
   long: "문의 내용은 3,000자 이내로 입력하세요.",
   rate: "문의 등록이 너무 잦습니다. 잠시 후 다시 시도해주세요.",
   captcha: "보안문자 확인에 실패했습니다. 다시 시도해주세요.",
@@ -35,6 +37,12 @@ export default async function InquiryPage({
     take: 30,
     include: { replies: { orderBy: { createdAt: "asc" } } },
   });
+  // 환불 시 카드 결제 취소로 돌려받을 몫 / 계좌로 받을 몫
+  const split = user.point > 0 ? await refundSplit(user.id, user.point) : null;
+  // 처리된 환불 신청의 실제 내역(카드취소 환불 / 포인트 환불)
+  const results = await refundResults(
+    inquiries.filter((q) => q.category === "REFUND" && q.refundedAt).map((q) => q.id),
+  );
 
   return (
     <div className="space-y-6">
@@ -59,6 +67,8 @@ export default async function InquiryPage({
           <InquiryForm
             currentPoint={user.point}
             refundWon={chargeAmount(user.point)}
+            cardWon={split?.cardWon ?? 0}
+            bankWon={split?.bankWon ?? 0}
             siteKey={turnstileSiteKey()}
           />
         </section>
@@ -99,11 +109,29 @@ export default async function InquiryPage({
                 <p className="mt-2 text-xs text-zinc-500">
                   환불 신청 {pt(q.refundPoint ?? 0)} (전액)
                   {q.refundedAt ? (
-                    <span className="ml-1 font-medium text-emerald-600">· 환불 완료(차감됨)</span>
+                    <span className="ml-1 font-medium text-emerald-600">· 환불 완료</span>
                   ) : (
                     <span className="ml-1 text-amber-600">· 처리 대기</span>
                   )}
                 </p>
+              )}
+              {q.category === "REFUND" && results.get(q.id) && (
+                <div className="font-num mt-1 space-y-0.5 text-xs">
+                  {results.get(q.id)!.cardPoint > 0 && (
+                    <p className="text-violet-700">
+                      <i className="fa-solid fa-credit-card" aria-hidden /> 카드취소 환불{" "}
+                      <b>{results.get(q.id)!.cardWon.toLocaleString("ko-KR")}원</b>
+                      <span className="text-zinc-400"> · 결제한 카드로 취소됨</span>
+                    </p>
+                  )}
+                  {results.get(q.id)!.bankPoint > 0 && (
+                    <p className="text-amber-700">
+                      <i className="fa-solid fa-coins" aria-hidden /> 포인트 환불{" "}
+                      <b>{results.get(q.id)!.bankWon.toLocaleString("ko-KR")}원</b>
+                      <span className="text-zinc-400"> · 계좌 입금</span>
+                    </p>
+                  )}
+                </div>
               )}
               <p className="font-num mt-1 text-xs text-zinc-400">{ymdhm(q.createdAt)}</p>
               {q.replies.map((rep) => (

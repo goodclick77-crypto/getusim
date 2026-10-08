@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ymd, ymdhm, pt, won, dateRange, daysAgo } from "@/lib/format";
-import { chargeAmount } from "@/lib/config";
+import { refundResults, refundSplit } from "@/lib/card-refund";
 import {
   deleteInquiry,
   updateReply,
@@ -57,7 +57,18 @@ type ChargeBrief = {
 export default async function AdminInquiriesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; from?: string; to?: string; ok?: string; error?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    from?: string;
+    to?: string;
+    ok?: string;
+    error?: string;
+    card?: string;
+    bank?: string;
+    cardFail?: string;
+    unknown?: string;
+    bankFail?: string;
+  }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
@@ -115,6 +126,19 @@ export default async function AdminInquiriesPage({
         },
       })
     : [];
+  // 대기 중인 환불 신청: 카드 결제 취소분 / 계좌 송금분 미리보기(승인 시 같은 순서로 처리)
+  const splits = new Map(
+    await Promise.all(
+      inquiries
+        .filter((q) => q.category === "REFUND" && !q.refundedAt && q.userId && q.refundPoint)
+        .map(async (q) => [q.id, await refundSplit(q.userId!, q.refundPoint!)] as const),
+    ),
+  );
+  // 승인된 환불 신청: 실제로 카드취소 환불 / 포인트 환불(계좌 입금)된 내역
+  const results = await refundResults(
+    inquiries.filter((q) => q.category === "REFUND" && q.refundedAt).map((q) => q.id),
+  );
+
   // 조회가 최신순이므로 회원별 배열도 최신순으로 쌓인다.
   const chargesByUser = new Map<number, ChargeBrief[]>();
   for (const c of recentCharges) {
@@ -137,11 +161,46 @@ export default async function AdminInquiriesPage({
       {sp.ok === "refund" && (
         <p role="status" className="glass rounded-2xl px-4 py-3 text-sm text-emerald-700">
           환불 승인 완료 — 신청 포인트가 차감되었습니다.
+          {Number(sp.card) > 0 && <> 카드 결제 {won(Number(sp.card))} 자동 취소.</>}
+          {Number(sp.bank) > 0 && (
+            <>
+              {" "}
+              <b>계좌로 {won(Number(sp.bank))} 송금해 주세요.</b>
+            </>
+          )}
+        </p>
+      )}
+      {sp.ok === "refund" && (Number(sp.cardFail) > 0 || Number(sp.unknown) > 0 || Number(sp.bankFail) > 0) && (
+        <p role="alert" className="glass rounded-2xl px-4 py-3 text-sm text-red-600">
+          {Number(sp.cardFail) > 0 && (
+            <>
+              카드 결제 취소가 거절된 {pt(Number(sp.cardFail))}는 처리하지 않았습니다(회원 포인트에 남음) — 입금 확인
+              화면에서 해당 충전 건을 다시 환불하거나 회원과 확인해 주세요.{" "}
+            </>
+          )}
+          {Number(sp.unknown) > 0 && (
+            <>
+              카드 취소 {sp.unknown}건은 결제사 응답을 받지 못했습니다 — 입금 확인 화면의 &apos;환불 확인 필요&apos;에서
+              정리해 주세요.{" "}
+            </>
+          )}
+          {Number(sp.bankFail) > 0 && (
+            <>
+              처리 중 회원이 포인트를 사용해 계좌 송금분 {pt(Number(sp.bankFail))}는 차감하지 못했습니다 — 회원 포인트를
+              확인해 주세요.
+            </>
+          )}
         </p>
       )}
       {sp.error === "insufficient" && (
         <p role="alert" className="glass rounded-2xl px-4 py-3 text-sm text-red-600">
           회원의 보유 포인트가 환불 신청 포인트보다 적어 차감할 수 없습니다.
+        </p>
+      )}
+      {sp.error === "rental" && (
+        <p role="alert" className="glass rounded-2xl px-4 py-3 text-sm text-red-600">
+          회원에게 문자를 기다리는 번호가 있어 승인하지 않았습니다(환불하면 그 번호를 무료로 받게 됨). 몇 분 뒤 다시
+          승인해 주세요.
         </p>
       )}
       {sp.error === "refund_invalid" && (
@@ -383,10 +442,9 @@ export default async function AdminInquiriesPage({
                   <p className="font-num mt-1">
                     환불 포인트(전액): <b>{pt(q.refundPoint ?? 0)}</b>
                   </p>
-                  <p className="font-num mt-0.5 text-base">
-                    입금할 금액: <b className="text-amber-700">{won(chargeAmount(q.refundPoint ?? 0))}</b>
-                    <span className="ml-1 text-xs font-normal text-zinc-500">(부가세 포함)</span>
-                  </p>
+                  {q.refundedAt
+                    ? results.get(q.id) && <RefundSplitView split={results.get(q.id)!} done />
+                    : splits.get(q.id) && <RefundSplitView split={splits.get(q.id)!} />}
                   {q.refundInfo && (
                     <p className="mt-1 whitespace-pre-wrap text-zinc-600">
                       환불 정보: {q.refundInfo}
@@ -394,17 +452,18 @@ export default async function AdminInquiriesPage({
                   )}
                   {q.refundedAt ? (
                     <p className="mt-2 flex items-center gap-1.5 text-emerald-700">
-                      <i className="fa-solid fa-circle-check" aria-hidden /> 환불 승인됨(포인트 차감
-                      완료) · {ymdhm(q.refundedAt)}
+                      <i className="fa-solid fa-circle-check" aria-hidden /> 환불 승인됨 ·{" "}
+                      {ymdhm(q.refundedAt)}
                     </p>
                   ) : (
                     <form action={approveRefund} className="mt-2">
                       <input type="hidden" name="id" value={q.id} />
                       <ConfirmButton
-                        message={`${q.name}님 환불 승인: 포인트 ${pt(q.refundPoint ?? 0)} 차감 / 계좌로 ${won(chargeAmount(q.refundPoint ?? 0))}(부가세 포함) 입금. 진행할까요? (실제 송금은 별도로 진행)`}
+                        message={refundConfirmMessage(q.name, q.refundPoint ?? 0, splits.get(q.id))}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-500"
                       >
-                        <i className="fa-solid fa-check" aria-hidden /> 환불 승인 (포인트 차감)
+                        <i className="fa-solid fa-check" aria-hidden /> 환불 승인
+                        {splits.get(q.id)?.cardWon ? " (카드 자동취소)" : " (포인트 차감)"}
                       </ConfirmButton>
                     </form>
                   )}
@@ -486,4 +545,54 @@ function MemberCharges({ point, charges }: { point: number; charges: ChargeBrief
       ))}
     </div>
   );
+}
+
+type Split = { cardPoint: number; cardWon: number; bankPoint: number; bankWon: number };
+
+/** 환불 신청의 처리 예정 내역: 카드 결제 취소분 / 계좌 송금분 */
+function RefundSplitView({ split, done = false }: { split: Split; done?: boolean }) {
+  return (
+    <div className="font-num mt-1.5 space-y-1">
+      {split.cardPoint > 0 && (
+        <p className="flex flex-wrap items-center gap-1.5">
+          <RefundBadge card />
+          <b className="text-violet-700">{won(split.cardWon)}</b>
+          <span className="text-xs text-zinc-500">
+            ({pt(split.cardPoint)} · {done ? "카드 결제 취소됨" : "승인하면 카드 결제 자동 취소"})
+          </span>
+        </p>
+      )}
+      {split.bankPoint > 0 && (
+        <p className="flex flex-wrap items-center gap-1.5">
+          <RefundBadge />
+          <span>{done ? "계좌 입금" : "계좌로 입금할 금액"}</span>
+          <b className="text-base text-amber-700">{won(split.bankWon)}</b>
+          <span className="text-xs text-zinc-500">({pt(split.bankPoint)} · 부가세 포함)</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** 환불 종류 배지: 카드취소 환불(결제 취소로 돌려줌) / 포인트 환불(보유 포인트를 계좌로) */
+function RefundBadge({ card = false }: { card?: boolean }) {
+  return card ? (
+    <span className="inline-flex items-center gap-1 rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-semibold text-violet-700">
+      <i className="fa-solid fa-credit-card" aria-hidden /> 카드취소 환불
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">
+      <i className="fa-solid fa-coins" aria-hidden /> 포인트 환불
+    </span>
+  );
+}
+
+function refundConfirmMessage(name: string, point: number, split: Split | undefined) {
+  const lines = [`${name}님 환불 승인: 포인트 ${pt(point)} 차감`];
+  if (split && split.cardPoint > 0) lines.push(`· 카드취소 환불: 카드 결제 ${won(split.cardWon)} 자동 취소`);
+  if (!split || split.bankPoint > 0) {
+    lines.push(`· 포인트 환불: 계좌로 ${won(split ? split.bankWon : 0)}(부가세 포함) 입금 — 실제 송금은 별도로 진행`);
+  }
+  lines.push("", "진행할까요?");
+  return lines.join("\n");
 }

@@ -7,6 +7,7 @@ import Tilt from "@/components/Tilt";
 import ConfirmButton from "@/components/ConfirmButton";
 import { lastSweptAt } from "@/lib/sweep-status";
 import { runSweep } from "./actions";
+import { partialRefundSum } from "@/lib/charge";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function AdminPage({
   const sweptAt = lastSweptAt();
   const sweptAgoSec = sweptAt !== null ? Math.max(0, Math.round((Date.now() - sweptAt) / 1000)) : null;
   const schedulerAlive = sweptAgoSec !== null && sweptAgoSec < 90;
-  const [userCount, pointSum, pendingCharges, openInquiries, todayCharge, fivesimBalance] =
+  const [userCount, pointSum, pendingCharges, openInquiries, todayCharge, fivesimBalance, refunds] =
     await Promise.all([
       prisma.user.count(),
       prisma.user.aggregate({ _sum: { point: true } }),
@@ -37,7 +38,10 @@ export default async function AdminPage({
       }),
       // 5sim 잔액 조회(실패해도 홈은 정상 표시)
       fivesim.profile().then((p) => p.balance).catch(() => null),
+      partialRefundSum({}),
     ]);
+  // 카드 부분환불분은 매출에서 뺀다
+  const refundTotal = [...refunds.values()].reduce((a, b) => a + b, 0);
   const lowBalance = fivesimBalance !== null && fivesimBalance < FIVESIM_LOW_BALANCE;
 
   const MENU = [
@@ -224,7 +228,7 @@ export default async function AdminPage({
       </section>
 
       <p className="font-num text-sm text-zinc-400">
-        누적 충전 매출 {won(todayCharge._sum.amount ?? 0)}
+        누적 충전 매출 {won((todayCharge._sum.amount ?? 0) - refundTotal)}
       </p>
     </div>
   );

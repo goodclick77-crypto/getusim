@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { adjustPoint } from "./points";
-import { DEPOSIT_MATCH_WINDOW_DAYS, normDepositName } from "./config";
+import type { Prisma } from "@prisma/client";
+import { chargeAmount, DEPOSIT_MATCH_WINDOW_DAYS, normDepositName } from "./config";
 
 /**
  * 충전 주문을 완료 처리하고 포인트를 지급한다. (관리자 수동/입금 자동확인 공용)
@@ -89,4 +90,48 @@ export async function expireStaleChargeOrders(): Promise<number> {
     console.error("[charge] 미입금 주문 자동취소 실패:", e);
     return 0;
   }
+}
+
+/** 카드 충전 건의 누적 환불 기록 (legacyData 에 보관 — refundedAt 은 전액 환불 완료 시각) */
+export type CardRefund = { point: number; amount: number };
+
+export function cardRefundOf(legacyData: unknown): CardRefund {
+  const d = (legacyData ?? {}) as Record<string, unknown>;
+  return {
+    point: Number(d.refundedPoint) || 0,
+    amount: Number(d.refundedAmount) || 0,
+  };
+}
+
+/**
+ * 이번에 환불할 포인트·금액. 최대치는 남은(미환불) 충전분과 회원 보유 포인트 중 작은 쪽 — 쓴 포인트는 환불하지 않는다.
+ * want(관리자가 입력한 포인트)가 있으면 최대치 안에서 그만큼만.
+ * 금액은 누적 포인트 기준으로 계산해 반올림 오차가 쌓여도 합계가 결제액을 넘지 않게 하고,
+ * 마지막 환불은 결제액의 나머지를 그대로 취소한다.
+ */
+export function cardRefundPlan(
+  order: { amount: number; chargePoint: number; legacyData: unknown },
+  userPoint: number,
+  want?: number,
+): CardRefund & { full: boolean } {
+  const prev = cardRefundOf(order.legacyData);
+  const max = Math.max(0, Math.min(order.chargePoint - prev.point, userPoint));
+  const point = want && Number.isInteger(want) && want > 0 ? Math.min(want, max) : max;
+  const full = prev.point + point >= order.chargePoint;
+  const total = full ? order.amount : chargeAmount(prev.point + point);
+  return { point, amount: Math.max(0, total - prev.amount), full };
+}
+
+/** 충전완료 카드 건들의 부분환불 합계(원). 매출에서 뺄 금액. 카드 건만 대상이라 건수가 적다. */
+export async function partialRefundSum(where: Prisma.ChargeOrderWhereInput): Promise<Map<number, number>> {
+  const rows = await prisma.chargeOrder.findMany({
+    where: { ...where, status: "COMPLETED", method: "CARD" },
+    select: { userId: true, legacyData: true },
+  });
+  const byUser = new Map<number, number>();
+  for (const r of rows) {
+    const a = cardRefundOf(r.legacyData).amount;
+    if (a > 0) byUser.set(r.userId, (byUser.get(r.userId) ?? 0) + a);
+  }
+  return byUser;
 }

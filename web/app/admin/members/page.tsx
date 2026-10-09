@@ -17,11 +17,12 @@ const PER = 100;
 export default async function AdminMembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; sort?: string; from?: string; to?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; sort?: string; from?: string; to?: string; page?: string; answered?: string }>;
 }) {
   await requireAdmin();
   const sp = await searchParams;
   const q = (sp.q || "").trim();
+  const answered = sp.answered === "1"; // 가입 때 "어떻게 알고 오셨나요"에 답을 적은 회원만
   const from = (sp.from || "").trim();
   const to = (sp.to || "").trim();
   const sort = SORTS.some((s) => s.key === sp.sort) ? sp.sort! : "recent";
@@ -40,6 +41,7 @@ export default async function AdminMembersPage({
         }
       : {}),
     ...(createdAt ? { createdAt } : {}),
+    ...(answered ? { extra: { path: ["signup", "answer"], string_contains: "" } } : {}),
   };
 
   const orderBy =
@@ -73,7 +75,7 @@ export default async function AdminMembersPage({
   const lastPage = Math.max(1, Math.ceil(total / PER));
   const page = Math.min(reqPage, lastPage);
   // 페이지 이동 시 검색·정렬·기간 조건 유지
-  const carry = `sort=${sort}${q ? `&q=${encodeURIComponent(q)}` : ""}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`;
+  const carry = `sort=${sort}${q ? `&q=${encodeURIComponent(q)}` : ""}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}${answered ? "&answered=1" : ""}`;
   const pageHref = (n: number) => `/admin/members?${carry}&page=${n}`;
 
   return (
@@ -100,6 +102,7 @@ export default async function AdminMembersPage({
             />
           </div>
           <input type="hidden" name="sort" value={sort} />
+          {answered && <input type="hidden" name="answered" value="1" />}
           <button className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-700">
             검색
           </button>
@@ -125,7 +128,7 @@ export default async function AdminMembersPage({
           </div>
           {(from || to) && (
             <Link
-              href={`/admin/members?sort=${sort}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+              href={`/admin/members?sort=${sort}${q ? `&q=${encodeURIComponent(q)}` : ""}${answered ? "&answered=1" : ""}`}
               className="shrink-0 text-xs text-zinc-400 hover:text-zinc-600"
             >
               기간 해제
@@ -154,7 +157,7 @@ export default async function AdminMembersPage({
           {SORTS.map((s) => (
             <Link
               key={s.key}
-              href={`/admin/members?sort=${s.key}${q ? `&q=${encodeURIComponent(q)}` : ""}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`}
+              href={`/admin/members?sort=${s.key}${q ? `&q=${encodeURIComponent(q)}` : ""}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}${answered ? "&answered=1" : ""}`}
               className={`rounded-xl px-3.5 py-1.5 text-sm font-medium transition ${
                 sort === s.key ? "bg-zinc-900 text-white" : "glass text-zinc-600 hover:bg-white/70"
               }`}
@@ -162,6 +165,15 @@ export default async function AdminMembersPage({
               {s.label}
             </Link>
           ))}
+          <Link
+            href={`/admin/members?sort=${sort}${q ? `&q=${encodeURIComponent(q)}` : ""}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}${answered ? "" : "&answered=1"}`}
+            className={`rounded-xl px-3.5 py-1.5 text-sm font-medium transition ${
+              answered ? "bg-emerald-600 text-white" : "glass text-zinc-600 hover:bg-white/70"
+            }`}
+          >
+            <i className="fa-solid fa-comment-dots mr-1" aria-hidden />
+            답 적은 회원만
+          </Link>
         </nav>
         <p className="font-num text-sm text-zinc-500">
           {q ? `"${q}" 검색결과 ` : "전체 "}
@@ -207,9 +219,13 @@ export default async function AdminMembersPage({
                   <td className="font-num whitespace-nowrap px-4 py-2.5 text-zinc-500">
                     {ymd(m.createdAt)}
                   </td>
-                  <td className="max-w-[12rem] px-4 py-2.5 text-xs">
+                  <td className={`px-4 py-2.5 text-xs ${answered ? "max-w-[18rem]" : "max-w-[12rem]"}`}>
                     <p className="truncate text-zinc-600">{sourceLabel(src)}</p>
-                    {src?.answer && <p className="truncate text-zinc-400">“{src.answer}”</p>}
+                    {src?.answer && (
+                      <p className={answered ? "whitespace-normal break-all text-zinc-700" : "truncate text-zinc-400"}>
+                        “{src.answer}”
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-center">
                     {m.leftAt ? (
@@ -261,6 +277,7 @@ export default async function AdminMembersPage({
             {q && <input type="hidden" name="q" value={q} />}
             {from && <input type="hidden" name="from" value={from} />}
             {to && <input type="hidden" name="to" value={to} />}
+            {answered && <input type="hidden" name="answered" value="1" />}
             <input
               type="number"
               name="page"

@@ -80,8 +80,8 @@ export default async function RegisterPage({
               <i className="fa-solid fa-comment-dots w-4 text-zinc-400" aria-hidden />
               <input
                 name="referral"
-                placeholder="어떻게 알고 오셨나요? (선택)"
-                aria-label="어떻게 알고 오셨나요? (선택)"
+                placeholder="어떻게 알고 오셨나요?"
+                aria-label="어떻게 알고 오셨나요?"
                 aria-describedby="referral-hint"
                 defaultValue={sp.referral}
                 maxLength={50}

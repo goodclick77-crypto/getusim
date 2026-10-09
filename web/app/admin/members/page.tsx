@@ -64,7 +64,9 @@ export default async function AdminMembersPage({
   ]);
   const bySource = new Map<string, number>();
   for (const r of recent) {
-    const label = sourceLabel(readSignupSource(r.extra));
+    const src = readSignupSource(r.extra);
+    if (!src) continue; // 가입 경로 기능 도입 전 가입자 — 기록이 없어 집계에서 뺀다
+    const label = sourceLabel(src);
     bySource.set(label, (bySource.get(label) ?? 0) + 1);
   }
   const sourceStats = [...bySource].sort((a, b) => b[1] - a[1]);

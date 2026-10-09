@@ -96,6 +96,6 @@ export function refLabel(ref: string | undefined): string {
 export function sourceLabel(s: SignupSource | null): string {
   if (!s) return "-";
   if (s.from) return `링크:${s.from}`;
-  if (s.ref === undefined && !s.landing) return "-"; // 쿠키 없이 가입(쿠키 차단 등)
+  if (s.ref === undefined && !s.landing) return "경로 기록 없음"; // 쿠키 없이 가입(쿠키 차단 등)
   return refLabel(s.ref);
 }

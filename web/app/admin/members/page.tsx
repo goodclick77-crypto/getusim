@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { pt, ymd, dateRange } from "@/lib/format";
+import { pt, ymd, dateRange, daysAgo } from "@/lib/format";
+import { readSignupSource, sourceLabel } from "@/lib/signup-source";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,8 @@ export default async function AdminMembersPage({
         ? { point: "asc" as const }
         : { createdAt: "desc" as const };
 
-  const [members, total] = await Promise.all([
+  const since30 = daysAgo(30);
+  const [members, total, recent] = await Promise.all([
     prisma.user.findMany({
       where,
       orderBy,
@@ -57,7 +59,15 @@ export default async function AdminMembersPage({
       include: { _count: { select: { inquiries: true, chargeOrders: true } } },
     }),
     prisma.user.count({ where }),
+    // 최근 30일 가입 경로 집계용
+    prisma.user.findMany({ where: { createdAt: { gte: since30 } }, select: { extra: true } }),
   ]);
+  const bySource = new Map<string, number>();
+  for (const r of recent) {
+    const label = sourceLabel(readSignupSource(r.extra));
+    bySource.set(label, (bySource.get(label) ?? 0) + 1);
+  }
+  const sourceStats = [...bySource].sort((a, b) => b[1] - a[1]);
   const lastPage = Math.max(1, Math.ceil(total / PER));
   const page = Math.min(reqPage, lastPage);
   // 페이지 이동 시 검색·정렬·기간 조건 유지
@@ -122,6 +132,21 @@ export default async function AdminMembersPage({
         </div>
       </form>
 
+      {sourceStats.length > 0 && (
+        <section className="glass rounded-2xl px-4 py-3">
+          <h2 className="mb-2 text-sm font-semibold text-zinc-600">
+            최근 30일 가입 경로 <span className="font-normal text-zinc-400">(관리자만 보임)</span>
+          </h2>
+          <ul className="flex flex-wrap gap-1.5 text-xs">
+            {sourceStats.map(([label, n]) => (
+              <li key={label} className="rounded-lg bg-white/70 px-2.5 py-1 text-zinc-700">
+                {label} <b className="font-num">{n}</b>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="정렬" className="flex flex-wrap gap-2">
           {SORTS.map((s) => (
@@ -146,7 +171,7 @@ export default async function AdminMembersPage({
 
       <div className="glass overflow-hidden rounded-2xl">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-sm">
+          <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="border-b border-black/5 text-xs text-zinc-500">
                 <th className="px-4 py-2.5 text-left font-semibold">아이디</th>
@@ -155,11 +180,14 @@ export default async function AdminMembersPage({
                 <th className="px-4 py-2.5 text-right font-semibold">보유P</th>
                 <th className="px-4 py-2.5 text-center font-semibold">문의</th>
                 <th className="px-4 py-2.5 text-left font-semibold">가입일</th>
+                <th className="px-4 py-2.5 text-left font-semibold">가입경로</th>
                 <th className="px-4 py-2.5 text-center font-semibold">상태</th>
               </tr>
             </thead>
             <tbody>
-              {members.map((m) => (
+              {members.map((m) => {
+                const src = readSignupSource(m.extra);
+                return (
                 <tr key={m.id} className="border-b border-black/5 last:border-0 hover:bg-black/[0.02]">
                   <td className="px-4 py-2.5">
                     <Link href={`/admin/members/${m.id}`} className="font-num font-medium text-emerald-700 hover:underline">
@@ -177,6 +205,10 @@ export default async function AdminMembersPage({
                   <td className="font-num whitespace-nowrap px-4 py-2.5 text-zinc-500">
                     {ymd(m.createdAt)}
                   </td>
+                  <td className="max-w-[12rem] px-4 py-2.5 text-xs">
+                    <p className="truncate text-zinc-600">{sourceLabel(src)}</p>
+                    {src?.answer && <p className="truncate text-zinc-400">“{src.answer}”</p>}
+                  </td>
                   <td className="px-4 py-2.5 text-center">
                     {m.leftAt ? (
                       <span className="rounded-md bg-red-100 px-2 py-0.5 text-xs text-red-600">정지</span>
@@ -187,7 +219,8 @@ export default async function AdminMembersPage({
                     )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

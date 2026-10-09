@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import {
+  SIGNUP_SRC_COOKIE,
+  SIGNUP_SRC_MAX_AGE,
+  buildFirstVisit,
+  encodeFirstVisit,
+} from "@/lib/signup-source";
 
 // 임시 점검 모드 게이트 (Next 16: middleware → proxy 로 명칭 변경, Node.js 런타임 기본).
 //   · MAINTENANCE_MODE 가 켜져 있으면 비관리자 요청을 /maintenance 로 rewrite(503).
@@ -51,6 +57,26 @@ async function isAdmin(req: NextRequest): Promise<boolean> {
   }
 }
 
+// 처음 들어온 손님이면 어디서 왔는지 쿠키에 남긴다(가입 시 회원정보로 옮겨 관리자만 봄).
+// 화면 요청(GET·HTML)만 — 화면 내부 이동/미리받기, API, 관리자 화면은 건너뜀.
+function rememberFirstVisit(req: NextRequest, res: NextResponse, host: string) {
+  if (req.method !== "GET" || req.cookies.has(SIGNUP_SRC_COOKIE)) return res;
+  if (!(req.headers.get("accept") || "").includes("text/html")) return res;
+  if (req.headers.get("rsc") || req.headers.get("next-router-prefetch")) return res;
+  const { pathname } = req.nextUrl;
+  if (pathname.startsWith("/api/") || pathname === "/admin" || pathname.startsWith("/admin/")) return res;
+
+  const visit = buildFirstVisit(req.nextUrl, req.headers.get("referer"), host);
+  res.cookies.set(SIGNUP_SRC_COOKIE, encodeFirstVisit(visit), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: SIGNUP_SRC_MAX_AGE,
+  });
+  return res;
+}
+
 export async function proxy(req: NextRequest) {
   // www.getusim.com → getusim.com. 페이플에 getusim.com 만 등록돼 있어 www 에서 결제하면 AUTH0004 가 난다.
   const host = (req.headers.get("x-forwarded-host") || req.headers.get("host") || "").toLowerCase();
@@ -59,6 +85,10 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
+  return rememberFirstVisit(req, await gate(req), host);
+}
+
+async function gate(req: NextRequest): Promise<NextResponse> {
   if (!maintenanceOn()) return NextResponse.next();
 
   const { pathname } = req.nextUrl;

@@ -15,6 +15,7 @@ export default async function RegisterPage({
     loginId?: string;
     name?: string;
     email?: string;
+    referral?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -73,6 +74,24 @@ export default async function RegisterPage({
               입력해주세요.
             </span>
           </p>
+
+          <div>
+            <label className="flex items-center gap-3 rounded-xl border border-black/10 bg-white/60 px-3.5 py-3 focus-within:border-emerald-500">
+              <i className="fa-solid fa-comment-dots w-4 text-zinc-400" aria-hidden />
+              <input
+                name="referral"
+                placeholder="어떻게 알고 오셨나요? (선택)"
+                aria-label="어떻게 알고 오셨나요? (선택)"
+                aria-describedby="referral-hint"
+                defaultValue={sp.referral}
+                maxLength={50}
+                className="w-full bg-transparent outline-none"
+              />
+            </label>
+            <p id="referral-hint" className="mt-1.5 px-1 text-xs text-zinc-400">
+              예) 네이버 검색, ○○카페, 지인 추천
+            </p>
+          </div>
 
           <label className="flex items-start gap-2 px-1 text-sm text-zinc-600">
             <input type="checkbox" name="agree" className="mt-0.5" />

@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "./prisma";
 import { hashPassword, verifyPassword } from "./auth";
+import type { SignupSource } from "./signup-source";
 
 /**
  * 로그인 인증 + 레거시 비밀번호 자동 이행.
@@ -34,6 +35,7 @@ export async function registerUser(input: {
   password: string;
   name: string;
   email: string;
+  signupSource?: SignupSource; // 가입 경로(관리자만 봄)
 }) {
   const loginId = input.loginId.trim();
   if (!/^[a-zA-Z0-9_]{3,20}$/.test(loginId))
@@ -58,6 +60,7 @@ export async function registerUser(input: {
       email,
       level: 2,
       role: "USER",
+      ...(input.signupSource ? { extra: { signup: input.signupSource } } : {}),
     },
   });
 }

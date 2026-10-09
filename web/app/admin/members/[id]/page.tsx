@@ -7,6 +7,7 @@ import { adjustMemberPoint, saveMemo, toggleBlock } from "../actions";
 import ConfirmButton from "@/components/ConfirmButton";
 import PointApplyButton from "@/components/PointApplyButton";
 import RentalLabel from "@/components/RentalLabel";
+import { readSignupSource, refLabel } from "@/lib/signup-source";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,19 @@ export default async function MemberDetail({
     ["상태", user.leftAt ? "이용정지" : "정상"],
   ];
 
+  // 가입 경로 — 회원에게는 보이지 않음. 기능 도입 전 가입자는 기록 없음.
+  const src = readSignupSource(user.extra);
+  const SOURCE: [string, string][] = src
+    ? [
+        ["들어온 곳", src.ref !== undefined || src.landing ? refLabel(src.ref) : "기록 없음"],
+        ...(src.ref ? ([["직전 주소", src.ref]] as [string, string][]) : []),
+        ...(src.from ? ([["링크 표시", src.from]] as [string, string][]) : []),
+        ...(src.landing ? ([["처음 본 화면", src.landing]] as [string, string][]) : []),
+        ...(src.at ? ([["첫 방문", ymdhm(new Date(src.at))]] as [string, string][]) : []),
+        ["직접 적은 답", src.answer || "(비움)"],
+      ]
+    : [];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -111,6 +125,21 @@ export default async function MemberDetail({
               </div>
             ))}
           </dl>
+          {SOURCE.length > 0 && (
+            <>
+              <h3 className="mt-4 mb-1 flex items-center gap-2 text-sm font-bold">
+                가입 경로 <span className="text-xs font-normal text-zinc-400">회원에게 보이지 않음</span>
+              </h3>
+              <dl className="divide-y divide-black/5 text-sm">
+                {SOURCE.map(([k, v]) => (
+                  <div key={k} className="grid grid-cols-3 gap-2 py-2">
+                    <dt className="text-zinc-500">{k}</dt>
+                    <dd className="col-span-2 break-all font-medium">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </>
+          )}
           <form action={toggleBlock} className="mt-4">
             <input type="hidden" name="userId" value={user.id} />
             <ConfirmButton

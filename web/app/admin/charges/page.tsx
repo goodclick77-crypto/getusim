@@ -28,6 +28,13 @@ const TABS = [
   { key: "ALL", label: "전체" },
 ] as const;
 
+/** 카드 충전 배지 — 결제수단별로 색을 달리해 한눈에 구분 */
+const PAY_BADGE: Record<string, { cls: string; icon: string }> = {
+  카드: { cls: "bg-violet-100 text-violet-700", icon: "fa-credit-card" },
+  카카오페이: { cls: "bg-yellow-200 text-yellow-900", icon: "fa-comment" },
+  네이버페이: { cls: "bg-green-100 text-green-700", icon: "fa-n" },
+};
+
 const STATUS_BADGE: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700",
   COMPLETED: "bg-emerald-100 text-emerald-700",
@@ -672,10 +679,18 @@ function DateGroup({
                     </span>
                     {o.method === "CARD" ? (
                       <>
-                        <span className="flex items-center gap-1 whitespace-nowrap rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">
-                          <i className="fa-solid fa-credit-card" aria-hidden />{" "}
-                          {o.status === "CANCELED" && isRefunded(o.legacyData) ? "카드취소 환불" : payMethodLabel(o.legacyData)}
-                        </span>
+                        {(() => {
+                          const refunded = o.status === "CANCELED" && isRefunded(o.legacyData);
+                          const label = payMethodLabel(o.legacyData);
+                          const b = (!refunded && PAY_BADGE[label]) || PAY_BADGE["카드"];
+                          return (
+                            <span
+                              className={`flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-medium ${b.cls}`}
+                            >
+                              <i className={`fa-solid ${b.icon}`} aria-hidden /> {refunded ? "카드취소 환불" : label}
+                            </span>
+                          );
+                        })()}
                         {o.status === "COMPLETED" && o.charged && o.pg === getPaymentProvider().name && (
                           <CardRefund o={o} />
                         )}

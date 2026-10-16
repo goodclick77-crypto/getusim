@@ -578,7 +578,7 @@ function RefundSplitView({ split, done = false }: { split: Split; done?: boolean
 function RefundBadge({ card = false }: { card?: boolean }) {
   return card ? (
     <span className="inline-flex items-center gap-1 rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-semibold text-violet-700">
-      <i className="fa-solid fa-credit-card" aria-hidden /> 카드취소 환불
+      <i className="fa-solid fa-credit-card" aria-hidden /> 결제취소 환불
     </span>
   ) : (
     <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">
@@ -589,7 +589,7 @@ function RefundBadge({ card = false }: { card?: boolean }) {
 
 function refundConfirmMessage(name: string, point: number, split: Split | undefined) {
   const lines = [`${name}님 환불 승인: 포인트 ${pt(point)} 차감`];
-  if (split && split.cardPoint > 0) lines.push(`· 카드취소 환불: 카드 결제 ${won(split.cardWon)} 자동 취소`);
+  if (split && split.cardPoint > 0) lines.push(`· 결제취소 환불: 결제 ${won(split.cardWon)} 자동 취소`);
   if (!split || split.bankPoint > 0) {
     lines.push(`· 포인트 환불: 계좌로 ${won(split ? split.bankWon : 0)}(부가세 포함) 입금 — 실제 송금은 별도로 진행`);
   }

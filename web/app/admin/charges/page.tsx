@@ -13,7 +13,7 @@ import {
   deleteDeposit,
 } from "../actions";
 import { normDepositName } from "@/lib/config";
-import { cardRefundOf, cardRefundPlan, payMethodLabel } from "@/lib/charge";
+import { cardRefundOf, cardRefundPlan, payMethodBadge, payMethodLabel } from "@/lib/charge";
 import { pendingRefundOf } from "@/lib/card-refund";
 import ConfirmButton from "@/components/ConfirmButton";
 import { getPaymentProvider } from "@/lib/payments";
@@ -27,13 +27,6 @@ const TABS = [
   { key: "CANCELED", label: "취소" },
   { key: "ALL", label: "전체" },
 ] as const;
-
-/** 카드 충전 배지 — 결제수단별로 색을 달리해 한눈에 구분 */
-const PAY_BADGE: Record<string, { cls: string; icon: string }> = {
-  카드: { cls: "bg-violet-100 text-violet-700", icon: "fa-credit-card" },
-  카카오페이: { cls: "bg-yellow-200 text-yellow-900", icon: "fa-comment" },
-  네이버페이: { cls: "bg-green-100 text-green-700", icon: "fa-n" },
-};
 
 const STATUS_BADGE: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700",
@@ -531,7 +524,9 @@ function CardRefund({
   return (
     <>
       {done.amount > 0 && (
-        <span className="font-num whitespace-nowrap text-[11px] text-red-500">카드취소 {won(done.amount)}</span>
+        <span className="font-num whitespace-nowrap text-[11px] text-red-500">
+          {payMethodLabel(o.legacyData)} 취소 {won(done.amount)}
+        </span>
       )}
       {plan.point > 0 ? (
         <CardRefundForm
@@ -681,13 +676,12 @@ function DateGroup({
                       <>
                         {(() => {
                           const refunded = o.status === "CANCELED" && isRefunded(o.legacyData);
-                          const label = payMethodLabel(o.legacyData);
-                          const b = (!refunded && PAY_BADGE[label]) || PAY_BADGE["카드"];
+                          const b = payMethodBadge(o.legacyData);
                           return (
                             <span
                               className={`flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-medium ${b.cls}`}
                             >
-                              <i className={`fa-solid ${b.icon}`} aria-hidden /> {refunded ? "카드취소 환불" : label}
+                              <i className={`fa-solid ${b.icon}`} aria-hidden /> {refunded ? `${b.label} 취소 환불` : b.label}
                             </span>
                           );
                         })()}

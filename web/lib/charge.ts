@@ -103,6 +103,18 @@ export function payMethodLabel(legacyData: unknown): string {
   return "카드";
 }
 
+/** 결제수단별 배지 색·아이콘 — 카드 보라, 카카오페이 노랑, 네이버페이 초록 */
+const PAY_BADGE: Record<string, { cls: string; icon: string }> = {
+  카드: { cls: "bg-violet-100 text-violet-700", icon: "fa-credit-card" },
+  카카오페이: { cls: "bg-yellow-200 text-yellow-900", icon: "fa-comment" },
+  네이버페이: { cls: "bg-green-100 text-green-700", icon: "fa-n" },
+};
+
+export function payMethodBadge(legacyData: unknown) {
+  const label = payMethodLabel(legacyData);
+  return { label, ...PAY_BADGE[label] };
+}
+
 /** 카드 충전 건의 누적 환불 기록 (legacyData 에 보관 — refundedAt 은 전액 환불 완료 시각) */
 export type CardRefund = { point: number; amount: number };
 

@@ -80,7 +80,7 @@ export default function InquiryForm({
                 {cardWon > 0 && (
                   <ul className="font-num mt-2 space-y-0.5 text-xs text-zinc-600">
                     <li className="text-violet-700">
-                      · 카드취소 환불 <b>{cardWon.toLocaleString("ko-KR")}원</b>{" "}
+                      · 결제취소 환불 <b>{cardWon.toLocaleString("ko-KR")}원</b>{" "}
                       <span className="text-zinc-500">— 카드로 충전한 금액은 결제한 카드로 취소해 드립니다.</span>
                     </li>
                     {bankWon > 0 && (

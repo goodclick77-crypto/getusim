@@ -119,7 +119,7 @@ export default async function InquiryPage({
                 <div className="font-num mt-1 space-y-0.5 text-xs">
                   {results.get(q.id)!.cardPoint > 0 && (
                     <p className="text-violet-700">
-                      <i className="fa-solid fa-credit-card" aria-hidden /> 카드취소 환불{" "}
+                      <i className="fa-solid fa-credit-card" aria-hidden /> 결제취소 환불{" "}
                       <b>{results.get(q.id)!.cardWon.toLocaleString("ko-KR")}원</b>
                       <span className="text-zinc-400"> · 결제한 카드로 취소됨</span>
                     </p>

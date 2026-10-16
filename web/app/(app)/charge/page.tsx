@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/session";
-import { CARD_REFUND_TYPES, REFUND_POINT } from "@/lib/card-refund";
+import { CARD_REFUND_TYPES, CHARGE_REFUND, REFUND_POINT } from "@/lib/card-refund";
 import { prisma } from "@/lib/prisma";
 import { won, pt, ymdhm } from "@/lib/format";
 import { CHARGE_POINT_UNITS, CHARGE_FEE_RATE } from "@/lib/config";
@@ -9,7 +9,7 @@ import ChargeForm from "./ChargeForm";
 import Reveal from "@/components/Reveal";
 import ConfirmButton from "@/components/ConfirmButton";
 import { cardPaymentAvailable, paymentWindowConfig } from "@/lib/payments";
-import { payMethodLabel } from "@/lib/charge";
+import { payMethodBadge, payMethodLabel } from "@/lib/charge";
 
 export const dynamic = "force-dynamic";
 
@@ -53,10 +53,27 @@ export default async function ChargePage({
     }),
   ]);
 
+  // 카드취소 환불이 어느 충전 건(결제수단)의 취소인지: 관리자 환불은 relId 가 충전 주문,
+  // 환불신청분은 relId 가 문의라 사유의 "(충전 #N)" 에서 찾는다.
+  const refundOrderId = (l: (typeof logs)[number]) =>
+    Number(l.relType === CHARGE_REFUND ? l.relId : l.reason.match(/충전 #(\d+)/)?.[1]) || null;
+  const known = new Map(orders.map((o) => [o.id, o.legacyData]));
+  const missing = logs
+    .filter((l) => CARD_REFUND_TYPES.includes(l.relType))
+    .map(refundOrderId)
+    .filter((id): id is number => !!id && !known.has(id));
+  if (missing.length) {
+    const more = await prisma.chargeOrder.findMany({
+      where: { id: { in: missing }, userId: user.id },
+      select: { id: true, legacyData: true },
+    });
+    for (const o of more) known.set(o.id, o.legacyData);
+  }
+
   // 충전(ChargeOrder) + 환불/관리자조정(PointLog)을 한 내역으로 병합(날짜순)
   type Item =
     | { kind: "charge"; id: number; createdAt: Date; chargePoint: number; amount: number; status: string; payLabel: string | null }
-    | { kind: "refund"; id: number; createdAt: Date; amount: number; card: boolean }
+    | { kind: "refund"; id: number; createdAt: Date; amount: number; badge: ReturnType<typeof payMethodBadge> | null }
     | { kind: "adjust"; id: number; createdAt: Date; amount: number; reason: string };
   const items: Item[] = [
     ...orders.map((o) => ({
@@ -77,8 +94,8 @@ export default async function ChargePage({
             id: l.id,
             createdAt: l.createdAt,
             amount: l.amount,
-            // 카드 결제 취소로 돌려준 환불 vs 보유 포인트를 계좌로 돌려준 환불
-            card: CARD_REFUND_TYPES.includes(l.relType),
+            // 결제 취소로 돌려준 환불(결제수단 배지) vs 보유 포인트를 계좌로 돌려준 환불(null)
+            badge: CARD_REFUND_TYPES.includes(l.relType) ? payMethodBadge(known.get(refundOrderId(l) ?? 0)) : null,
           }
         : {
             kind: "adjust" as const,
@@ -227,14 +244,16 @@ export default async function ChargePage({
                       <p className="font-num text-base font-bold text-red-500">
                         {pt(it.amount)}{" "}
                         <span className="text-sm font-normal text-zinc-400">
-                          {it.card ? "카드 결제 취소" : "계좌 입금"}
+                          {it.badge ? `${it.badge.label} 결제 취소` : "계좌 입금"}
                         </span>
                       </p>
                       <p className="font-num mt-0.5 text-xs text-zinc-400">{ymdhm(it.createdAt)}</p>
                     </div>
-                    {it.card ? (
-                      <span className="flex shrink-0 items-center gap-1 rounded-md bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">
-                        <i className="fa-solid fa-credit-card" aria-hidden /> 카드취소 환불
+                    {it.badge ? (
+                      <span
+                        className={`flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold ${it.badge.cls}`}
+                      >
+                        <i className={`fa-solid ${it.badge.icon}`} aria-hidden /> {it.badge.label} 취소 환불
                       </span>
                     ) : (
                       <span className="flex shrink-0 items-center gap-1 rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">

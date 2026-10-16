@@ -13,7 +13,7 @@ import {
   deleteDeposit,
 } from "../actions";
 import { normDepositName } from "@/lib/config";
-import { cardRefundOf, cardRefundPlan } from "@/lib/charge";
+import { cardRefundOf, cardRefundPlan, payMethodLabel } from "@/lib/charge";
 import { pendingRefundOf } from "@/lib/card-refund";
 import ConfirmButton from "@/components/ConfirmButton";
 import { getPaymentProvider } from "@/lib/payments";
@@ -674,7 +674,7 @@ function DateGroup({
                       <>
                         <span className="flex items-center gap-1 whitespace-nowrap rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">
                           <i className="fa-solid fa-credit-card" aria-hidden />{" "}
-                          {o.status === "CANCELED" && isRefunded(o.legacyData) ? "카드취소 환불" : "카드"}
+                          {o.status === "CANCELED" && isRefunded(o.legacyData) ? "카드취소 환불" : payMethodLabel(o.legacyData)}
                         </span>
                         {o.status === "COMPLETED" && o.charged && o.pg === getPaymentProvider().name && (
                           <CardRefund o={o} />

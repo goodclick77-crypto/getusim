@@ -92,6 +92,17 @@ export async function expireStaleChargeOrders(): Promise<number> {
   }
 }
 
+/**
+ * 카드 충전 건의 결제수단 표시명. 페이플이 돌려준 PCD_PAY_METHOD 를 legacyData.payMethod 에 보관한다.
+ * 이 값을 저장하기 전의 주문이나 앱카드는 "카드".
+ */
+export function payMethodLabel(legacyData: unknown): string {
+  const m = ((legacyData ?? {}) as Record<string, unknown>).payMethod;
+  if (m === "kakaoPay") return "카카오페이";
+  if (m === "naverPay") return "네이버페이";
+  return "카드";
+}
+
 /** 카드 충전 건의 누적 환불 기록 (legacyData 에 보관 — refundedAt 은 전액 환불 완료 시각) */
 export type CardRefund = { point: number; amount: number };
 

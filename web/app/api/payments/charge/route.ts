@@ -40,9 +40,11 @@ export async function POST(req: Request) {
 
   const amount = chargeAmount(point);
   let txId: string;
+  let payMethod = "";
   try {
     const r = await provider.confirm({ token, orderId, amount, customerId: `U${user.id}` });
     txId = r.txId;
+    payMethod = r.payMethod || "";
   } catch (e) {
     console.error("[payments/charge] 승인 실패:", e);
     return NextResponse.json({ error: "결제 승인에 실패했습니다. 다시 시도해 주세요." });
@@ -59,7 +61,7 @@ export async function POST(req: Request) {
         status: "PENDING",
         pg: provider.name,
         pgTno: txId,
-        legacyData: { orderId },
+        legacyData: payMethod ? { orderId, payMethod } : { orderId },
       },
     });
     orderRowId = order.id;

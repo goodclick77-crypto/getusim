@@ -9,6 +9,7 @@ import ChargeForm from "./ChargeForm";
 import Reveal from "@/components/Reveal";
 import ConfirmButton from "@/components/ConfirmButton";
 import { cardPaymentAvailable, paymentWindowConfig } from "@/lib/payments";
+import { payMethodLabel } from "@/lib/charge";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default async function ChargePage({
 
   // 충전(ChargeOrder) + 환불/관리자조정(PointLog)을 한 내역으로 병합(날짜순)
   type Item =
-    | { kind: "charge"; id: number; createdAt: Date; chargePoint: number; amount: number; status: string; card: boolean }
+    | { kind: "charge"; id: number; createdAt: Date; chargePoint: number; amount: number; status: string; payLabel: string | null }
     | { kind: "refund"; id: number; createdAt: Date; amount: number; card: boolean }
     | { kind: "adjust"; id: number; createdAt: Date; amount: number; reason: string };
   const items: Item[] = [
@@ -65,7 +66,8 @@ export default async function ChargePage({
       chargePoint: o.chargePoint,
       amount: o.amount,
       status: o.status,
-      card: o.method !== "BANK_TRANSFER",
+      // 무통장입금이면 null
+      payLabel: o.method !== "BANK_TRANSFER" ? payMethodLabel(o.legacyData) : null,
     })),
     ...logs.map((l) =>
       // 환불 실패 복구(+) 같은 드문 건은 사유와 함께 조정 내역으로 보인다
@@ -194,7 +196,7 @@ export default async function ChargePage({
                         <span className="text-sm font-normal text-zinc-400">충전</span>
                       </p>
                       <p className="font-num mt-0.5 text-xs text-zinc-400">
-                        {it.card ? "카드결제" : "입금액"} {won(it.amount)} · {ymdhm(it.createdAt)}
+                        {it.payLabel ? `${it.payLabel} 결제` : "입금액"} {won(it.amount)} · {ymdhm(it.createdAt)}
                       </p>
                     </div>
                     <span

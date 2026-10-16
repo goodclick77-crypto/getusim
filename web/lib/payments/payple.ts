@@ -151,7 +151,7 @@ export class PayplePaymentProvider implements PaymentProvider {
       );
       throw new Error("[pay:payple] 승인 금액/주문번호 불일치");
     }
-    return { txId: packTx(oid, date, total), approvedAt: new Date(), raw: r };
+    return { txId: packTx(oid, date, total), approvedAt: new Date(), payMethod: r.PCD_PAY_METHOD || "", raw: r };
   }
 
   async cancel(p: CancelParams): Promise<CancelResult> {

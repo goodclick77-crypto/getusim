@@ -35,6 +35,8 @@ export type ApproveResult = {
   /** PG 거래번호. 취소·정산 대조에 쓴다. */
   txId: string;
   approvedAt: Date;
+  /** 회원이 고른 결제수단(페이플 PCD_PAY_METHOD: appCard·kakaoPay·naverPay). 모르면 비움 */
+  payMethod?: string;
   /** PG가 돌려준 원본(감사·분쟁 대응용 보관) */
   raw?: unknown;
 };

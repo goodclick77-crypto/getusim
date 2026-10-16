@@ -679,9 +679,9 @@ function DateGroup({
                           const b = payMethodBadge(o.legacyData);
                           return (
                             <span
-                              className={`flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-medium ${b.cls}`}
+                              className={`flex items-center whitespace-nowrap rounded py-0.5 font-medium ${refunded ? "gap-0.5 px-1 text-[10px] tracking-tighter" : "gap-1 px-1.5 text-[11px]"} ${b.cls}`}
                             >
-                              <i className={`fa-solid ${b.icon}`} aria-hidden /> {refunded ? `${b.label} 취소 환불` : b.label}
+                              <i className={`fa-solid ${b.icon}`} aria-hidden /> {refunded ? `${b.label} 취소환불` : b.label}
                             </span>
                           );
                         })()}

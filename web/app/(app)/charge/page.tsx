@@ -251,9 +251,9 @@ export default async function ChargePage({
                     </div>
                     {it.badge ? (
                       <span
-                        className={`flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold ${it.badge.cls}`}
+                        className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-semibold tracking-tight ${it.badge.cls}`}
                       >
-                        <i className={`fa-solid ${it.badge.icon}`} aria-hidden /> {it.badge.label} 취소 환불
+                        <i className={`fa-solid ${it.badge.icon}`} aria-hidden /> {it.badge.label} 취소환불
                       </span>
                     ) : (
                       <span className="flex shrink-0 items-center gap-1 rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">

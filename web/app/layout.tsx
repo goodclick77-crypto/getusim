@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import NaverAnalytics from "./NaverAnalytics";
-import TopNoticeBar from "@/components/TopNoticeBar";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://getusim.com"),
@@ -41,7 +40,6 @@ export default function RootLayout({
         <a href="#main" className="skip-link">
           본문 바로가기
         </a>
-        <TopNoticeBar />
         {children}
         <NaverAnalytics />
       </body>

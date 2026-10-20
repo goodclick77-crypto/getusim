@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, touchLastSeen } from "@/lib/session";
-import { clientIp } from "@/lib/ratelimit";
+import { clientIp, rateLimit, rateLimitLocal } from "@/lib/ratelimit";
 import { prisma } from "@/lib/prisma";
 import { fivesim, FiveSimError } from "@/lib/fivesim";
 import { getUsdKrw } from "@/lib/fx";
-import { notifyAdmin } from "@/lib/notify";
+import { notifyAdmin, notifyUrgent } from "@/lib/notify";
 import { markUnavailable, meansNoPhones } from "@/lib/unavailable";
 import { countryLabel, serviceLabel } from "@/lib/config";
 import {
@@ -15,8 +15,25 @@ import {
   SMS_FREE_THRESHOLD_USD,
   FIVESIM_MAX_PRICE,
   FIVESIM_MIN_STOCK,
+  SMS_WAIT_MS,
   smsPointPrice,
 } from "@/lib/config";
+
+// 5sim 계정은 전 회원이 같이 쓴다 — 한 회원이 연달아 받고 취소하면 5sim 쪽 계정 점수(rating)가
+// 깎이거나 요청이 막혀 모든 회원의 발급이 멈출 수 있다. 그래서 회원별로 횟수·동시 진행을 제한한다.
+const NUMBER_PER_MIN = 3;
+const BUSY_MSG =
+  "이미 받은 번호가 인증코드를 기다리는 중입니다. 먼저 받은 번호를 마무리(취소)한 뒤 다시 받아주세요.";
+
+// 코드 대기 중(3분 이내)인 미수신 발급건 조건. 3분이 지나면 스케줄러가 밴·정리한다.
+function waitingWhere(userId: number) {
+  return {
+    userId,
+    status: "PENDING" as const,
+    expiresAt: { gt: new Date() },
+    createdAt: { gt: new Date(Date.now() - SMS_WAIT_MS) },
+  };
+}
 
 // 예상치 못한 오류(공급사 비-JSON 응답 / 네트워크 / DB 등)일 때 사용자에게 보여줄 중립 안내.
 // ⚠️ 공급사(5sim 등) 정보는 절대 노출하지 않는다. 실제 원인은 서버 로그로만 남긴다.
@@ -40,6 +57,19 @@ export async function POST(req: Request) {
     ) {
       return NextResponse.json({ error: "국가와 서비스를 선택하세요" }, { status: 400 });
     }
+
+    // 동시 발급 금지 — 코드 대기 중인 번호가 있으면 새로 받지 않는다.
+    if (await prisma.numberRental.count({ where: waitingWhere(user.id) })) {
+      return NextResponse.json({ error: "busy", message: BUSY_MSG });
+    }
+    // 1분에 3번까지. 넘으면 5sim 에는 요청 자체를 보내지 않는다.
+    if (!(await rateLimit(`sms-number:${user.id}`, NUMBER_PER_MIN, 60_000))) {
+      return NextResponse.json({
+        error: "rate",
+        message: `번호 받기는 1분에 ${NUMBER_PER_MIN}번까지 가능합니다. 잠시 후 다시 시도해 주세요.`,
+      });
+    }
+
     if (user.point < SMS_MIN_POINT) {
       return NextResponse.json({
         error: "need",
@@ -103,8 +133,23 @@ export async function POST(req: Request) {
         console.error("[sms/number] 구매 실패:", country, service, e.status, e.message);
         // "번호 없음"이면 이 조합을 잠시 목록·추천에서 뺀다(5sim 재고 표시를 못 믿는다).
         // 잔액·rating 같은 계정 전체 문제까지 제외해버리면 전 국가가 사라지므로 메시지를 가려서 본다.
-        if (meansNoPhones(e.message)) markUnavailable(country, service);
-        return NextResponse.json({ error: "00" });
+        if (meansNoPhones(e.message)) {
+          markUnavailable(country, service);
+          return NextResponse.json({ error: "00" });
+        }
+        // 번호 없음이 아닌 실패(점수 부족·요청 과다·잔액 부족·인증 오류 등)는 계정 전체 문제일 수 있어
+        // 관리자에게 바로 알린다(같은 오류는 10분에 한 번만). 회원에겐 다른 국가를 골라도 소용없으니
+        // "번호 없음" 대신 잠시 후 재시도 안내를 보여준다.
+        if (rateLimitLocal(`fivesim-alert:${e.status}:${e.message.slice(0, 40)}`, 1, 10 * 60_000)) {
+          await notifyUrgent(
+            "5sim 번호 구매 실패",
+            `국가/서비스: ${countryLabel(country)} / ${serviceLabel(service)}\n회원: ${user.name || user.loginId}\n상태코드: ${e.status}\n응답: ${e.message.slice(0, 500)}`,
+          );
+        }
+        return NextResponse.json({
+          error: "down",
+          message: "일시적인 문제로 발급이 잠시 중단되었습니다. 잠시 후 다시 시도해 주세요.",
+        });
       }
       throw e; // 네트워크 등 예상 밖 → 아래 상위 catch에서 중립 메시지 + 로깅
     }
@@ -159,6 +204,8 @@ export async function POST(req: Request) {
     try {
       rental = await prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${user.id})`;
+        // 동시에 들어온 요청이 둘 다 위의 검사를 통과했을 수 있다 → 잠금 안에서 한 번 더 확인.
+        if (await tx.numberRental.count({ where: waitingWhere(user.id) })) return "busy" as const;
         const fresh = await tx.user.findUnique({ where: { id: user.id }, select: { point: true } });
         const agg = await tx.numberRental.aggregate({
           where: { userId: user.id, status: "PENDING", expiresAt: { gt: new Date() } },
@@ -188,6 +235,12 @@ export async function POST(req: Request) {
         await fivesim.cancel(order.id);
       } catch {}
       throw e;
+    }
+    if (rental === "busy") {
+      try {
+        await fivesim.cancel(order.id);
+      } catch {}
+      return NextResponse.json({ error: "busy", message: BUSY_MSG });
     }
     if (!rental) {
       try {

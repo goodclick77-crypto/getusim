@@ -141,6 +141,16 @@ export async function notifySecurity(subject: string, body: string) {
   }
 }
 
+/** 긴급 운영 알림(5sim 계정 차단 등). 알림 설정과 무관하게 항상 발송. 실패는 무시. */
+export async function notifyUrgent(subject: string, body: string) {
+  try {
+    if (!mailerConfigured()) return;
+    await deliver(`[긴급] ${subject}`, body);
+  } catch (e) {
+    console.error("[notify:urgent]", e);
+  }
+}
+
 /** 특정 회원 주소로 메일 발송(아이디/비밀번호 찾기 등). 실패 시 throw. */
 export async function sendMail(to: string, subject: string, text: string) {
   if (!mailerConfigured()) {
